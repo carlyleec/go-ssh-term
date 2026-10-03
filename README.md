@@ -1,7 +1,8 @@
 # Browser SSH Gateway
 
-A Go and React browser SSH gateway in development. The frontend currently shows
-an initial placeholder. The landing page and application routes are still to come.
+A Go and React browser SSH gateway in development. The frontend has a landing
+page at `/` and placeholder pages at `/login` and `/connections`. Account access
+and SSH features are not implemented; the connections preview is currently public.
 
 ## Development with Docker
 
@@ -103,3 +104,18 @@ make down
 This standalone development setup covers the Go and frontend scaffolds.
 Postgres, the demo image, and integration into a shared Compose base with a
 development override remain later Slice 1 tasks.
+
+## Frontend routes
+
+TanStack Router reads route files from `frontend/src/routes`. `__root.tsx` defines
+the shared layout; `index.tsx`, `login.tsx`, and `connections.tsx` define the pages.
+Each route file contains its page component.
+
+Vite regenerates `src/routetree.gen.ts` as routes change. Type checking and builds
+also generate it first. Keep this generated file in source control alongside route
+changes; do not edit it manually. To regenerate it explicitly on the host:
+
+```sh
+cd frontend
+bun run routes
+```

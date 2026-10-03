@@ -1,6 +1,6 @@
 # Use Bun and TypeScript for the frontend toolchain
 
-Status: Accepted
+Status: Accepted; routing choice superseded by [004](004-file-based-routing.md).
 
 ## Context
 
@@ -18,8 +18,9 @@ Use Biome for frontend formatting, recommended lint rules, and import organizati
 Enable Tailwind directive parsing and exclude generated artifacts explicitly.
 Keep TypeScript checking separate from Biome checks.
 
-Define TanStack Router routes in code for the small route set. Continue using
-Vite for frontend builds and hot updates as specified in the development workflow.
+The original choice of code-defined routes is superseded by
+[file-based routing](004-file-based-routing.md). Continue using Vite for frontend
+builds and hot updates as specified in the development workflow.
 
 ## Consequences
 
@@ -29,5 +30,5 @@ and Docker dependency installations from the same lockfile: the host editor read
 host Go and Bun versions in `.tool-versions` and install editor dependencies with
 `make setup`. Download caches and container build output remain in Docker volumes.
 
-Builds must be checked under the pinned Bun runtime. Route additions are explicit
-TypeScript changes and do not require generated route files.
+Builds must be checked under the pinned Bun runtime. Route generation is governed
+by the replacement routing decision.

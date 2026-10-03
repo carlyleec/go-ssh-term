@@ -2,6 +2,8 @@
 
 This is a small Go and React browser SSH gateway built as a learning and portfolio project. Keep changes focused, readable, and organized by vertical slice. The user prefers to write most application code themselves: provide guidance or review unless they ask for implementation. A request to implement a task authorizes that task, not the rest of the plan.
 
+Keep frontend page components in their file-based route files. Extract components when reuse or meaningful complexity warrants it. Do not introduce parallel `features` or `pages` directories just to wrap them with route files.
+
 ## Use the project documents
 
 - [PRD.md](PRD.md) defines product scope, behavior, acceptance criteria, and exclusions. Read the relevant slice and any applicable cross-cutting requirements.

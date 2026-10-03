@@ -12,7 +12,8 @@
     "format": "bun --bun biome format --write .",
     "lint": "bun --bun biome lint .",
     "check": "bun --bun biome check .",
-    "typecheck": "bun --bun tsc --noEmit",
+    "routes": "bun --bun tsr generate",
+    "typecheck": "bun run routes && bun --bun tsc --noEmit",
     "build": "bun run typecheck && bun --bun vite build",
     "preview": "bun --bun vite preview"
   },
@@ -24,6 +25,8 @@
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
     "@tailwindcss/vite": "4.3.3",
+    "@tanstack/router-cli": "1.167.40",
+    "@tanstack/router-plugin": "1.168.42",
     "@types/node": "26.6.4",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

@@ -1,14 +1,17 @@
 COMPOSE := docker compose -f compose.dev.yaml
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down logs ps test format fix lint typecheck check build frontend-restart
+.PHONY: help setup up down logs ps test format fix lint typecheck check build frontend-restart migrate migrate-status generate
 
 help:
 	@printf '%s\n' \
 	  'make setup             Install pinned host tools and editor dependencies' \
+	  'make migrate           Start Postgres and apply pending SQL migrations' \
+	  'make migrate-status    Show applied and pending migrations' \
+	  'make generate          Generate Go queries with sqlc' \
 	  'make up                Start development servers (Ctrl-C stops them)' \
 	  'make down              Remove development containers; preserve volumes' \
-	  'make logs              Follow Go and frontend logs' \
+	  'make logs              Follow Go, frontend, and Postgres logs' \
 	  'make ps                Show service status' \
 	  'make test              Run Go package tests' \
 	  'make format            Format frontend files' \
@@ -34,7 +37,7 @@ down:
 	$(COMPOSE) down
 
 logs:
-	$(COMPOSE) logs -f app frontend
+	$(COMPOSE) logs -f app frontend postgres
 
 ps:
 	$(COMPOSE) ps
@@ -63,3 +66,14 @@ build:
 
 frontend-restart:
 	$(COMPOSE) up -d --force-recreate frontend
+
+migrate:
+	$(COMPOSE) up -d --wait postgres
+	$(COMPOSE) run --rm --no-deps -T dbmate
+
+migrate-status:
+	$(COMPOSE) up -d --wait postgres
+	$(COMPOSE) run --rm --no-deps -T dbmate status
+
+generate:
+	$(COMPOSE) run --rm --no-deps -T sqlc generate

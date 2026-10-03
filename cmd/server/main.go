@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/carlyleec/go-ssh-term/internal/config"
+	"github.com/carlyleec/go-ssh-term/internal/database"
 	"github.com/carlyleec/go-ssh-term/internal/web"
 )
 
@@ -28,6 +29,11 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
+	pool, err := database.Open(ctx, cfg.DatabaseURL)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
 	mux := http.NewServeMux()
 	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}

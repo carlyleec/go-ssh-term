@@ -42,11 +42,11 @@ Developers open one documented localhost URL served by Vite. Vite proxies API re
 
 An Air restart ends live SSH sessions; it does not preserve running shells. Persistent accounts, keys, and saved connections remain available. Frontend hot updates are a development convenience, not a guarantee of terminal-state preservation.
 
-The README documents commands to start each mode, view logs, run migrations and tests, and stop containers without removing data. Destructive volume reset is a separate, explicitly labeled command. Pin development tools and keep generated output and dependency caches out of source control.
+The README documents commands to start each mode, view logs, run migrations and tests, and stop containers without removing data. Destructive volume reset is a separate, explicitly labeled command. Pin development tools and keep build output and dependency caches out of source control. Commit generated route and query source alongside their inputs.
 
 **Acceptance criteria**
 
-- Documented `docker compose up --build` starts the application and Postgres from a fresh checkout.
+- After the documented migration setup, `docker compose up --build` starts the application and Postgres from a fresh checkout.
 - The landing page explains the project and links to account access.
 - Direct navigation and refresh work for React routes; unknown API paths do not return the SPA HTML.
 - Persistent database data survives ordinary container recreation.

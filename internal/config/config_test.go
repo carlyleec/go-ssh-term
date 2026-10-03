@@ -14,11 +14,12 @@ func TestDefaults(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	t.Setenv("DATABASE_URL", "postgres://gateway@postgres:5432/gateway")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.HTTPAddr != ":8080" || cfg.BrowserOrigin != "http://127.0.0.1:8080" || cfg.ShutdownTimeout != 5*time.Second || cfg.DatabaseURL != "" {
+	if cfg.HTTPAddr != ":8080" || cfg.BrowserOrigin != "http://127.0.0.1:8080" || cfg.ShutdownTimeout != 5*time.Second {
 		t.Fatal("unexpected defaults")
 	}
 }
@@ -26,7 +27,7 @@ func TestDefaults(t *testing.T) {
 func setValidEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("HTTP_ADDR", ":8080")
-	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_URL", "postgres://gateway@postgres:5432/gateway")
 	t.Setenv("BROWSER_ORIGIN", "http://127.0.0.1:5173")
 	t.Setenv("SHUTDOWN_TIMEOUT", "5s")
 }
@@ -51,7 +52,7 @@ func TestInvalidConfig(t *testing.T) {
 		{"BROWSER_ORIGIN", "http://localhost:5173/"}, {"BROWSER_ORIGIN", "http://user:secret@localhost"},
 		{"BROWSER_ORIGIN", "http://localhost?secret=yes"}, {"BROWSER_ORIGIN", "http://localhost#fragment"},
 		{"BROWSER_ORIGIN", "ftp://localhost"}, {"BROWSER_ORIGIN", "http://localhost:99999"}, {"BROWSER_ORIGIN", ""},
-		{"DATABASE_URL", "postgres://user:secret%zz@db/app"}, {"DATABASE_URL", "https://db/app"},
+		{"DATABASE_URL", "postgres://user:secret%zz@db/app"}, {"DATABASE_URL", "https://db/app"}, {"DATABASE_URL", ""},
 		{"SHUTDOWN_TIMEOUT", "0s"}, {"SHUTDOWN_TIMEOUT", "-1s"}, {"SHUTDOWN_TIMEOUT", "five"}, {"SHUTDOWN_TIMEOUT", ""},
 	} {
 		t.Run(tc.key+"/"+tc.value, func(t *testing.T) {
@@ -68,9 +69,10 @@ func TestInvalidConfig(t *testing.T) {
 	}
 }
 
-func TestOptionalDatabase(t *testing.T) {
+func TestRequiredDatabase(t *testing.T) {
 	setValidEnv(t)
-	if _, err := Load(); err != nil {
-		t.Fatal(err)
+	t.Setenv("DATABASE_URL", "")
+	if _, err := Load(); err == nil {
+		t.Fatal("expected missing database URL error")
 	}
 }

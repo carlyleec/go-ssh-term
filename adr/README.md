@@ -12,6 +12,7 @@ Number records independently within each area. Each record states its context, d
 - [004 Separate saved connections from live sessions](api/004-connection-lifecycle.md)
 - [005 Support one SSH jump and a limited config importer](api/005-ssh-configuration.md)
 - [006 Record connection events without terminal contents](api/006-audit-events.md)
+- [007 Use sqlc, pgx, and dbmate for database access](api/007-database-tooling.md)
 
 ## Auth
 

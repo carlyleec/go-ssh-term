@@ -9,6 +9,7 @@ and SSH features are not implemented; the connections preview is currently publi
 With Docker running and Make installed, start the Go and frontend development servers:
 
 ```sh
+make migrate
 make up
 ```
 
@@ -19,7 +20,7 @@ you edit React components or styles. The Go server serves the compiled frontend
 at http://127.0.0.1:8080 after `make build`. API proxying through Vite remains
 a later task.
 
-Air rebuilds and restarts Go when Go source changes. Go build errors appear in
+Air rebuilds and restarts Go when Go source or SQL migrations change. Go build errors appear in
 the container logs and stop the previous server until the build succeeds.
 Frontend files are excluded from Air's watcher. Both watchers poll mounted source
 to support Docker Desktop reliably.
@@ -56,7 +57,7 @@ Run `make help` (or just `make`) to list the available commands. Targets wrap
 With `make up` running in one terminal, use another terminal for:
 
 ```sh
-make logs       # Follow both services' logs
+make logs       # Follow Go, frontend, and Postgres logs
 make ps         # Show service status
 make check      # Go tests, Biome checks, and TypeScript checks
 make test       # Go package tests only
@@ -115,8 +116,8 @@ Stop the services while preserving volumes:
 make down
 ```
 
-This standalone development setup covers the Go and frontend scaffolds.
-Postgres, the demo image, and integration into a shared Compose base with a
+This standalone development setup includes Go, the frontend, and persistent
+Postgres. The demo image and integration into a shared Compose base with a
 development override remain later Slice 1 tasks.
 
 ## Frontend routes
@@ -144,15 +145,17 @@ not load `.env` files. Export the variables explicitly when running Go locally.
 | Setting | Go default | Meaning |
 | --- | --- | --- |
 | `HTTP_ADDR` | `:8080` | Listen address in `host:port` form, including `:port` or `[IPv6]:port`. |
-| `DATABASE_URL` | Empty | Optional Postgres URL for the upcoming database connection. |
+| `DATABASE_URL` | Required | Postgres connection URL; Compose supplies the local development URL. |
 | `BROWSER_ORIGIN` | `http://127.0.0.1:8080` | Exact browser origin, without a trailing slash, path, query, or credentials. |
 | `SHUTDOWN_TIMEOUT` | `5s` | Positive Go duration for draining HTTP requests on SIGINT or SIGTERM. |
 
 Compose defaults `BROWSER_ORIGIN` to `http://127.0.0.1:5173` for Vite. Use the
 8080 origin when testing Go-served assets. Origin validation here checks config
 syntax only; request-origin enforcement and WebAuthn are implemented with auth.
-Database URLs are syntax-checked without logging their contents. No database
-connection is opened yet, and an empty URL remains allowed until that is added.
+Database URLs are syntax-checked without logging their contents. Startup requires
+a reachable database with the expected migration history before opening the HTTP
+listener. An explicitly empty `DATABASE_URL` fails; if an older `.env` contains
+an empty value, replace it with the development URL in `.env.example`.
 
 Changing `HTTP_ADDR` does not change Compose's published port automatically. Keep
 its container port mapping in sync, and use an unspecified host (`:8080`) to
@@ -170,3 +173,55 @@ Environment changes require recreating the Go service:
 ```sh
 docker compose -f compose.dev.yaml up -d --force-recreate app
 ```
+
+## Database and queries
+
+Development uses Postgres 18.1 with a named `postgres-data` volume. Ordinary
+container recreation and `make down` preserve it. Unlike build caches, this volume
+contains application data. Postgres is reachable as `postgres:5432` inside Compose
+and has no published host port. The fixed `gateway` / `gateway-local-only`
+credentials are for this disposable local lab only. To run Go on the host, provide
+a reachable Postgres URL; the Compose hostname does not resolve on the host.
+
+Run `make migrate` before the first startup and whenever you pull new migrations.
+It starts Postgres, waits for readiness, and runs pinned dbmate with strict ordering.
+Repeated runs apply only pending migrations. `make migrate-status` shows the ledger.
+The Go process checks migration versions but never applies migrations itself.
+The pool allows up to ten connections, uses a five-second startup deadline, and
+closes after HTTP shutdown. Missing, pending, or unknown migration versions prevent
+startup. This checks migration history, not manual schema drift.
+
+SQL migrations in `db/migrations` are the schema source for both dbmate and sqlc;
+we disable dbmate's separate schema dump. The initial migration establishes the
+ledger without introducing feature tables. Add those tables with their slices.
+Create a migration using:
+
+```sh
+docker compose -f compose.dev.yaml run --rm --no-deps -T dbmate new create_accounts
+```
+
+Write SQL under the generated `-- migrate:up` and `-- migrate:down` markers. Keep
+applied migrations immutable; add a new timestamped migration for subsequent
+changes. Apply it with `make migrate`. Air watches SQL files, but if it previously
+stopped because a migration was pending, restart Go after applying it:
+
+```sh
+docker compose -f compose.dev.yaml restart app
+```
+
+Write named queries in `db/queries` and run `make generate`. sqlc generates typed
+Go methods for pgx in `internal/database/queries`. Review and commit generated Go
+with its SQL changes; do not edit it manually. Feature handlers can use these
+methods directly without an additional repository layer.
+
+`make test` runs package tests. For database integration checks, run:
+
+```sh
+docker compose -f compose.dev.yaml run --rm --no-deps -T \
+  -e 'TEST_DATABASE_URL=postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable' \
+  app go test -race ./...
+```
+
+Start Postgres first (`make migrate`). These checks create and remove uniquely
+named test databases; the test role needs database-creation privileges. Without
+`TEST_DATABASE_URL`, database integration checks are skipped.

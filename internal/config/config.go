@@ -33,11 +33,12 @@ func Load() (Config, error) {
 	if origin.Port() != "" && !validPort(origin.Port()) {
 		return Config{}, fmt.Errorf("BROWSER_ORIGIN port must be from 1 to 65535")
 	}
-	if cfg.DatabaseURL != "" {
-		database, err := url.Parse(cfg.DatabaseURL)
-		if err != nil || (database.Scheme != "postgres" && database.Scheme != "postgresql") || database.Hostname() == "" {
-			return Config{}, fmt.Errorf("DATABASE_URL must be a postgres:// or postgresql:// URL with a host")
-		}
+	if cfg.DatabaseURL == "" {
+		return Config{}, fmt.Errorf("DATABASE_URL is required")
+	}
+	database, err := url.Parse(cfg.DatabaseURL)
+	if err != nil || (database.Scheme != "postgres" && database.Scheme != "postgresql") || database.Hostname() == "" {
+		return Config{}, fmt.Errorf("DATABASE_URL must be a postgres:// or postgresql:// URL with a host")
 	}
 	cfg.ShutdownTimeout, err = time.ParseDuration(value("SHUTDOWN_TIMEOUT", "5s"))
 	if err != nil || cfg.ShutdownTimeout <= 0 {

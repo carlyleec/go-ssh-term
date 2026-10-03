@@ -8,7 +8,7 @@ Accounts, credentials, saved connections, and host trust must survive container 
 
 ## Decision
 
-Use Postgres with migrations and persistent Docker storage for accounts, public passkey credentials, login sessions, encrypted SSH keys, saved connections, host trust, and audit events. Keep active SSH connections in Go memory.
+Use Postgres with migrations and persistent Docker storage for accounts, public passkey credentials, login sessions, encrypted SSH keys, saved connections, host trust, and audit events. Keep active SSH connections in Go memory. Use [sqlc, pgx, and dbmate](007-database-tooling.md) for queries, pooling, and migrations.
 
 ## Consequences
 

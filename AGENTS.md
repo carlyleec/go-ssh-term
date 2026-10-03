@@ -22,6 +22,9 @@ Start with the requested task and relevant documents; avoid rereading every docu
 
 ## Commit messages and code comments
 
+- Use lowercase filenames for application code, including React components; keep React component identifiers in PascalCase. Preserve established documentation filenames such as `README.md` and `AGENTS.md`.
+
+- Always leave changes uncommitted for the user to review. Creating or amending a commit requires explicit user approval after that review; permission to implement is not permission to commit.
 - Describe concrete behavior and rationale in commit messages and code comments; do not reference development-plan task IDs there.
 - Use a concise, descriptive commit subject and a body explaining what changed, why, and relevant verification or limitations. Write for a reader who has not seen the plan or conversation.
 - Keep code comments focused on intent, constraints, or non-obvious behavior rather than work tracking or implementation history.

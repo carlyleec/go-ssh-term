@@ -1,6 +1,6 @@
 services:
   app:
-    image: golang:1.26.0
+    image: golang:1.27.0
     working_dir: /app
     environment:
       GOTOOLCHAIN: local
@@ -13,7 +13,22 @@ services:
       - "127.0.0.1:8080:8080"
     command: ["go", "tool", "air"]
 
+  frontend:
+    image: oven/bun:1.4.2
+    working_dir: /app
+    volumes:
+      - ./frontend:/app
+      - frontend-deps:/app/node_modules
+      - frontend-build:/app/dist
+      - bun-cache:/root/.bun/install/cache
+    ports:
+      - "127.0.0.1:5173:5173"
+    command: ["sh", "-c", "bun install --frozen-lockfile && exec bun run dev"]
+
 volumes:
   go-mod:
   go-build:
   go-tmp:
+  frontend-deps:
+  frontend-build:
+  bun-cache:

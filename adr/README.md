@@ -23,6 +23,7 @@ Number records independently within each area. Each record states its context, d
 
 - [001 Serve a React application from Go](frontend/001-react-and-go.md)
 - [002 Use xterm.js in a tabbed workspace](frontend/002-terminal-workspace.md)
+- [003 Use Bun and TypeScript for the frontend toolchain](frontend/003-bun-and-typescript.md)
 
 ## Docker
 

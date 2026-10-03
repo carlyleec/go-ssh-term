@@ -98,13 +98,13 @@ Provide a key-management modal for uploading, naming, listing, and deleting SSH 
 
 **Acceptance criteria**
 
-- Valid private keys without passphrases can be uploaded; invalid and passphrase-protected keys receive clear errors.
+- Uploads accept one unencrypted Ed25519 private key in OpenSSH format, at most 16 KiB per file, with optional surrounding whitespace. Invalid, unsupported, oversized, and passphrase-protected keys receive clear errors.
 - List responses expose identifying metadata, never stored private-key contents.
 - A key remains usable after container restart while both persistent volumes remain intact.
 - Deletion is blocked while a saved connection references the key.
 - Missing encryption material produces an actionable error instead of silently replacing the key and making existing data unreadable.
 - Documentation explains that losing the encryption-key volume requires re-uploading SSH keys, and that access to both volumes defeats this protection.
-- The repository includes a clearly labeled demo-only private key whose public key is authorized on the lab hosts.
+- The repository includes one clearly labeled, intentionally public demo-only Ed25519 key pair, shared by the local lab hosts. Users can upload its private key; its public key is authorized on the lab hosts.
 
 ## Slice 4 Saved connections and a first terminal
 

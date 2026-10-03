@@ -92,14 +92,14 @@ Slices 1 and 2 record the completed Postgres implementation. Slice 2.5 replaces 
 
 **Related ADRs:** [SSH key storage](adr/auth/002-ssh-key-storage.md).
 
-- [ ] **S3.1** Choose and document accepted private-key formats and an upload-size limit. Validate keys with the SSH library and reject encrypted keys with a clear unsupported-passphrase message.
+- [ ] **S3.1** Implement the upload policy recorded in Auth ADR 002: one unencrypted OpenSSH Ed25519 private key per file, at most 16 KiB including optional surrounding whitespace. Validate with the SSH library and enforce the format and algorithm restrictions. Return clear validation errors, including an unsupported-passphrase message. Verify valid keys, surrounding whitespace, malformed input, unsupported formats/algorithms, extra content, protected keys, and size boundaries with focused validator tests.
 - [ ] **S3.2** Add the SSH key schema with owner, name, public fingerprint, encrypted private material, and creation time.
 - [ ] **S3.3** Generate application encryption material on first initialization and persist it in a separate Docker volume in both run modes. Fail clearly if existing encrypted records cannot be decrypted.
 - [ ] **S3.4** Implement authenticated encryption using a standard Go primitive, unique nonces, and explicit error handling. Keep encryption material and plaintext keys out of logs and API responses.
 - [ ] **S3.5** Implement user-scoped upload, list, and delete endpoints. Return only safe metadata after upload; do not provide private-key download.
 - [ ] **S3.6** Build a key-management modal with upload, naming, list, delete, pending states, and validation errors.
-- [ ] **S3.7** Create and label a repository demo-only key pair for the lab. Document upload steps and the consequences of losing either persistent volume.
-- [ ] **S3.8** Test malformed and passphrase-protected uploads, encryption round trips, tamper rejection, missing encryption material, and cross-user list/delete attempts.
+- [ ] **S3.7** Create one intentionally public, demo-only OpenSSH Ed25519 key pair under `demo/keys/`, named `demo_ed25519` and `demo_ed25519.pub`, for reuse across the local lab hosts. Add a README with upload steps and the local-only purpose. Document the consequences of losing either persistent volume and distinguish demo SSH credentials from application encryption material.
+- [ ] **S3.8** Test upload endpoint enforcement of the S3.1 validation policy, encryption round trips, tamper rejection, missing encryption material, and cross-user list/delete attempts.
 - [ ] **S3.9** Verify key metadata and decryptability survive container recreation. Add reference-protected deletion when saved connections are introduced in Slice 4.
 
 ## Slice 4 Saved connections and a first terminal

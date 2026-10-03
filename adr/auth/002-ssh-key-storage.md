@@ -8,9 +8,11 @@ The gateway needs SSH credentials to connect on a user's behalf. Passkeys authen
 
 ## Decision
 
-Store named, user-owned SSH private keys encrypted in Postgres. Generate the application encryption key on first initialization and retain it in a separate Docker volume. Decrypt SSH keys on the server when needed. Accept only private keys without passphrases in v1 and return only identifying metadata through key-management APIs.
+Store named, user-owned SSH private keys encrypted in SQLite, following [SQLite storage](../api/008-sqlite-storage.md). Generate the application encryption key on first initialization and retain it in a separate Docker volume. Decrypt SSH keys on the server when needed and return only identifying metadata through key-management APIs.
 
-Allow reuse across saved connections and block deletion while referenced. Include a clearly labeled demo-only key in the repository for the lab.
+Accept only unencrypted Ed25519 private keys in OpenSSH private-key format (`BEGIN OPENSSH PRIVATE KEY`). Limit each uploaded key file to 16 KiB (16,384 bytes), including surrounding whitespace. Require exactly one private key, allowing surrounding whitespace but no additional content. Validate with the SSH library and enforce the format and algorithm restrictions even if the library supports more types. Reject passphrase-protected keys with a clear unsupported-passphrase message; reject malformed, oversized, and unsupported keys with clear validation errors.
+
+Allow reuse across saved connections and block deletion while referenced. Include one unencrypted Ed25519 demo key pair under `demo/keys/` as `demo_ed25519` and `demo_ed25519.pub`, with a README. Users upload the private key; the bastion and targets authorize the matching public key when the lab hosts are introduced. Label the private key as intentionally public and only for the disposable local lab. This demo SSH identity is separate from application encryption material, which must never be committed.
 
 ## Consequences
 

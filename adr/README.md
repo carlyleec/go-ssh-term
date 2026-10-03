@@ -51,4 +51,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Remaining SSH and WebSocket libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.
+The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats and the upload-size limit are recorded in Auth 002. Remaining SSH and WebSocket libraries, SSH config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.

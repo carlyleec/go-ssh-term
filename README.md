@@ -2,7 +2,7 @@
 
 A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/`, passkey account access at `/login`, and a protected placeholder
-workspace at `/connections`. SSH features and logout are not implemented yet.
+workspace at `/connections`. SSH features are not implemented yet.
 
 ## Demo with Docker
 
@@ -355,7 +355,7 @@ new session is saved; if session saving fails, retry with a fresh login ceremony
 Other login sessions for the account remain valid.
 
 The browser passkey UI, current-user endpoint, and authorization middleware are
-implemented. Logout and active-page expiry handling remain pending Slice 2 tasks.
+implemented. The workspace includes sign-out and observes session expiry.
 
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP
@@ -428,10 +428,25 @@ responses are not cached by HTTP and do not extend the session lifetime.
 
 The `/connections` route checks this endpoint before rendering and redirects
 signed-out users to `/login`. Signed-in users visiting `/login` return to the
-workspace. Connection failures show a retry screen. Logout and active-page expiry
-handling are still pending; account recovery remains unavailable.
+workspace. Connection failures show a retry screen; account recovery remains
+unavailable. The workspace rechecks the session every 30 seconds while visible
+and on visibility/reconnect. A confirmed expired session returns to login;
+background timer throttling may delay UI updates, but server checks still reject
+expired sessions immediately.
 
 Future private API handlers must use `Access.Require` and scope resource queries
 to `AccountFromContext`. The middleware also enforces the configured Origin on
 unsafe requests and WebSocket upgrades. Serving the SPA shell does not authorize
 API access.
+
+`POST /api/auth/logout` requires the configured Origin and JSON content type. It
+deletes only the current server session, expires its cookie, and returns 204.
+Missing or already expired sessions also return 204. Storage failures return 503
+without reporting successful logout. The workspace's Sign out button clears
+cached data after success; uncertain failures offer a manual retry.
+
+Future terminals must use `SessionFromContext` for their non-secret login-session
+owner ID and absolute deadline. `Access.OnLogout` provides a synchronous cleanup
+callback after session deletion. Terminal deadline enforcement and coordination
+with in-flight connection creation belong to the terminal implementation; database
+cleanup is not an expiry notification.

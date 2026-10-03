@@ -44,6 +44,7 @@ func run() error {
 	mux := http.NewServeMux()
 	access := auth.NewAccess(sessions, pool, cfg.RPID, cfg.BrowserOrigin)
 	mux.Handle("GET /api/auth/me", access.CurrentUser())
+	mux.Handle("POST /api/auth/logout", access.Logout())
 	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, pool, cfg.BrowserOrigin))
 	mux.Handle("/api/auth/login/", auth.NewLogin(wa, sessions, pool, cfg.BrowserOrigin))
 	mux.Handle("GET /api/readyz", readiness(pool.Ping, os.DirFS("frontend/dist")))

@@ -35,5 +35,6 @@ which checks the server again. Do not persist account identity in browser storag
 
 The workspace page is private and displays the verified account name. Go may
 still serve the public SPA shell at /connections; client redirects govern UI,
-while server middleware enforces API access. Active-page session-expiry behavior,
-logout invalidation, and terminal cleanup remain separate lifecycle work.
+while server middleware enforces API access. Active-page session expiry and logout follow
+[the lifecycle decision](010-logout-and-session-expiry.md). Terminal cleanup
+remains part of the terminal slices.

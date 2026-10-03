@@ -27,6 +27,8 @@ Number records independently within each area. Each record states its context, d
 
 - [009 Verify server sessions before granting workspace access](auth/009-current-user-and-route-protection.md)
 
+- [010 Invalidate the current login session and observe expiry](auth/010-logout-and-session-expiry.md)
+
 ## Frontend
 
 - [001 Serve a React application from Go](frontend/001-react-and-go.md)

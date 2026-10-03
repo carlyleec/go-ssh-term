@@ -29,6 +29,9 @@ func AccountFromContext(ctx context.Context) (Account, bool) {
 }
 
 type Access struct {
+	// OnLogout is configured at startup and called after session deletion, before
+	// success. It must be concurrency-safe and idempotent for repeated requests.
+	OnLogout func(LoginSession)
 	sessions *scs.SessionManager
 	origin   string
 	lookup   func(context.Context, uuid.UUID) (Account, error)
@@ -62,7 +65,9 @@ func (a *Access) Require(next http.Handler) http.Handler {
 			authError(w, http.StatusServiceUnavailable, "could not load account; try again")
 			return
 		}
-		next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), accountContextKey{}, account)))
+		ctx := context.WithValue(r.Context(), accountContextKey{}, account)
+		ctx = context.WithValue(ctx, loginSessionContextKey{}, a.loginSession(r.Context()))
+		next.ServeHTTP(w, r.WithContext(ctx))
 	}))
 	guarded := RequireOrigin(a.origin, authenticated)
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

@@ -35,8 +35,8 @@ docker compose down
 ```
 
 Ordinary shutdown preserves the `sqlite-data` directory volume, including the
-database and SQLite journal files. Demo and development
-use the same Compose project and database volume when run from this directory;
+database and SQLite journal files, and the separate `encryption-key` volume.
+Demo and development use the same Compose project and both persistent volumes when run from this directory;
 stop one mode before starting the other (`make down` for development,
 `docker compose down` for the demo). Do not add `--volumes` when switching modes.
 
@@ -242,7 +242,7 @@ proxying, and persistence.
 
 ## Destructive volume reset
 
-**This deletes the project's stored database data and migration history, plus
+**This deletes the project's stored database data, migration history, and application encryption key, plus
 its container dependency caches and frontend build output.** Use it only when
 intentionally starting over; ordinary shutdown and mode switching use
 `make down` or `docker compose down` without `--volumes`.
@@ -254,7 +254,7 @@ modes, so this command works after either demo or development use:
 docker compose -f compose.yaml -f compose.dev.yaml down --volumes
 ```
 
-The reset removes `sqlite-data`, `go-mod`, `go-build`, `go-tmp`,
+The reset removes `sqlite-data`, `encryption-key`, `go-mod`, `go-build`, `go-tmp`,
 `frontend-deps`, `frontend-build`, and `bun-cache` for this Compose project.
 It preserves repository files, `.env`, host editor dependencies, and Docker
 images. If you used a custom Compose project name, use that same name for the
@@ -295,6 +295,7 @@ not load `.env` files. Export the variables explicitly when running Go locally.
 | --- | --- | --- |
 | `HTTP_ADDR` | `:8080` | Listen address in `host:port` form, including `:port` or `[IPv6]:port`. |
 | `DATABASE_PATH` | Required | Absolute, clean path to an existing migrated SQLite file. Compose defaults to `/data/gateway.db` inside the shared directory volume. |
+| `ENCRYPTION_KEY_PATH` | Required | Absolute, clean file path in a separate private directory. Compose defaults to `/key-material/application.key` in the `encryption-key` volume. |
 | `BROWSER_ORIGIN` | `http://localhost:8080` | Exact browser origin; HTTP requires `localhost`, otherwise use an HTTPS domain. No IP address, trailing slash, path, query, or credentials. |
 | `SESSION_LIFETIME` | `12h` | Absolute login-session lifetime, at least 1 second; no idle timeout. |
 | `CHALLENGE_LIFETIME` | `5m` | Registration/login challenge lifetime, at least 1 millisecond, enforced server-side. |
@@ -414,8 +415,27 @@ The app, development Air process, and dbmate run as UID/GID 65532. The
 `storage-init` service gives that user ownership of the database directory;
 the development override also prepares Go cache volumes. Migrations therefore
 create files writable by both serving modes. Custom `DATABASE_PATH` values must
-stay in a writable mounted directory shared with dbmate. Future SSH encryption
-keys will use a separate volume; the database volume does not hold that key.
+stay in a writable mounted directory shared with dbmate. The application encryption
+key uses the separate `encryption-key` volume, which dbmate does not mount.
+
+On first startup, Go generates a random 32-byte application encryption key at
+`ENCRYPTION_KEY_PATH` only if no SSH key records exist. The key file has mode 0600;
+its parent directory must exist with owner-only permissions (0700). Both Compose
+modes initialize that directory for UID/GID 65532 and reuse the same file after
+restarts and container recreation. Custom paths must stay in a separate persistent
+mount, outside the database volume and source control. Existing installations need
+storage initialization and app recreation to pick up the new volume and setting.
+
+Before serving HTTP, startup verifies that every stored SSH key can be decrypted.
+Missing, malformed, unreadable, or incorrect application key material fails startup;
+it is never silently replaced while SSH key records exist. Restore the matching
+key-volume backup and check path/permissions. Losing this volume without a backup
+requires deliberately discarding unusable encrypted records and re-uploading the
+original SSH keys; automatic recovery or deletion is not implemented. Losing the
+SQLite volume loses the accounts, sessions, and uploaded key records, even if the
+encryption key survives. Back up both volumes. Access to both defeats the protection
+against disclosure from a database copy alone. The demo SSH identity planned for
+the repository is separate from this secret application encryption key.
 
 Run `make migrate` before the first startup and whenever you pull new migrations.
 It stops the app, initializes storage permissions, and runs pinned dbmate with
@@ -451,12 +471,15 @@ pinned tools are dbmate 2.36.0 and sqlc 1.31.1. For example, with those installe
 
 ```sh
 mkdir -p "$PWD/local-data"
+mkdir -p "$PWD/local-key-material"
+chmod 700 "$PWD/local-key-material"
 DATABASE_URL="sqlite:$PWD/local-data/gateway.db" dbmate --no-dump-schema up
-DATABASE_PATH="$PWD/local-data/gateway.db" go run ./cmd/server
+DATABASE_PATH="$PWD/local-data/gateway.db" ENCRYPTION_KEY_PATH="$PWD/local-key-material/application.key" go run ./cmd/server
 ```
 
-Build `frontend/dist` first for host serving. Keep local database files outside
-source control and initialize/migrate while the app is stopped.
+Build `frontend/dist` first for host serving. The example's local storage directories
+are excluded from Git and Docker build context. Keep any custom database and key
+paths outside source control and initialize/migrate while the app is stopped.
 
 ### Current user and protected workspace
 

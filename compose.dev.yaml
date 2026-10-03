@@ -26,7 +26,7 @@ services:
       - go-mod:/go/pkg/mod
       - go-build:/cache/go-build
       - go-tmp:/worktmp
-    command: ["sh", "-c", "chown 65532:65532 /data && chmod 700 /data && chown -R 65532:65532 /go/pkg/mod /cache/go-build /worktmp"]
+    command: ["sh", "-c", "chown 65532:65532 /data /key-material && chmod 700 /data /key-material && chown -R 65532:65532 /go/pkg/mod /cache/go-build /worktmp"]
 
   sqlc:
     image: sqlc/sqlc:1.31.1

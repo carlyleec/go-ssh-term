@@ -5,15 +5,18 @@ import (
 	"net"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"time"
 
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
+	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 )
 
 type Config struct {
 	HTTPAddr          string
 	DatabasePath      string
+	EncryptionKeyPath string
 	BrowserOrigin     string
 	ShutdownTimeout   time.Duration
 	RPID              string
@@ -24,9 +27,10 @@ type Config struct {
 
 func Load() (Config, error) {
 	cfg := Config{
-		HTTPAddr:      value("HTTP_ADDR", ":8080"),
-		DatabasePath:  os.Getenv("DATABASE_PATH"),
-		BrowserOrigin: value("BROWSER_ORIGIN", "http://localhost:8080"),
+		HTTPAddr:          value("HTTP_ADDR", ":8080"),
+		DatabasePath:      os.Getenv("DATABASE_PATH"),
+		EncryptionKeyPath: os.Getenv("ENCRYPTION_KEY_PATH"),
+		BrowserOrigin:     value("BROWSER_ORIGIN", "http://localhost:8080"),
 	}
 	_, port, err := net.SplitHostPort(cfg.HTTPAddr)
 	if err != nil || !validPort(port) {
@@ -54,6 +58,12 @@ func Load() (Config, error) {
 	}
 	if err := sqlite.ValidatePath(cfg.DatabasePath); err != nil {
 		return Config{}, err
+	}
+	if err := sshkeys.ValidateEncryptionKeyPath(cfg.EncryptionKeyPath); err != nil {
+		return Config{}, err
+	}
+	if filepath.Dir(cfg.EncryptionKeyPath) == filepath.Dir(cfg.DatabasePath) {
+		return Config{}, fmt.Errorf("ENCRYPTION_KEY_PATH must use a separate directory from DATABASE_PATH")
 	}
 	cfg.ShutdownTimeout, err = time.ParseDuration(value("SHUTDOWN_TIMEOUT", "5s"))
 	if err != nil || cfg.ShutdownTimeout <= 0 {

@@ -17,6 +17,7 @@ func TestAuthConfiguration(t *testing.T) {
 	for _, origin := range []string{"http://localhost:8080", "http://localhost:5173", "https://localhost:8443"} {
 		t.Run(origin, func(t *testing.T) {
 			t.Setenv("DATABASE_PATH", "/data/gateway.db")
+			t.Setenv("ENCRYPTION_KEY_PATH", "/key-material/application.key")
 			t.Setenv("HTTP_ADDR", ":8080")
 			t.Setenv("SHUTDOWN_TIMEOUT", "5s")
 			t.Setenv("BROWSER_ORIGIN", origin)

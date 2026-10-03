@@ -4,6 +4,7 @@ services:
     environment:
       HTTP_ADDR: :8080
       DATABASE_PATH: ${DATABASE_PATH-/data/gateway.db}
+      ENCRYPTION_KEY_PATH: ${ENCRYPTION_KEY_PATH-/key-material/application.key}
       BROWSER_ORIGIN: ${BROWSER_ORIGIN-http://localhost:8080}
       SESSION_LIFETIME: ${SESSION_LIFETIME-12h}
       CHALLENGE_LIFETIME: ${CHALLENGE_LIFETIME-5m}
@@ -14,6 +15,7 @@ services:
         condition: service_completed_successfully
     volumes:
       - sqlite-data:/data
+      - encryption-key:/key-material
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
@@ -28,7 +30,8 @@ services:
     user: "0:0"
     volumes:
       - sqlite-data:/data
-    command: ["sh", "-c", "chown 65532:65532 /data && chmod 700 /data"]
+      - encryption-key:/key-material
+    command: ["sh", "-c", "chown 65532:65532 /data /key-material && chmod 700 /data /key-material"]
 
   dbmate:
     image: ghcr.io/amacneil/dbmate:2.36.0
@@ -44,3 +47,4 @@ services:
 
 volumes:
   sqlite-data:
+  encryption-key:

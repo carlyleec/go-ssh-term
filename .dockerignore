@@ -7,3 +7,4 @@ frontend/.tanstack
 tmp
 
 local-data
+local-key-material

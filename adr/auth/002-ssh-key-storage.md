@@ -10,6 +10,8 @@ The gateway needs SSH credentials to connect on a user's behalf. Passkeys authen
 
 Store named, user-owned SSH private keys encrypted in SQLite, following [SQLite storage](../api/008-sqlite-storage.md). Generate the application encryption key on first initialization and retain it in a separate Docker volume. Decrypt SSH keys on the server when needed and return only identifying metadata through key-management APIs.
 
+Key-file lifecycle, encrypted payload encoding, and startup verification follow [application encryption material](012-application-encryption-material.md).
+
 Accept only unencrypted Ed25519 private keys in OpenSSH private-key format (`BEGIN OPENSSH PRIVATE KEY`). Limit each uploaded key file to 16 KiB (16,384 bytes), including surrounding whitespace. Require exactly one private key, allowing surrounding whitespace but no additional content. Validate with the SSH library and enforce the format and algorithm restrictions even if the library supports more types. Reject passphrase-protected keys with a clear unsupported-passphrase message; reject malformed, oversized, and unsupported keys with clear validation errors.
 
 Use `golang.org/x/crypto/ssh` for private-key parsing and SHA-256 public fingerprints. Keep parser details out of user-facing errors and return only the fingerprint from validation. Enforce the file-size limit before trimming whitespace; HTTP upload handlers must also bound reads before allocating the file.

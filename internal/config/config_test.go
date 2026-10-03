@@ -8,13 +8,14 @@ import (
 )
 
 func TestDefaults(t *testing.T) {
-	for _, key := range []string{"HTTP_ADDR", "DATABASE_PATH", "BROWSER_ORIGIN", "SHUTDOWN_TIMEOUT", "SESSION_LIFETIME", "CHALLENGE_LIFETIME"} {
+	for _, key := range []string{"HTTP_ADDR", "DATABASE_PATH", "ENCRYPTION_KEY_PATH", "BROWSER_ORIGIN", "SHUTDOWN_TIMEOUT", "SESSION_LIFETIME", "CHALLENGE_LIFETIME"} {
 		t.Setenv(key, "")
 		if err := os.Unsetenv(key); err != nil {
 			t.Fatal(err)
 		}
 	}
 	t.Setenv("DATABASE_PATH", "/data/gateway.db")
+	t.Setenv("ENCRYPTION_KEY_PATH", "/key-material/application.key")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
@@ -28,6 +29,7 @@ func setValidEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("HTTP_ADDR", ":8080")
 	t.Setenv("DATABASE_PATH", "/data/gateway.db")
+	t.Setenv("ENCRYPTION_KEY_PATH", "/key-material/application.key")
 	t.Setenv("BROWSER_ORIGIN", "http://localhost:5173")
 	t.Setenv("SHUTDOWN_TIMEOUT", "5s")
 	t.Setenv("SESSION_LIFETIME", "12h")
@@ -58,6 +60,8 @@ func TestInvalidConfig(t *testing.T) {
 		{"CHALLENGE_LIFETIME", "0s"}, {"CHALLENGE_LIFETIME", "-1m"}, {"CHALLENGE_LIFETIME", "1ns"}, {"CHALLENGE_LIFETIME", "bad"}, {"CHALLENGE_LIFETIME", ""},
 		{"BROWSER_ORIGIN", "ftp://localhost"}, {"BROWSER_ORIGIN", "http://localhost:99999"}, {"BROWSER_ORIGIN", ""},
 		{"DATABASE_PATH", "postgres://user:secret%zz@db/app"}, {"DATABASE_PATH", "https://db/app"}, {"DATABASE_PATH", ""},
+		{"ENCRYPTION_KEY_PATH", ""}, {"ENCRYPTION_KEY_PATH", "relative.key"}, {"ENCRYPTION_KEY_PATH", "/"},
+		{"ENCRYPTION_KEY_PATH", "/keys/../secret"}, {"ENCRYPTION_KEY_PATH", "/data/application.key"},
 		{"SHUTDOWN_TIMEOUT", "0s"}, {"SHUTDOWN_TIMEOUT", "-1s"}, {"SHUTDOWN_TIMEOUT", "five"}, {"SHUTDOWN_TIMEOUT", ""},
 	} {
 		t.Run(tc.key+"/"+tc.value, func(t *testing.T) {

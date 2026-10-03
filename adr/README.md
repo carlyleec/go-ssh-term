@@ -33,6 +33,8 @@ Number records independently within each area. Each record states its context, d
 
 - [011 Preserve account-access guarantees on SQLite](auth/011-sqlite-account-persistence.md) (replaces Postgres-specific portions of 004, 005, 007, and 008)
 
+- [012 Persist application encryption material separately and verify it at startup](auth/012-application-encryption-material.md)
+
 ## Frontend
 
 - [001 Serve a React application from Go](frontend/001-react-and-go.md)

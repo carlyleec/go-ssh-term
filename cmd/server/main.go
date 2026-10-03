@@ -14,6 +14,7 @@ import (
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/carlyleec/go-ssh-term/internal/database"
+	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 	"github.com/carlyleec/go-ssh-term/internal/web"
 )
 
@@ -39,6 +40,9 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
+	if _, err := sshkeys.OpenEncryption(ctx, pool, cfg.EncryptionKeyPath); err != nil {
+		return err
+	}
 	sessions, stopCleanup := auth.NewSessions(cfg, pool)
 	defer stopCleanup()
 	mux := http.NewServeMux()

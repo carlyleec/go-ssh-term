@@ -1,6 +1,6 @@
 # Use sqlc, pgx, and dbmate for database access
 
-Status: Accepted
+Status: Superseded by [008 SQLite storage](008-sqlite-storage.md). The replacement is planned in Slice 2.5; this record describes the original implementation.
 
 ## Context
 

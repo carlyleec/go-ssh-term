@@ -2,6 +2,8 @@
 
 Implement the slices in order, using [PRD.md](PRD.md) for scope and acceptance criteria. Each slice should produce usable behavior across the frontend, API, and persistence before moving on. Keep feature code together and share only the infrastructure that multiple slices actually need.
 
+Slices 1 and 2 record the completed Postgres implementation. Slice 2.5 replaces that storage before Slice 3; its task IDs use `S2.5.N` and do not change the existing `S2.5` login task.
+
 ## Slice 1 Landing page and runnable application
 
 **Deliverable:** A runnable landing page, persistent Postgres, and a working edit and reload workflow.
@@ -58,9 +60,27 @@ Implement the slices in order, using [PRD.md](PRD.md) for scope and acceptance c
 - [x] **S2.10** Verify registration, login, and logout in the browser through both Go-served assets and the Vite proxy. Document that account recovery is unavailable.
   - User verified registration, passkey sign-in, logout, signed-out workspace redirects, cancellation messages, and successful retry in Chrome through both the Vite proxy (localhost:5173) and Go-served demo (localhost:8080). Existing accounts/passkeys remained usable after switching modes with persistent volumes preserved. The demo image build and readiness checks pass. Account recovery is documented as unavailable in the UI and README.
 
+## Slice 2.5 Move to SQLite
+
+**Deliverable:** SQLite-backed account access in both serving modes, with explicit write serialization, persistent storage, and database tests that need no Postgres service.
+
+**Prerequisites:** S1.1–S1.11 and S2.1–S2.10 are implemented. The current code uses pgx pools/types, Postgres SQL and error codes, credential row locking, and pgxstore; all require replacement. This is a fresh database transition, with no account/session import and no deletion of the old Postgres volume.
+
+**Related ADRs:** [SQLite storage and tooling](adr/api/008-sqlite-storage.md), [SQLite account persistence](adr/auth/011-sqlite-account-persistence.md).
+
+- [ ] **S2.5.1** Validate and pin a CGO-free SQLite driver for `database/sql` (prefer `modernc.org/sqlite`) and a compatible SCS store. Verify the selected driver, sqlc, dbmate, and session-store combination with a disposable file: immediate transactions, per-connection settings, binary/time round trips, session expiry, cancellation, and the existing CGO-disabled image build. Record the exact adapter choice; do not assume a driver-specific SCS adapter is interchangeable.
+- [ ] **S2.5.2** Introduce a separate SQLite migration lineage and sqlc configuration; retain original Postgres migrations unchanged outside the active migration path. Translate account, credential, and session schemas while preserving constraints and complete metadata. Generate and commit queries, verify up/down/up and deterministic generation, and exclude legacy migrations from SQLite startup checks.
+- [ ] **S2.5.3** Replace pgx startup/configuration with one shared SQLite `sql.DB` for application and session storage. Implement the connection, WAL, foreign-key, durability, busy-wait, and immediate-transaction policy from API ADR 008. Validate the persistent path, bound database work, retain migration-history checks, update readiness/shutdown, and test missing/unwritable storage, invalid configuration, and connection replacement.
+- [ ] **S2.5.4** Port registration, login, current-user lookup, and session persistence to SQLite. Replace Postgres row locking with an immediate transaction covering credential lookup, verification, and metadata updates; translate constraint/no-row errors safely. Preserve separate account/metadata and session commits, single-use challenges, rotation, expiry, logout isolation, and the terminal lifecycle boundary. Close transactions before accessing the shared session store.
+- [ ] **S2.5.5** Replace Postgres services/dependencies with a shared SQLite directory volume in demo and development; give the non-root app and migration tool compatible write permissions. Retain explicit dbmate migrations, migrate/status/generate Make targets, and existing Air/Vite behavior. Preserve the legacy Postgres volume, remove obsolete runtime dependencies/configuration, and keep the future encryption-key volume separate.
+- [ ] **S2.5.6** Port database/auth integration fixtures to independent files in `t.TempDir()` using production connection settings and migrations. Run them by default without `TEST_DATABASE_URL`. Preserve schema, metadata, rollback, session-failure, and concurrency coverage; replace Postgres-specific fault injection with equivalent SQLite cases. Add second-connection lock contention/recovery, bounded cancellation, foreign-key enforcement after reconnect, concurrent session cleanup/writes, and tests that detect pool deadlocks or lost credential updates. Run the complete Go race suite and frontend checks.
+- [ ] **S2.5.7** Update README and environment examples for fresh registration, SQLite configuration, migration-first startup, file/journal persistence, mode switching, tests, and separate destructive reset. Verify a fresh checkout in both modes, non-root writes, missing-migration failure, readiness failure/recovery, data and session persistence, Air restart, and frontend reload. Verify real browser registration/login/logout and protected navigation through Go and Vite. Finish with the production image build, full Go race/integration suite, frontend tests, Biome, TypeScript, and deterministic query generation.
+
 ## Slice 3 SSH key management
 
 **Deliverable:** Named, encrypted, persistent SSH keys owned by individual users.
+
+**Prerequisite:** Complete Slice 2.5; new schemas and queries target SQLite.
 
 **Related ADRs:** [SSH key storage](adr/auth/002-ssh-key-storage.md).
 

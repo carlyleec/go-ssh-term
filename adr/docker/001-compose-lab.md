@@ -1,6 +1,6 @@
 # Provide an isolated OpenSSH lab with Compose
 
-Status: Accepted
+Status: Accepted; the database service is superseded by [SQLite storage](../api/008-sqlite-storage.md). SSH lab topology remains in effect.
 
 ## Context
 
@@ -8,7 +8,7 @@ An evaluator should be able to exercise real SSH and bastion routing without pro
 
 ## Decision
 
-Run the application, Postgres, one Ubuntu OpenSSH bastion, and two Ubuntu OpenSSH private targets with Docker Compose. Place the gateway and bastion on a gateway-facing network and the bastion and targets on a private network. Keep the gateway off the private network so target access requires the bastion.
+Run the application, one Ubuntu OpenSSH bastion, and two Ubuntu OpenSSH private targets with Docker Compose. After Slice 2.5, SQLite runs inside Go with a shared persistent directory volume in both serving modes; no database service is required. Place the gateway and bastion on a gateway-facing network and the bastion and targets on a private network. Keep the gateway off the private network so target access requires the bastion.
 
 Supply demo credentials, a matching sample SSH config, and a readable `/host-info.txt` on each host. Persist application data and encryption material in separate volumes. The deployment is local-only; configured external destinations may still be used if reachable.
 

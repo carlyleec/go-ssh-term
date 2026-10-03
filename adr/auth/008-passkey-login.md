@@ -1,6 +1,6 @@
 # Verify login and update credential metadata together
 
-Status: Accepted
+Status: Accepted; Postgres-specific storage is superseded by [011 SQLite account persistence](011-sqlite-account-persistence.md). Authentication and session guarantees remain in effect.
 
 ## Context
 

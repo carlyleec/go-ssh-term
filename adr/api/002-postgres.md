@@ -1,6 +1,6 @@
 # Use Postgres for persistent application data
 
-Status: Accepted
+Status: Superseded by [008 SQLite storage](008-sqlite-storage.md). The replacement is planned in Slice 2.5; this record describes the original implementation.
 
 ## Context
 

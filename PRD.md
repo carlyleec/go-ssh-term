@@ -8,8 +8,8 @@ Build a small, locally runnable portfolio project demonstrating Go networking, c
 - React with TanStack Router, TanStack Query for server state, TanStack Form for forms, Tailwind CSS, and daisyUI.
 - xterm.js with WebSockets for interactive terminal input and output.
 - WebAuthn passkeys for authentication and server-side login sessions.
-- Postgres for persistent application data, backed by a Docker volume.
-- Docker Compose for the application, database, and Ubuntu targets running OpenSSH.
+- SQLite for persistent application data, backed by a Docker volume (transition in Slice 2.5).
+- Docker Compose for the application and Ubuntu targets running OpenSSH; SQLite runs inside the Go application.
 - One bastion and two private targets. The gateway can reach the bastion directly; private targets require an SSH connection through the bastion.
 
 The public and private networks are local Docker lab networks, not a public deployment. The gateway must not share the private target network. Users may also configure other SSH hosts reachable from the gateway container.
@@ -36,7 +36,7 @@ Deliver Compose setup, Go serving React, a database connection and migration mec
 
 ### Local development
 
-Provide a development Compose override with source directories mounted into containers. Run Go under Air for automatic rebuilds and process restarts, and React under Vite for frontend hot updates. Postgres and the SSH lab use the same services and network topology as the demo; the lab becomes available as its slices are implemented.
+Provide a development Compose override with source directories mounted into containers. Run Go under Air for automatic rebuilds and process restarts, and React under Vite for frontend hot updates. Development and demo share the same persistent database storage and SSH lab topology; the lab becomes available as its slices are implemented.
 
 Developers open one documented localhost URL served by Vite. Vite proxies API requests and terminal WebSockets to Go, keeping browser requests on one origin. Configure WebAuthn and origin checks for that browser-facing URL. The normal demo continues to serve compiled React assets directly from Go without development servers.
 
@@ -46,7 +46,7 @@ The README documents commands to start each mode, view logs, run migrations and 
 
 **Acceptance criteria**
 
-- After the documented migration setup, `docker compose up --build` starts the application and Postgres from a fresh checkout.
+- After the documented migration setup, `docker compose up --build` starts the application with persistent database storage from a fresh checkout.
 - The landing page explains the project and links to account access.
 - Direct navigation and refresh work for React routes; unknown API paths do not return the SPA HTML.
 - Persistent database data survives ordinary container recreation.
@@ -72,11 +72,29 @@ Account creation asks for a display name and enrolls a passkey. Login uses that 
 - Session expiry also ends its live connections. Exact timeout values are implementation choices to document.
 - Users cannot access another user's keys, configurations, host trust decisions, or terminals by guessing identifiers.
 
+## Slice 2.5 Move to SQLite
+
+**Outcome:** The local gateway runs with an embedded database, preserving account-access behavior and simplifying setup before SSH features are added.
+
+Replace Postgres with one persistent SQLite database shared by application data and server-side sessions. Support one Go application process using the database at a time, with the same storage in demo and development. Begin with a fresh SQLite database: existing Postgres accounts, passkeys, and login sessions are not imported. Users register again; the transition must not delete or modify the old Postgres volume.
+
+### Acceptance criteria
+
+- Demo and development no longer require a Postgres service. Explicit migrations initialize SQLite before application startup; missing, pending, or unknown migrations prevent serving requests with actionable errors.
+- Registration, passkey login, current-user checks, logout, origin protections, session rotation, and absolute expiry retain Slice 2 behavior. New SQLite accounts, credentials, and unexpired sessions survive restarts, container recreation, and mode switching.
+- Concurrent account and session operations preserve atomicity and credential metadata without lost updates. Ordinary concurrent requests wait within documented bounds; lock contention and storage failures produce safe errors without reporting successful authentication or logout.
+- Database transactions never span browser prompts, SSH dialing, or terminal I/O. SQLite concurrency and connection settings are explicit and verified, including contention from a second connection.
+- Integration tests use isolated temporary database files and run without an external database service. They cover persistence, rollback, constraints, expiry, concurrent writes, and bounded failure/recovery under locking.
+- The non-root demo can write the database and its journal files in a persistent directory. Readiness detects an unusable database; missing or inaccessible storage is not silently replaced with an in-memory database.
+- The README explains fresh registration, migration-first startup, persistent storage, mode switching, tests, and separately labeled destructive reset. SSH encryption material remains in its own volume when Slice 3 introduces it.
+
+Postgres compatibility, importing old data, multiple app replicas, and network-filesystem database sharing are outside this slice. Completed Slices 1 and 2 describe the original Postgres implementation; this slice replaces its storage, not its account-access guarantees.
+
 ## Slice 3 SSH key management
 
 **Outcome:** A user can upload credentials once and reuse them.
 
-Provide a key-management modal for uploading, naming, listing, and deleting SSH keys. Persist encrypted private keys in Postgres. Generate an application encryption key on first initialization and persist it in a separate Docker volume; keep it out of the database and repository. Decrypt SSH keys on the server only when needed.
+Provide a key-management modal for uploading, naming, listing, and deleting SSH keys. Persist encrypted private keys in SQLite. Generate an application encryption key on first initialization and persist it in a separate Docker volume; keep it out of the database and repository. Decrypt SSH keys on the server only when needed.
 
 **Acceptance criteria**
 

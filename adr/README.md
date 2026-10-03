@@ -7,12 +7,13 @@ Number records independently within each area. Each record states its context, d
 ## API
 
 - [001 Organize code by vertical slice](api/001-vertical-slices.md)
-- [002 Use Postgres for persistent application data](api/002-postgres.md)
+- [002 Use Postgres for persistent application data](api/002-postgres.md) (superseded by 008)
 - [003 Stream terminals over WebSockets](api/003-websocket-terminal-transport.md)
 - [004 Separate saved connections from live sessions](api/004-connection-lifecycle.md)
 - [005 Support one SSH jump and a limited config importer](api/005-ssh-configuration.md)
 - [006 Record connection events without terminal contents](api/006-audit-events.md)
-- [007 Use sqlc, pgx, and dbmate for database access](api/007-database-tooling.md)
+- [007 Use sqlc, pgx, and dbmate for database access](api/007-database-tooling.md) (superseded by 008)
+- [008 Use SQLite for local persistent storage](api/008-sqlite-storage.md)
 
 ## Auth
 
@@ -28,6 +29,8 @@ Number records independently within each area. Each record states its context, d
 - [009 Verify server sessions before granting workspace access](auth/009-current-user-and-route-protection.md)
 
 - [010 Invalidate the current login session and observe expiry](auth/010-logout-and-session-expiry.md)
+
+- [011 Preserve account-access guarantees on SQLite](auth/011-sqlite-account-persistence.md) (replaces Postgres-specific portions of 004, 005, 007, and 008)
 
 ## Frontend
 
@@ -47,4 +50,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-Remaining SSH and WebSocket libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.
+The SQLite driver/session-adapter pairing remains to be verified and pinned in S2.5.1. Remaining SSH and WebSocket libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.

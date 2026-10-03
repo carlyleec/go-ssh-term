@@ -10,12 +10,17 @@ retain their existing correctness and failure boundaries.
 
 ## Decision
 
-Keep go-webauthn and SCS. Select and pin a SQLite session adapter compatible with
-the chosen driver and shared `sql.DB`; verify its schema, expiry representation,
-context support, and cleanup lifecycle. Prefer an existing compatible adapter;
-if it cannot meet these requirements, implement a small SCS context-aware store
-and record that choice before proceeding. SCS's documented `sqlite3store` targets
-mattn/go-sqlite3, so compatibility with modernc must not be assumed.
+Keep go-webauthn and SCS v2.9.0. Use the local `internal/auth/sqlitestore` adapter
+with modernc.org/sqlite v1.60.1 and the shared `sql.DB`. The upstream SCS
+sqlite3store at `209de6e426de` has no context-aware methods, so it cannot bound
+pool acquisition. The local adapter implements `scs.CtxStore`, applies the shared
+ten-second context budget, and stores `token TEXT PRIMARY KEY NOT NULL`,
+`data BLOB NOT NULL`, and `expiry INTEGER NOT NULL` in a strict sessions table
+with an expiry index. Expiry is UTC Unix nanoseconds and is checked after the
+lookup completes. Cleanup uses bounded contexts; stopping cancels and joins the
+worker before database shutdown. External lock waits follow
+[API ADR 009](../api/009-sqlite-lock-wait-deadlines.md). Runtime wiring remains
+part of the account-access port.
 
 Use strict SQLite tables for application accounts and credentials, with canonical
 UUID text IDs, BLOB handles/credential IDs/public keys/AAGUIDs, and INTEGER counters

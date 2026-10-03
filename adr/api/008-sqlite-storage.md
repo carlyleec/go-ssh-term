@@ -1,6 +1,6 @@
 # Use SQLite for local persistent storage
 
-Status: Accepted; supersedes [002 Postgres](002-postgres.md) and [007 Database tooling](007-database-tooling.md). Implementation is tracked in Slice 2.5.
+Status: Accepted; supersedes [002 Postgres](002-postgres.md) and [007 Database tooling](007-database-tooling.md). Lock-wait cancellation is amended by [009](009-sqlite-lock-wait-deadlines.md). Implementation is tracked in Slice 2.5.
 
 ## Context
 
@@ -17,11 +17,12 @@ WAL and shared-memory files. Keep future SSH encryption material in a separate
 volume. Support one app process and local filesystem storage; do not run demo and
 development against the file simultaneously or mount it over a network filesystem.
 
-Use `database/sql`, preferring the CGO-free `modernc.org/sqlite` driver after the
-compatibility checks in S2.5.1. Keep sqlc-generated queries and explicit, pinned
-dbmate migrations. Verify the pinned tools support the chosen schema and driver;
-SQLite sqlc support is currently documented as beta. Driver and SCS adapter
-versions are pinned during implementation, after checking their compatibility.
+Use `database/sql` with the CGO-free `modernc.org/sqlite` driver pinned at v1.60.1.
+Keep sqlc v1.31.1 query generation and explicit dbmate v2.36.0 migrations. A
+strict-table disposable-file check verified dbmate up/down/up, deterministic
+sqlc generation, and binary/nanosecond round trips through generated queries
+and the local SCS adapter described in [auth ADR 011](../auth/011-sqlite-account-persistence.md).
+Application schema translation remains separate; SQLite sqlc support is beta.
 
 Share a single `sql.DB` across application queries and session storage, with
 `SetMaxOpenConns(1)` and `SetMaxIdleConns(1)`. This deliberately serializes database
@@ -29,10 +30,11 @@ operations, including reads, for the initial local workload. Do not introduce a
 second read pool without evidence that it is needed. Use WAL, `synchronous=FULL`,
 foreign-key enforcement, and a five-second busy timeout. Configure connection-local
 settings for every new connection, not just a startup `Exec`; verify WAL at startup.
-Use a ten-second maximum context for request-driven database work (or an earlier
-caller deadline), including pool acquisition and session operations. Verify driver
-cancellation under lock contention; the busy timeout alone does not bound pool waits.
-Readiness retains its shorter probe deadline.
+Use a ten-second context budget for request-driven database work (or an earlier
+caller deadline), including pool acquisition and session operations. Pool waits
+respect cancellation; calls inside SQLite may finish an external lock wait at
+the five-second busy limit, as specified in [009](009-sqlite-lock-wait-deadlines.md).
+Readiness retains its shorter probe context with the same lock-wait limitation.
 
 Use immediate transactions for read/modify/write operations. Acquire the writer
 reservation before reading state that will be updated. Keep all transaction queries

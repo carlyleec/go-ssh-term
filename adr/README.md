@@ -14,6 +14,7 @@ Number records independently within each area. Each record states its context, d
 - [006 Record connection events without terminal contents](api/006-audit-events.md)
 - [007 Use sqlc, pgx, and dbmate for database access](api/007-database-tooling.md) (superseded by 008)
 - [008 Use SQLite for local persistent storage](api/008-sqlite-storage.md)
+- [009 Separate pool cancellation from SQLite lock waits](api/009-sqlite-lock-wait-deadlines.md)
 
 ## Auth
 
@@ -50,4 +51,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-The SQLite driver/session-adapter pairing remains to be verified and pinned in S2.5.1. Remaining SSH and WebSocket libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.
+The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Remaining SSH and WebSocket libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.

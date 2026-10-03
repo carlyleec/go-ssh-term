@@ -1,5 +1,6 @@
 root = "."
 tmp_dir = "tmp"
+env_files = []
 
 [build]
 cmd = "go build -o ./tmp/main ./cmd/server"
@@ -8,6 +9,8 @@ include_ext = ["go"]
 include_file = ["go.mod", "go.sum"]
 exclude_dir = ["tmp", ".git", "vendor", "frontend"]
 stop_on_error = true
+send_interrupt = true
+kill_delay = "10s"
 poll = true
 poll_interval = 500
 delay = 200

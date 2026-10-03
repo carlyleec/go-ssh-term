@@ -133,3 +133,40 @@ changes; do not edit it manually. To regenerate it explicitly on the host:
 cd frontend
 bun run routes
 ```
+
+## Server configuration
+
+Copy `.env.example` to `.env` to customize Docker development settings. `.env` is
+ignored by Git; do not commit credentials. Compose passes the values into the Go
+container. The Go executable itself reads process environment variables and does
+not load `.env` files. Export the variables explicitly when running Go locally.
+
+| Setting | Go default | Meaning |
+| --- | --- | --- |
+| `HTTP_ADDR` | `:8080` | Listen address in `host:port` form, including `:port` or `[IPv6]:port`. |
+| `DATABASE_URL` | Empty | Optional Postgres URL for the upcoming database connection. |
+| `BROWSER_ORIGIN` | `http://127.0.0.1:8080` | Exact browser origin, without a trailing slash, path, query, or credentials. |
+| `SHUTDOWN_TIMEOUT` | `5s` | Positive Go duration for draining HTTP requests on SIGINT or SIGTERM. |
+
+Compose defaults `BROWSER_ORIGIN` to `http://127.0.0.1:5173` for Vite. Use the
+8080 origin when testing Go-served assets. Origin validation here checks config
+syntax only; request-origin enforcement and WebAuthn are implemented with auth.
+Database URLs are syntax-checked without logging their contents. No database
+connection is opened yet, and an empty URL remains allowed until that is added.
+
+Changing `HTTP_ADDR` does not change Compose's published port automatically. Keep
+its container port mapping in sync, and use an unspecified host (`:8080`) to
+accept traffic forwarded into the container.
+
+Normal HTTP shutdown waits up to `SHUTDOWN_TIMEOUT`, then closes remaining HTTP
+connections and exits with an error if the deadline expires. Future SSH/WebSocket
+sessions need their own cleanup; HTTP shutdown does not close hijacked connections.
+Air sends an interrupt and allows 10 seconds before killing Go. Compose's
+`APP_STOP_GRACE_PERIOD` defaults to 15 seconds. If increasing the shutdown timeout,
+also increase Air's `kill_delay` and Docker's grace period to leave enough time.
+
+Environment changes require recreating the Go service:
+
+```sh
+docker compose -f compose.dev.yaml up -d --force-recreate app
+```

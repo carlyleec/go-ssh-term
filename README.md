@@ -512,6 +512,33 @@ unsupported content type 415, and storage/encryption failure 503. Responses are
 not cached. Deletion protection for keys used by saved connections will be added
 with those connections.
 
+### Verify uploaded-key persistence
+
+Upload the [demo key](demo/keys/README.md#upload) and note its name, fingerprint,
+and creation time in **Manage SSH keys**. Recreate the app for the mode you are
+running, retaining both volumes:
+
+```sh
+# Development
+docker compose -f compose.yaml -f compose.dev.yaml up -d --no-deps --force-recreate app
+
+# Demo (use this instead when running demo mode)
+docker compose up -d --no-deps --force-recreate --wait app
+```
+
+Wait for the server to start, refresh the workspace, and reopen **Manage SSH keys**.
+Sign in again if your session has expired. The saved metadata should be unchanged;
+there should be no need to upload again. Successful backend startup also means
+its decryption check passed for every stored key. Actual SSH authentication is
+verified when lab connections are introduced.
+
+Do not remove volumes during this check. When checking a switch between demo and
+development, stop the current mode first and use the same Compose project name so
+both modes retain the same database and encryption-key volumes. Development serves
+assets through Vite; its backend readiness endpoint requires a compiled frontend
+and can return 503 when those assets have not been built. Use the workspace/session
+API to check development availability.
+
 ### Current user and protected workspace
 
 `GET /api/auth/me` returns `{"account":{"id":"…","display_name":"…"}}`

@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/pgxstore"
-	"github.com/carlyleec/go-ssh-term/db/migrations"
+	"github.com/carlyleec/go-ssh-term/db/legacy/migrations"
 	"github.com/carlyleec/go-ssh-term/internal/database/queries"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"

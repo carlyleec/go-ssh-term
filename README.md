@@ -410,28 +410,19 @@ The pool allows up to ten connections, uses a five-second startup deadline, and
 closes after HTTP shutdown. Missing, pending, or unknown migration versions prevent
 startup. This checks migration history, not manual schema drift.
 
-SQL migrations in `db/migrations` are the schema source for both dbmate and sqlc;
-we disable dbmate's separate schema dump. The initial migration establishes the
-ledger without introducing feature tables. Add those tables with their slices.
-Create a migration using:
+The SQLite lineage is in `db/migrations`, with named queries in `db/queries`.
+`make generate` uses pinned sqlc to generate `database/sql` methods in
+`internal/database/sqlite/queries`. Review generated Go with its SQL changes;
+do not edit generated code manually. SQLite tables store application timestamps
+and session expiry as UTC Unix nanoseconds.
 
-```sh
-docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T dbmate new create_accounts
-```
-
-Write SQL under the generated `-- migrate:up` and `-- migrate:down` markers. Keep
-applied migrations immutable; add a new timestamped migration for subsequent
-changes. Apply it with `make migrate`. Air watches SQL files, but if it previously
-stopped because a migration was pending, restart Go after applying it:
-
-```sh
-docker compose -f compose.yaml -f compose.dev.yaml restart app
-```
-
-Write named queries in `db/queries` and run `make generate`. sqlc generates typed
-Go methods for pgx in `internal/database/queries`. Review and commit generated Go
-with its SQL changes; do not edit it manually. Feature handlers can use these
-methods directly without an additional repository layer.
+During the runtime transition, Postgres still uses the unchanged migrations in
+`db/legacy/migrations`; Compose dbmate and the Postgres startup checks explicitly
+select that lineage. Its query sources and configuration are retained under
+`db/legacy`, and its generated code remains in `internal/database/queries` until
+the auth port. SQLite startup checks accept only the new lineage. Neither tool
+applies SQLite migrations to the old database or imports its accounts/sessions.
+Keep applied migrations immutable and add timestamped files for later changes.
 
 ### Current user and protected workspace
 

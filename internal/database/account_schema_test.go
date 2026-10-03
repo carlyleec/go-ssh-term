@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/pgxstore"
-	"github.com/carlyleec/go-ssh-term/db/migrations"
+	"github.com/carlyleec/go-ssh-term/db/legacy/migrations"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

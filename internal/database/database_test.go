@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/carlyleec/go-ssh-term/db/migrations"
+	"github.com/carlyleec/go-ssh-term/db/legacy/migrations"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

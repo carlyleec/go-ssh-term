@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/carlyleec/go-ssh-term/db/migrations"
+	"github.com/carlyleec/go-ssh-term/db/legacy/migrations"
 	"github.com/carlyleec/go-ssh-term/internal/database/queries"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"

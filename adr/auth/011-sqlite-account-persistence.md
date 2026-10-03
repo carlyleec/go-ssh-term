@@ -26,7 +26,8 @@ Use strict SQLite tables for application accounts and credentials, with canonica
 UUID text IDs, BLOB handles/credential IDs/public keys/AAGUIDs, and INTEGER counters
 and flags with the existing range checks. Encode transports as a JSON text array
 and nested credential metadata as JSON text objects with validity/type checks.
-Use an explicit UTC timestamp representation and test precision round trips;
+Store creation and last-use timestamps as UTC Unix nanoseconds supplied by the
+application, preserving precision through generated queries;
 the sessions table follows the verified adapter's storage contract.
 Preserve nonblank, non-unique display names, RP-scoped handle/credential uniqueness,
 one credential per account, composite account/RP foreign keys, and cascading

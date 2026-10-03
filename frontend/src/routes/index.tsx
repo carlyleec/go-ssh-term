@@ -24,7 +24,8 @@ function LandingPage() {
           </Link>
         </div>
         <p className="mt-4 text-sm text-base-content/65">
-          Authentication and SSH connections aren’t available yet.
+          Passkey registration and sign-in are available. SSH connections are
+          coming later.
         </p>
       </section>
 

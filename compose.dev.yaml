@@ -23,27 +23,14 @@ services:
     command: ["go", "tool", "air"]
 
   postgres:
-    image: postgres:18.1-alpine
-    environment:
-      POSTGRES_USER: gateway
-      POSTGRES_PASSWORD: gateway-local-only
-      POSTGRES_DB: gateway
-    volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gateway -d gateway"]
-      interval: 2s
-      timeout: 3s
-      retries: 15
+    extends:
+      file: compose.yaml
+      service: postgres
 
   dbmate:
-    image: ghcr.io/amacneil/dbmate:2.36.0
-    profiles: ["tools"]
-    environment:
-      DATABASE_URL: ${DATABASE_URL-postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable}
-    volumes:
-      - ./db:/db
-    command: ["--no-dump-schema", "migrate", "--strict"]
+    extends:
+      file: compose.yaml
+      service: dbmate
 
   sqlc:
     image: sqlc/sqlc:1.31.1

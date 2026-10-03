@@ -4,6 +4,47 @@ A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/` and placeholder pages at `/login` and `/connections`. Account access
 and SSH features are not implemented; the connections preview is currently public.
 
+## Demo with Docker
+
+Docker builds the React assets and Go executable; no host Go or Bun installation
+is needed. From a fresh checkout, start Postgres and explicitly apply migrations
+before starting the application:
+
+```sh
+docker compose up -d --wait postgres
+docker compose run --rm --no-deps dbmate
+docker compose up --build -d --wait
+```
+
+Open http://127.0.0.1:8080. The image contains the compiled frontend and a Go
+server running as a non-root user. It has no source mounts or development servers.
+The demo fixes the container HTTP address at `:8080` and publishes it only on
+IPv4 loopback. `BROWSER_ORIGIN` defaults to `http://127.0.0.1:8080`; if an existing
+`.env` sets the Vite origin on port 5173, remove that override or change it for
+the demo. Other configuration is described below.
+
+The server checks migration history before accepting requests and never runs
+migrations itself. Repeat the migration command after pulling schema changes.
+Postgres readiness alone does not mean migrations have been applied.
+
+```sh
+docker compose ps
+docker compose logs -f app postgres
+docker compose run --rm --no-deps dbmate status
+docker compose down
+```
+
+Ordinary shutdown preserves the `postgres-data` volume. Demo and development
+use the same Compose project and database volume when run from this directory;
+stop one mode before starting the other (`make down` for development,
+`docker compose down` for the demo). Do not add `--volumes` when switching modes.
+
+`GET /api/readyz` returns 204 when a database ping succeeds and the frontend
+entry point is readable, or 503 otherwise. The database probe has a two-second
+deadline. Docker probes every five seconds and marks the app unhealthy after
+three failures; it does not automatically restart an unhealthy container.
+Migration history is checked at startup, not on each readiness request.
+
 ## Development with Docker
 
 With Docker running and Make installed, start the Go and frontend development servers:
@@ -92,7 +133,7 @@ Direct navigation to `/login`, `/connections`, and other extensionless page URLs
 serves the React entry point. Missing `/api` endpoints, `/assets` files, and URLs
 with file extensions return 404. Only GET and HEAD are supported for frontend
 requests, and directories are not listed. An absent frontend build returns 503
-with build instructions. A multi-stage demo image remains a later task.
+with build instructions. The demo image builds and includes these assets itself.
 
 
 To add a frontend dependency, use Bun in the container and review both the
@@ -117,8 +158,8 @@ make down
 ```
 
 This standalone development setup includes Go, the frontend, and persistent
-Postgres. The demo image and integration into a shared Compose base with a
-development override remain later Slice 1 tasks.
+Postgres. It reuses the Postgres and dbmate definitions from `compose.yaml`.
+Integration of Air and Vite into a development override remains a later Slice 1 task.
 
 ## Frontend routes
 
@@ -137,7 +178,7 @@ bun run routes
 
 ## Server configuration
 
-Copy `.env.example` to `.env` to customize Docker development settings. `.env` is
+Copy `.env.example` to `.env` to customize Docker settings. `.env` is
 ignored by Git; do not commit credentials. Compose passes the values into the Go
 container. The Go executable itself reads process environment variables and does
 not load `.env` files. Export the variables explicitly when running Go locally.
@@ -149,15 +190,17 @@ not load `.env` files. Export the variables explicitly when running Go locally.
 | `BROWSER_ORIGIN` | `http://127.0.0.1:8080` | Exact browser origin, without a trailing slash, path, query, or credentials. |
 | `SHUTDOWN_TIMEOUT` | `5s` | Positive Go duration for draining HTTP requests on SIGINT or SIGTERM. |
 
-Compose defaults `BROWSER_ORIGIN` to `http://127.0.0.1:5173` for Vite. Use the
-8080 origin when testing Go-served assets. Origin validation here checks config
+Development Compose defaults `BROWSER_ORIGIN` to `http://127.0.0.1:5173` for Vite;
+demo Compose defaults to port 8080. Leave the variable unset to keep these
+mode-specific defaults. Use the 8080 origin when testing Go-served assets in
+development. Origin validation here checks config
 syntax only; request-origin enforcement and WebAuthn are implemented with auth.
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP
 listener. An explicitly empty `DATABASE_URL` fails; if an older `.env` contains
 an empty value, replace it with the development URL in `.env.example`.
 
-Changing `HTTP_ADDR` does not change Compose's published port automatically. Keep
+In development, changing `HTTP_ADDR` does not change Compose's published port automatically. Keep
 its container port mapping in sync, and use an unspecified host (`:8080`) to
 accept traffic forwarded into the container.
 
@@ -176,7 +219,7 @@ docker compose -f compose.dev.yaml up -d --force-recreate app
 
 ## Database and queries
 
-Development uses Postgres 18.1 with a named `postgres-data` volume. Ordinary
+Both modes use Postgres 18.1 with a named `postgres-data` volume. Ordinary
 container recreation and `make down` preserve it. Unlike build caches, this volume
 contains application data. Postgres is reachable as `postgres:5432` inside Compose
 and has no published host port. The fixed `gateway` / `gateway-local-only`

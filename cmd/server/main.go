@@ -35,6 +35,7 @@ func run() error {
 	}
 	defer pool.Close()
 	mux := http.NewServeMux()
+	mux.Handle("GET /api/readyz", readiness(pool.Ping, os.DirFS("frontend/dist")))
 	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	listener, err := net.Listen("tcp", cfg.HTTPAddr)

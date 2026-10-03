@@ -44,6 +44,9 @@ func registrationFixture(t *testing.T) (*registration, http.Handler) {
 
 func registrationRequestTest(handler http.Handler, path, body, origin string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	r := httptest.NewRequest("POST", "/api/auth/register/"+path, strings.NewReader(body))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
 	r.Header.Set("Origin", origin)
 	r.Header.Set("Content-Type", "application/json")
 	if cookie != nil {

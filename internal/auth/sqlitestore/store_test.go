@@ -5,28 +5,17 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"path/filepath"
+	"fmt"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
+	"github.com/carlyleec/go-ssh-term/internal/database/testdb"
 )
 
 func newStore(t *testing.T, interval time.Duration) (*Store, *sql.DB) {
 	t.Helper()
-	db, err := sql.Open("sqlite", sqlite.DSN(filepath.Join(t.TempDir(), "sessions.db"), "rwc"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	db.SetMaxOpenConns(1)
-	db.SetMaxIdleConns(1)
-	t.Cleanup(func() { db.Close() })
-	_, err = db.Exec(`CREATE TABLE sessions (token TEXT PRIMARY KEY NOT NULL, data BLOB NOT NULL, expiry INTEGER NOT NULL) STRICT;
-	CREATE INDEX sessions_expiry_idx ON sessions(expiry)`)
-	if err != nil {
-		t.Fatal(err)
-	}
+	db, _ := testdb.New(t)
 	s := New(db, interval)
 	t.Cleanup(s.StopCleanup)
 	return s, db
@@ -167,5 +156,41 @@ func TestExpiryCheckedAfterPoolWait(t *testing.T) {
 		}
 	case <-time.After(time.Second):
 		t.Fatal("lookup did not complete after pool release")
+	}
+}
+
+func TestConcurrentCleanupAndWrites(t *testing.T) {
+	s, db := newStore(t, 0)
+	ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+	defer cancel()
+	var wg sync.WaitGroup
+	for worker := range 8 {
+		wg.Go(func() {
+			for i := range 20 {
+				token := fmt.Sprintf("%d-%d", worker, i)
+				if err := s.CommitCtx(ctx, token, []byte(token), time.Now().Add(time.Hour)); err != nil {
+					t.Error(err)
+					return
+				}
+				if err := s.CommitCtx(ctx, "expired-"+token, []byte(token), time.Now().Add(-time.Second)); err != nil {
+					t.Error(err)
+					return
+				}
+				if err := s.deleteExpired(ctx); err != nil {
+					t.Error(err)
+					return
+				}
+				got, found, err := s.FindCtx(ctx, token)
+				if err != nil || !found || string(got) != token {
+					t.Errorf("lost active session: %v %v", found, err)
+					return
+				}
+			}
+		})
+	}
+	wg.Wait()
+	var count int
+	if err := db.QueryRowContext(ctx, "SELECT count(*) FROM sessions").Scan(&count); err != nil || count != 160 {
+		t.Fatalf("sessions = %d, %v", count, err)
 	}
 }

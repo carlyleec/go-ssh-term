@@ -16,6 +16,12 @@ import (
 func New(t *testing.T) (*sql.DB, string) {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "gateway.db")
+	return Create(t, path), path
+}
+
+// Create initializes a new file at a caller-selected temporary path.
+func Create(t *testing.T, path string) *sql.DB {
+	t.Helper()
 	raw, err := sql.Open("sqlite", sqlite.DSN(path, "rwc"))
 	if err != nil {
 		t.Fatal(err)
@@ -51,5 +57,5 @@ func New(t *testing.T) (*sql.DB, string) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { db.Close() })
-	return db, path
+	return db
 }

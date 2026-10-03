@@ -62,6 +62,9 @@ func loginFixture(t *testing.T) (*login, http.Handler, loginUser, *ecdsa.Private
 
 func loginRequestTest(handler http.Handler, path, body, origin string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	r := httptest.NewRequest("POST", "/api/auth/login/"+path, strings.NewReader(body))
+	ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+	defer cancel()
+	r = r.WithContext(ctx)
 	r.Header.Set("Origin", origin)
 	r.Header.Set("Content-Type", "application/json")
 	if cookie != nil {

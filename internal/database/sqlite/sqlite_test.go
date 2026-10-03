@@ -4,6 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"errors"
+	"github.com/carlyleec/go-ssh-term/internal/database"
+	"github.com/carlyleec/go-ssh-term/internal/database/testdb"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -13,7 +16,7 @@ import (
 	"modernc.org/sqlite/lib"
 )
 
-func open(t *testing.T, path string) *sql.DB {
+func rawOpen(t *testing.T, path string) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", sqlite.DSN(path, "rwc"))
 	if err != nil {
@@ -25,6 +28,19 @@ func open(t *testing.T, path string) *sql.DB {
 	if err := db.PingContext(t.Context()); err != nil {
 		t.Fatal(err)
 	}
+	return db
+}
+
+func open(t *testing.T, path string) *sql.DB {
+	t.Helper()
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		return testdb.Create(t, path)
+	}
+	db, err := database.Open(t.Context(), path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { db.Close() })
 	return db
 }
 

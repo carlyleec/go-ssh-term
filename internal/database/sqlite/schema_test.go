@@ -53,7 +53,7 @@ func TestMigrationHistory(t *testing.T) {
 
 func migrated(t *testing.T) *sql.DB {
 	t.Helper()
-	db := open(t, filepath.Join(t.TempDir(), "schema.db"))
+	db := rawOpen(t, filepath.Join(t.TempDir(), "schema.db"))
 	files, err := fs.Glob(migrations.Files, "*.sql")
 	if err != nil {
 		t.Fatal(err)

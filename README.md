@@ -435,8 +435,8 @@ requires deliberately discarding unusable encrypted records and re-uploading the
 original SSH keys; automatic recovery or deletion is not implemented. Losing the
 SQLite volume loses the accounts, sessions, and uploaded key records, even if the
 encryption key survives. Back up both volumes. Access to both defeats the protection
-against disclosure from a database copy alone. The demo SSH identity planned for
-the repository is separate from this secret application encryption key.
+against disclosure from a database copy alone. The [intentionally public demo SSH identity](demo/keys/README.md) is separate
+from this secret application encryption key.
 
 Run `make migrate` before the first startup and whenever you pull new migrations.
 It stops the app, initializes storage permissions, and runs pinned dbmate with
@@ -483,6 +483,9 @@ are excluded from Git and Docker build context. Keep any custom database and key
 paths outside source control and initialize/migrate while the app is stopped.
 
 ### SSH key-management API
+
+To try the key-management modal, follow the [demo key upload steps](demo/keys/README.md#upload).
+The supplied key is intentionally public and only for the disposable local lab.
 
 All key endpoints require a signed-in session. Upload and delete also require
 the exact configured `Origin`. They do not extend the session lifetime.

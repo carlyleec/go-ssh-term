@@ -36,7 +36,7 @@ the account commits but session deletion or saving fails, retain the account and
 credential and tell the browser to sign in with the passkey. A lost database
 commit acknowledgement can also leave the account committed; no authenticated
 cookie is issued on that error. Do not retry the consumed challenge. Login is
-the recovery path once its endpoint is implemented.
+the recovery path through the passkey login endpoints.
 
 A successful session contains no pending-registration binding or other anonymous
 state, has a new token and full configured lifetime, and identifies the account

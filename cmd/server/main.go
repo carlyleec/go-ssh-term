@@ -43,6 +43,7 @@ func run() error {
 	defer stopCleanup()
 	mux := http.NewServeMux()
 	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, pool, cfg.BrowserOrigin))
+	mux.Handle("/api/auth/login/", auth.NewLogin(wa, sessions, pool, cfg.BrowserOrigin))
 	mux.Handle("GET /api/readyz", readiness(pool.Ping, os.DirFS("frontend/dist")))
 	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}

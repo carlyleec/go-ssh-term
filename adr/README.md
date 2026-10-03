@@ -23,6 +23,7 @@ Number records independently within each area. Each record states its context, d
 - [005 Store account and passkey identities separately](auth/005-account-storage.md)
 - [006 Bind registration challenges to browser sessions](auth/006-registration-ceremonies.md)
 - [007 Commit registration before issuing an authenticated session](auth/007-registration-session-boundary.md)
+- [008 Verify login and update credential metadata together](auth/008-passkey-login.md)
 
 ## Frontend
 

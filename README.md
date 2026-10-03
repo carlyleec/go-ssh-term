@@ -325,13 +325,38 @@ gets the full configured lifetime. Display names may repeat.
 An already authenticated browser or duplicate account/credential returns 409.
 Database or session-store failures return 503 without a new authenticated cookie.
 If account creation committed but the session could not be established, the
-account remains saved; sign in with its passkey once login is available. A lost
+account remains saved; sign in with its passkey through the login endpoints. A lost
 commit acknowledgement can also leave the account saved. Failed finish attempts
 consume the challenge and must not be replayed.
 
-Login, current-user and authorization middleware, the browser passkey UI, and
-logout/expiry handling remain pending Slice 2 tasks. Registration establishes
-server-side identity but does not yet provide a usable private workspace.
+Passkey login is available through two additional JSON POST routes:
+
+- `/api/auth/login/begin` accepts `{}` and returns discoverable assertion options
+  under `publicKey`; no display name or account identifier is requested.
+- `/api/auth/login/finish` accepts the browser's serialized assertion response
+  with the initiating session cookie. Success returns HTTP 200 with the same
+  account object as registration and a fresh authenticated session cookie.
+
+Login uses the same exact-origin checks, body limits, challenge lifetime, and
+browser binding as registration. Its separate pending store allows one attempt
+per browser session and at most 1,024 attempts per process. Begin replaces the
+previous login attempt; expiry, restart, and a finish attempt invalidate it.
+Malformed or missing/expired state returns 400; unknown credentials, mismatched
+user handles, and failed verification return the same generic 401. Already
+signed-in sessions return 409. Storage failures return 503 without a new
+authenticated cookie. Begin again after a failed finish.
+
+Credential lookup is scoped to RP ID, credential ID, and user handle. A row lock
+serializes verification and counter/flag updates, including last-use time.
+Zero signature counters are supported. Counter regressions retain the library's
+clone warning and previous counter; the warning is advisory and does not by
+itself reject a cryptographically valid assertion. Metadata commits before the
+new session is saved; if session saving fails, retry with a fresh login ceremony.
+Other login sessions for the account remain valid.
+
+Current-user and authorization middleware, the browser passkey UI, and
+logout/expiry handling remain pending Slice 2 tasks. The auth endpoints establish
+server-side identity but do not yet provide a usable private workspace.
 
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP

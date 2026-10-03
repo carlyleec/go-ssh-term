@@ -8,23 +8,16 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
+	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
 )
 
-func ValidateEncryptionKeyPath(path string) error {
-	if !filepath.IsAbs(path) || filepath.Clean(path) != path || strings.ContainsRune(path, 0) || path == string(filepath.Separator) {
-		return errors.New("ENCRYPTION_KEY_PATH must be an absolute, clean file path in a separate persistent directory")
-	}
-	return nil
-}
-
 // OpenEncryption runs before serving requests. Only an empty SSH key table
 // permits first-time key creation; database failures never count as emptiness.
 func OpenEncryption(ctx context.Context, db *sql.DB, path string) (*Encryption, error) {
-	if err := ValidateEncryptionKeyPath(path); err != nil {
+	if err := config.ValidateEncryptionKeyPath(path); err != nil {
 		return nil, err
 	}
 	parent, err := os.Stat(filepath.Dir(path))

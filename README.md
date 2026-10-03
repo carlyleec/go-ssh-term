@@ -2,7 +2,8 @@
 
 A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/`, passkey account access at `/login`, and a protected placeholder
-workspace at `/connections`. SSH features are not implemented yet.
+workspace at `/connections`. The SSH key-management API is implemented; its modal
+and SSH terminal connections are not implemented yet.
 
 ## Demo with Docker
 
@@ -480,6 +481,33 @@ DATABASE_PATH="$PWD/local-data/gateway.db" ENCRYPTION_KEY_PATH="$PWD/local-key-m
 Build `frontend/dist` first for host serving. The example's local storage directories
 are excluded from Git and Docker build context. Keep any custom database and key
 paths outside source control and initialize/migrate while the app is stopped.
+
+### SSH key-management API
+
+All key endpoints require a signed-in session. Upload and delete also require
+the exact configured `Origin`. They do not extend the session lifetime.
+
+| Method and path | Request | Success |
+| --- | --- | --- |
+| `POST /api/keys` | Multipart `name` and `private_key` fields | 201, `{"key": {...}}` |
+| `GET /api/keys` | No body | 200, `{"keys": [...]}` containing only your keys |
+| `DELETE /api/keys/{id}` | No body | 204; missing or another user's key returns 404 |
+
+Upload one unencrypted OpenSSH Ed25519 private key, at most 16 KiB. Requests are
+limited to 32 KiB including multipart overhead; unknown or duplicate fields are
+rejected. The name field accepts at most 256 bytes and is trimmed to 1–64 UTF-8
+characters without control characters. Let the browser set the Content-Type
+boundary when submitting FormData. Upload parsing streams in memory and does not
+spool private keys to temporary files.
+
+Each metadata object contains only `id`, `name`, `public_fingerprint`, and a UTC
+`created_at` timestamp. Lists are newest first; duplicate names and fingerprints
+are allowed. Uploads are validated and encrypted before being saved. Neither the
+plaintext nor ciphertext is returned, and no private-key download route exists.
+Errors use `{"error":"..."}`: invalid input is 400, excessive size 413,
+unsupported content type 415, and storage/encryption failure 503. Responses are
+not cached. Deletion protection for keys used by saved connections will be added
+with those connections.
 
 ### Current user and protected workspace
 

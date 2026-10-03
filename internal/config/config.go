@@ -1,16 +1,17 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
-	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 )
 
 type Config struct {
@@ -59,7 +60,7 @@ func Load() (Config, error) {
 	if err := sqlite.ValidatePath(cfg.DatabasePath); err != nil {
 		return Config{}, err
 	}
-	if err := sshkeys.ValidateEncryptionKeyPath(cfg.EncryptionKeyPath); err != nil {
+	if err := ValidateEncryptionKeyPath(cfg.EncryptionKeyPath); err != nil {
 		return Config{}, err
 	}
 	if filepath.Dir(cfg.EncryptionKeyPath) == filepath.Dir(cfg.DatabasePath) {
@@ -82,4 +83,11 @@ func value(name, fallback string) string {
 func validPort(port string) bool {
 	n, err := strconv.Atoi(port)
 	return err == nil && n >= 1 && n <= 65535
+}
+
+func ValidateEncryptionKeyPath(path string) error {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || strings.ContainsRune(path, 0) || path == string(filepath.Separator) {
+		return errors.New("ENCRYPTION_KEY_PATH must be an absolute, clean file path in a separate persistent directory")
+	}
+	return nil
 }

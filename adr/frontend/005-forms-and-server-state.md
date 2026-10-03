@@ -13,7 +13,8 @@ These responsibilities need consistent ownership alongside TanStack Router.
 Use TanStack Query for server queries and mutations, TanStack Form for field
 values, validation, and submission, and the existing TanStack Router for navigation.
 Mount one QueryClientProvider at the React entry point. Use ordinary fetch for
-same-origin JSON requests; HTTP-only cookies remain the login-session authority.
+same-origin API requests, with multipart/form-data for file uploads and JSON
+elsewhere; HTTP-only cookies remain the login-session authority.
 Current-user queries and route protection are implemented with the current-user
 endpoint, not inferred from an earlier successful login mutation.
 

@@ -21,8 +21,8 @@ Use Access.Require for protected API handlers. It loads and verifies the session
 and attaches the account to request context. Resource handlers must still scope
 queries to that account ID. Require exact configured Origin for unsafe methods
 and WebSocket upgrades; keep this reusable guard separate from the JSON content
-requirement used by registration and login. There are no other mutation endpoints
-yet; future handlers must use this boundary.
+requirement used by registration and login. SSH key-management endpoints use this
+boundary as well; future handlers must also use it.
 
 Share one QueryClient between React and TanStack Router. Before entering the
 connections route, fetch current-user data with zero stale time and no automatic

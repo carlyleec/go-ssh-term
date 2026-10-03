@@ -99,3 +99,11 @@ func TestHTTPSAuthConfig(t *testing.T) {
 		t.Fatal("unexpected HTTPS auth configuration")
 	}
 }
+
+func TestEncryptionKeyPath(t *testing.T) {
+	for _, path := range []string{"", "relative", "/", "/keys/../key", "/key\x00"} {
+		if err := ValidateEncryptionKeyPath(path); err == nil {
+			t.Fatal("invalid path accepted")
+		}
+	}
+}

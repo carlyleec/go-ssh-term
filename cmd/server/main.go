@@ -40,13 +40,17 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
-	if _, err := sshkeys.OpenEncryption(ctx, pool, cfg.EncryptionKeyPath); err != nil {
+	encryption, err := sshkeys.OpenEncryption(ctx, pool, cfg.EncryptionKeyPath)
+	if err != nil {
 		return err
 	}
 	sessions, stopCleanup := auth.NewSessions(cfg, pool)
 	defer stopCleanup()
 	mux := http.NewServeMux()
 	access := auth.NewAccess(sessions, pool, cfg.RPID, cfg.BrowserOrigin)
+	keys := sshkeys.NewHandler(pool, encryption, access)
+	mux.Handle("/api/keys", keys)
+	mux.Handle("/api/keys/", keys)
 	mux.Handle("GET /api/auth/me", access.CurrentUser())
 	mux.Handle("POST /api/auth/logout", access.Logout())
 	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, pool, cfg.BrowserOrigin))

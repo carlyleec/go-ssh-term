@@ -111,17 +111,10 @@ With `make up` running in one terminal, use another terminal for:
 ```sh
 make logs       # Follow Go, frontend, and Postgres logs
 make ps         # Show service status
-make check      # Go tests, Biome checks, and TypeScript checks
-make test       # Go package tests only
-make lint       # Frontend lint rules only
-make typecheck  # Frontend TypeScript checks only
-make format     # Write frontend formatting changes
-make fix        # Apply safe Biome fixes, including import ordering
 ```
 
-`make check` does not edit source files. Biome understands Tailwind directives and
-explicitly excludes dependency directories, build output, and the Bun lockfile.
-Tests, checks, formatting, and fixes require their services to be running.
+See [Tests and checks](#tests-and-checks) for package tests, database integration
+checks, frontend validation, and formatting commands.
 
 Build production frontend assets with:
 
@@ -182,6 +175,79 @@ compiled frontend assets. Container status alone does not confirm that Air has
 successfully built and started Go; inspect `make logs` for build/startup errors.
 The `/api/readyz` endpoint still checks the database and compiled frontend when
 requested directly, so it can return 503 until `make build` has run.
+
+## Tests and checks
+
+Run checks from the repository root using the development tool containers. The
+compiled demo image does not contain Go or Bun. If the demo is running, stop it
+with `docker compose down`, then start development with `make migrate` and
+`make up`. Neither command removes stored data.
+
+With development running, use another terminal:
+
+```sh
+make check      # Go package tests, Biome lint/format checks, and TypeScript
+make test       # Go package tests only; database integration is skipped
+make lint       # Frontend lint rules only
+make typecheck  # Generate route source and check TypeScript
+```
+
+`make check` does not apply Biome fixes. TypeScript checking runs the route
+generator, which can update `frontend/src/routetree.gen.ts`; review generated
+changes alongside route edits. Biome understands Tailwind directives and excludes
+dependencies, build output, and the Bun lockfile. To intentionally apply edits:
+
+```sh
+make format     # Format frontend files
+make fix        # Apply safe Biome fixes, including import ordering
+```
+
+For Go race detection and database integration checks, use a temporary tool
+container. This works with the application and frontend stopped:
+
+```sh
+make migrate
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T \
+  -e 'TEST_DATABASE_URL=postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable' \
+  app go test -race ./...
+```
+
+The integration tests create and remove uniquely named disposable databases;
+the test role needs database-creation privileges. The URL above targets the local
+Compose Postgres service. Without `TEST_DATABASE_URL`, these tests are skipped.
+
+`make build` additionally checks the frontend production build, using a temporary
+container and the shared build volume as described above. Package and frontend
+checks do not replace a browser walkthrough or verification of live reload,
+proxying, and persistence.
+
+## Destructive volume reset
+
+**This deletes the project's stored database data and migration history, plus
+its container dependency caches and frontend build output.** Use it only when
+intentionally starting over; ordinary shutdown and mode switching use
+`make down` or `docker compose down` without `--volumes`.
+
+From the repository root, the combined configuration covers volumes from both
+modes, so this command works after either demo or development use:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml down --volumes
+```
+
+The reset removes `postgres-data`, `go-mod`, `go-build`, `go-tmp`,
+`frontend-deps`, `frontend-build`, and `bun-cache` for this Compose project.
+It preserves repository files, `.env`, host editor dependencies, and Docker
+images. If you used a custom Compose project name, use that same name for the
+reset. An external database configured through `DATABASE_URL` is not erased by
+this command.
+
+After resetting, choose one mode and repeat its migration-first startup:
+
+- Development: `make migrate`, then `make up`. Container dependencies are
+  downloaded again; run `make build` only if you need Go-served compiled assets.
+- Demo: follow [Demo with Docker](#demo-with-docker), starting with Postgres and
+  the explicit dbmate migration command.
 
 ## Frontend routes
 
@@ -278,15 +344,3 @@ Write named queries in `db/queries` and run `make generate`. sqlc generates type
 Go methods for pgx in `internal/database/queries`. Review and commit generated Go
 with its SQL changes; do not edit it manually. Feature handlers can use these
 methods directly without an additional repository layer.
-
-`make test` runs package tests. For database integration checks, run:
-
-```sh
-docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T \
-  -e 'TEST_DATABASE_URL=postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable' \
-  app go test -race ./...
-```
-
-Start Postgres first (`make migrate`). These checks create and remove uniquely
-named test databases; the test role needs database-creation privileges. Without
-`TEST_DATABASE_URL`, database integration checks are skipped.

@@ -3,3 +3,40 @@
 //   sqlc v1.31.1
 
 package queries
+
+import (
+	"github.com/jackc/pgx/v5/pgtype"
+)
+
+type Account struct {
+	ID                 pgtype.UUID
+	DisplayName        string
+	RpID               string
+	WebauthnUserHandle []byte
+	CreatedAt          pgtype.Timestamptz
+}
+
+type PasskeyCredential struct {
+	AccountID         pgtype.UUID
+	RpID              string
+	CredentialID      []byte
+	PublicKey         []byte
+	AttestationType   string
+	AttestationFormat string
+	Transports        []string
+	Flags             int16
+	Aaguid            []byte
+	SignCount         int64
+	CloneWarning      bool
+	Attachment        string
+	Attestation       []byte
+	Extensions        []byte
+	CreatedAt         pgtype.Timestamptz
+	LastUsedAt        pgtype.Timestamptz
+}
+
+type Session struct {
+	Token  string
+	Data   []byte
+	Expiry pgtype.Timestamptz
+}

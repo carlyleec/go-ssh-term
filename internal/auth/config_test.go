@@ -61,8 +61,7 @@ func TestAuthConfiguration(t *testing.T) {
 			if _, ok := sessions.Store.(*pgxstore.PostgresStore); !ok {
 				t.Fatal("expected Postgres store")
 			}
-			memory := memstore.New()
-			defer memory.StopCleanup()
+			memory := memstore.NewWithCleanupInterval(0)
 			sessions.Store = memory
 			response := httptest.NewRecorder()
 			sessions.LoadAndSave(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

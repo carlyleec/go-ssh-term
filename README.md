@@ -214,8 +214,9 @@ docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T \
 ```
 
 The integration tests create and remove uniquely named disposable databases;
-the test role needs database-creation privileges. The URL above targets the local
-Compose Postgres service. Without `TEST_DATABASE_URL`, these tests are skipped.
+the test role needs database-creation privileges. They apply the embedded schema
+and check account/credential constraints, session-store compatibility, and
+rollback/reapply. The URL above targets the local Compose Postgres service. Without `TEST_DATABASE_URL`, these tests are skipped.
 
 `make build` additionally checks the frontend production build, using a temporary
 container and the shared build volume as described above. Package and frontend
@@ -294,10 +295,11 @@ Passkeys require discoverable credentials and user verification, with no
 attestation requested. Session cookies are named `ssh_term_session`, host-only,
 HTTP-only, `SameSite=Strict`, and scoped to `/`. They persist for the session lifetime
 and use `Secure` when the configured browser origin uses HTTPS.
-These constructors are ready for auth handlers; session-table migrations, HTTP
-middleware wiring, single-use challenge storage, request-origin protection, and
-logout/expiry handling are still pending Slice 2 tasks. Passkey flows are not
-available yet.
+Account, credential, and SCS session tables are defined in the account-access
+migration; run `make migrate` to apply it. Auth constructors are ready for
+handlers. HTTP middleware wiring, single-use challenge storage, request-origin
+protection, and logout/expiry handling remain pending Slice 2 tasks. Passkey
+flows are not available yet.
 
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP

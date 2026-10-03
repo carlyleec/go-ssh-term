@@ -3,12 +3,14 @@ package database
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"net/url"
 	"os"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/carlyleec/go-ssh-term/db/migrations"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -19,9 +21,10 @@ func TestVersions(t *testing.T) {
 		applied map[string]bool
 		want    string
 	}{
-		{"current", map[string]bool{"20261003000100": true}, ""},
+		{"current", map[string]bool{"20261003000100": true, "20261003000200": true}, ""},
 		{"pending", map[string]bool{}, "pending"},
-		{"unknown", map[string]bool{"20261003000100": true, "20990101000000": true}, "unknown"},
+		{"baseline only", map[string]bool{"20261003000100": true}, "pending"},
+		{"unknown", map[string]bool{"20261003000100": true, "20261003000200": true, "20990101000000": true}, "unknown"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			err := verifyVersions(tc.applied)
@@ -94,6 +97,29 @@ func TestPostgres(t *testing.T) {
 	if _, err := raw.Exec(ctx, "INSERT INTO public.schema_migrations VALUES ('20261003000100')"); err != nil {
 		t.Fatal(err)
 	}
+	if pool, err := Open(ctx, testURL); err == nil {
+		pool.Close()
+		t.Fatal("database without account migration accepted")
+	}
+	files, err := fs.Glob(migrations.Files, "*.sql")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		body, err := migrations.Files.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		up, _, _ := strings.Cut(string(body), "-- migrate:down")
+		if _, err := raw.Exec(ctx, up); err != nil {
+			t.Fatal(err)
+		}
+		version, _, _ := strings.Cut(file, "_")
+		if _, err := raw.Exec(ctx, "INSERT INTO public.schema_migrations VALUES ($1) ON CONFLICT DO NOTHING", version); err != nil {
+			t.Fatal(err)
+		}
+	}
+	testAccountSchema(t, ctx, raw)
 	pool, err := Open(ctx, testURL)
 	if err != nil {
 		t.Fatal(err)

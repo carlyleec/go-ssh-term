@@ -22,6 +22,7 @@ Number records independently within each area. Each record states its context, d
 - [004 Configure go-webauthn and SCS](auth/004-auth-libraries.md)
 - [005 Store account and passkey identities separately](auth/005-account-storage.md)
 - [006 Bind registration challenges to browser sessions](auth/006-registration-ceremonies.md)
+- [007 Commit registration before issuing an authenticated session](auth/007-registration-session-boundary.md)
 
 ## Frontend
 

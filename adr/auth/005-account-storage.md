@@ -42,8 +42,8 @@ per account and one credential per account match the current product scope.
 
 The typed credential mapping must be reviewed when upgrading go-webauthn. No
 private passkey material is stored. Pending single-use challenges belong to the
-registration/login implementation and are not part of this migration. Application
-queries and account/credential transaction handling remain with those endpoints.
+registration/login implementation and are not part of this migration. Registration uses generated queries in one account/credential transaction. Login
+lookup and metadata updates belong to the login endpoints.
 
 This supplements [passkeys and sessions](001-passkeys-and-sessions.md) and
 [auth library configuration](004-auth-libraries.md).

@@ -1,9 +1,11 @@
 package auth
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"mime"
 	"net/http"
@@ -16,7 +18,11 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+const accountIDKey = "account_id"
 
 const registrationBinding = "registration_binding"
 const maxPendingRegistrations = 1024
@@ -40,22 +46,44 @@ type pendingRegistration struct {
 type registration struct {
 	webauthn *webauthn.WebAuthn
 	sessions *scs.SessionManager
+	save     func(context.Context, registrationUser, *webauthn.Credential) error
 	mu       sync.Mutex
 	pending  map[string]pendingRegistration
 }
 
 // NewRegistration keeps one pending ceremony per browser session. Restarting
 // the process invalidates pending ceremonies, while login sessions remain stored.
-func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, origin string) http.Handler {
+func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *pgxpool.Pool, origin string) http.Handler {
 	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration)}
+	h.save = func(ctx context.Context, user registrationUser, credential *webauthn.Credential) error {
+		return saveRegistration(ctx, pool, wa.Config.RPID, user, credential)
+	}
 	return h.routes(origin)
 }
 
 func (h *registration) routes(origin string) http.Handler {
 	mux := http.NewServeMux()
 	mux.Handle("POST /api/auth/register/begin", registrationRequest(origin, h.sessions.LoadAndSave(http.HandlerFunc(h.begin))))
-	mux.Handle("POST /api/auth/register/finish", registrationRequest(origin, h.sessions.LoadAndSave(http.HandlerFunc(h.finish))))
+	mux.Handle("POST /api/auth/register/finish", registrationRequest(origin, h.loadFinishSession()))
 	return mux
+}
+
+// Finish saves its session explicitly so a storage failure cannot be followed
+// by an account-creation success body from automatic response middleware.
+func (h *registration) loadFinishSession() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Add("Vary", "Cookie")
+		token := ""
+		if cookie, err := r.Cookie(h.sessions.Cookie.Name); err == nil {
+			token = cookie.Value
+		}
+		ctx, err := h.sessions.Load(r.Context(), token)
+		if err != nil {
+			registrationError(w, http.StatusServiceUnavailable, "could not load browser session; try again")
+			return
+		}
+		h.finish(w, r.WithContext(ctx))
+	})
 }
 
 func registrationRequest(origin string, next http.Handler) http.Handler {
@@ -75,6 +103,11 @@ func registrationRequest(origin string, next http.Handler) http.Handler {
 }
 
 func (h *registration) begin(w http.ResponseWriter, r *http.Request) {
+	if h.sessions.GetString(r.Context(), accountIDKey) != "" {
+		registrationError(w, http.StatusConflict, "already signed in; log out before creating another account")
+		return
+	}
+
 	r.Body = http.MaxBytesReader(w, r.Body, 4096)
 	var input struct {
 		DisplayName string `json:"display_name"`
@@ -153,6 +186,11 @@ func (h *registration) take(binding string) (pendingRegistration, bool) {
 }
 
 func (h *registration) finish(w http.ResponseWriter, r *http.Request) {
+	if h.sessions.GetString(r.Context(), accountIDKey) != "" {
+		registrationError(w, http.StatusConflict, "already signed in; log out before creating another account")
+		return
+	}
+
 	binding := h.sessions.GetString(r.Context(), registrationBinding)
 	pending, ok := h.take(binding)
 	if !ok {
@@ -160,16 +198,37 @@ func (h *registration) finish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
-	_, err := h.webauthn.FinishRegistration(pending.user, pending.session, r)
+	credential, err := h.webauthn.FinishRegistration(pending.user, pending.session, r)
 	if err != nil {
 		registrationError(w, http.StatusBadRequest, "passkey verification failed; begin again")
 		return
 	}
-	// Verification alone does not create an account or grant authenticated access.
-	writeRegistrationJSON(w, struct {
-		Verified       bool `json:"verified"`
-		AccountCreated bool `json:"account_created"`
-	}{Verified: true})
+	if err := h.save(r.Context(), pending.user, credential); err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			registrationError(w, http.StatusConflict, "account or passkey is already registered; sign in instead")
+		} else {
+			registrationError(w, http.StatusServiceUnavailable, "could not save registration; try signing in or begin again")
+		}
+		return
+	}
+	// Destroy clears anonymous state and starts a full lifetime with a new token.
+	if err := h.sessions.Destroy(r.Context()); err != nil {
+		registrationError(w, http.StatusServiceUnavailable, "account saved but session could not be started; sign in with your passkey")
+		return
+	}
+	h.sessions.Put(r.Context(), accountIDKey, pending.user.ID.String())
+	token, expiry, err := h.sessions.Commit(r.Context())
+	if err != nil {
+		registrationError(w, http.StatusServiceUnavailable, "account saved but session could not be started; sign in with your passkey")
+		return
+	}
+	h.sessions.WriteSessionCookie(r.Context(), w, token, expiry)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	writeRegistrationJSON(w, map[string]any{"account": map[string]string{
+		"id": pending.user.ID.String(), "display_name": pending.user.DisplayName,
+	}})
 }
 
 func registrationError(w http.ResponseWriter, status int, message string) {

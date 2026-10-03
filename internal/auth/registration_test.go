@@ -2,6 +2,7 @@ package auth
 
 import (
 	"bytes"
+	"context"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -35,7 +36,9 @@ func registrationFixture(t *testing.T) (*registration, http.Handler) {
 	sessions, stop := NewSessions(cfg, nil)
 	t.Cleanup(stop)
 	sessions.Store = memstore.NewWithCleanupInterval(0)
-	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration)}
+	// Protocol tests isolate persistence; Postgres integration tests exercise the transaction.
+	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration),
+		save: func(context.Context, registrationUser, *webauthn.Credential) error { return nil }}
 	return h, h.routes(testOrigin)
 }
 
@@ -119,7 +122,7 @@ func TestRegistrationVerification(t *testing.T) {
 		}
 	}
 	w := registrationRequestTest(handler, "finish", body, testOrigin, cookie)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), `"account_created":false`) || !strings.Contains(w.Body.String(), `"verified":true`) {
+	if w.Code != 201 || !strings.Contains(w.Body.String(), `"account":`) {
 		t.Fatalf("finish: %d %s", w.Code, w.Body.String())
 	}
 	if w = registrationRequestTest(handler, "finish", body, testOrigin, cookie); w.Code != 400 {
@@ -179,7 +182,7 @@ func TestRegistrationConcurrentFinish(t *testing.T) {
 	close(results)
 	successes := 0
 	for status := range results {
-		if status == 200 {
+		if status == 201 {
 			successes++
 		} else if status != 400 {
 			t.Fatalf("unexpected status %d", status)
@@ -256,14 +259,15 @@ func TestRegistrationInputAndOrigin(t *testing.T) {
 func TestRegistrationRestart(t *testing.T) {
 	h, handler := registrationFixture(t)
 	options, cookie := beginTest(t, handler, nil)
-	restarted := NewRegistration(h.webauthn, h.sessions, testOrigin)
+	newProcess := &registration{webauthn: h.webauthn, sessions: h.sessions, save: h.save, pending: make(map[string]pendingRegistration)}
+	restarted := newProcess.routes(testOrigin)
 	body := credentialResponse(t, options, testOrigin, "localhost", 0x45)
 	if w := registrationRequestTest(restarted, "finish", body, testOrigin, cookie); w.Code != 400 {
 		t.Fatal("pending registration survived a new process-local store")
 	}
 	options, cookie = beginTest(t, restarted, cookie)
 	body = credentialResponse(t, options, testOrigin, "localhost", 0x45)
-	if w := registrationRequestTest(restarted, "finish", body, testOrigin, cookie); w.Code != 200 {
+	if w := registrationRequestTest(restarted, "finish", body, testOrigin, cookie); w.Code != 201 {
 		t.Fatal("could not register again with the retained browser session")
 	}
 }

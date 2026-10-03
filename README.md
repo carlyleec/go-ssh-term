@@ -303,7 +303,7 @@ browser-bound, single-use pending state:
   WebAuthn creation options under `publicKey`. It sets an anonymous session cookie.
 - `POST /api/auth/register/finish` accepts the browser's serialized WebAuthn
   credential response with that cookie. It consumes the pending attempt before
-  verification, even if verification fails.
+  verification, even if verification or persistence fails.
 
 Both routes require `Content-Type: application/json` and an `Origin` header
 matching `BROWSER_ORIGIN`. Names are trimmed and must contain 1–64 Unicode code
@@ -315,10 +315,23 @@ on begin and returning 503 when full. Failed or expired attempts require a new
 begin. Missing or invalid pending state and failed verification return 400;
 wrong/missing origins return 403 and unsupported content types return 415.
 
-**Registration is verification-only at this stage.** A successful finish returns
-`{"verified":true,"account_created":false}`. It does not save an account or
-credential, or authenticate the browser. Account persistence, login, the browser
-passkey UI, and logout/expiry handling remain pending Slice 2 tasks.
+After verification, finish saves the account and credential in one transaction,
+then replaces the anonymous session with a fresh authenticated session containing
+the account UUID. Success returns HTTP 201 with
+`{"account":{"id":"<uuid>","display_name":"Alice"}}` and a new session cookie.
+The old session is deleted, its anonymous state is cleared, and the new session
+gets the full configured lifetime. Display names may repeat.
+
+An already authenticated browser or duplicate account/credential returns 409.
+Database or session-store failures return 503 without a new authenticated cookie.
+If account creation committed but the session could not be established, the
+account remains saved; sign in with its passkey once login is available. A lost
+commit acknowledgement can also leave the account saved. Failed finish attempts
+consume the challenge and must not be replayed.
+
+Login, current-user and authorization middleware, the browser passkey UI, and
+logout/expiry handling remain pending Slice 2 tasks. Registration establishes
+server-side identity but does not yet provide a usable private workspace.
 
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP

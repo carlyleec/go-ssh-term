@@ -41,7 +41,6 @@ remain in Postgres. These constraints are acceptable for the local demo.
 
 The registration origin guard is available now; authentication middleware and
 origin protection for other mutations and WebSocket upgrades remain separate.
-Registration verification precedes account persistence in the implementation
-plan. Until persistence is added, finish explicitly reports verified=true and
-account_created=false; no account or authenticated session is established. The
-browser registration UI must wait for the complete flow.
+After verification, account persistence and fresh-session creation follow
+[the registration session boundary](007-registration-session-boundary.md).
+The browser registration UI must wait for the complete account-access slice.

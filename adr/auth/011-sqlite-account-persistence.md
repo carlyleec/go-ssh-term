@@ -19,8 +19,7 @@ ten-second context budget, and stores `token TEXT PRIMARY KEY NOT NULL`,
 with an expiry index. Expiry is UTC Unix nanoseconds and is checked after the
 lookup completes. Cleanup uses bounded contexts; stopping cancels and joins the
 worker before database shutdown. External lock waits follow
-[API ADR 009](../api/009-sqlite-lock-wait-deadlines.md). Runtime wiring remains
-part of the account-access port.
+[API ADR 009](../api/009-sqlite-lock-wait-deadlines.md). Application and session operations share the runtime pool.
 
 Use strict SQLite tables for application accounts and credentials, with canonical
 UUID text IDs, BLOB handles/credential IDs/public keys/AAGUIDs, and INTEGER counters

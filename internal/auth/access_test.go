@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -11,7 +12,6 @@ import (
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
 )
 
 func accessCookie(t *testing.T, sessions *scs.SessionManager, id string, expired bool) *http.Cookie {
@@ -47,7 +47,7 @@ func TestAccessSessionAuthority(t *testing.T) {
 					t.Fatalf("lookup ID = %s", got)
 				}
 				if kind == "deleted-account" {
-					return Account{}, pgx.ErrNoRows
+					return Account{}, sql.ErrNoRows
 				}
 				if kind == "database-failure" {
 					return Account{}, errors.New("secret database failure")

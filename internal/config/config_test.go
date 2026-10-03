@@ -8,13 +8,13 @@ import (
 )
 
 func TestDefaults(t *testing.T) {
-	for _, key := range []string{"HTTP_ADDR", "DATABASE_URL", "BROWSER_ORIGIN", "SHUTDOWN_TIMEOUT", "SESSION_LIFETIME", "CHALLENGE_LIFETIME"} {
+	for _, key := range []string{"HTTP_ADDR", "DATABASE_PATH", "BROWSER_ORIGIN", "SHUTDOWN_TIMEOUT", "SESSION_LIFETIME", "CHALLENGE_LIFETIME"} {
 		t.Setenv(key, "")
 		if err := os.Unsetenv(key); err != nil {
 			t.Fatal(err)
 		}
 	}
-	t.Setenv("DATABASE_URL", "postgres://gateway@postgres:5432/gateway")
+	t.Setenv("DATABASE_PATH", "/data/gateway.db")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
@@ -27,7 +27,7 @@ func TestDefaults(t *testing.T) {
 func setValidEnv(t *testing.T) {
 	t.Helper()
 	t.Setenv("HTTP_ADDR", ":8080")
-	t.Setenv("DATABASE_URL", "postgres://gateway@postgres:5432/gateway")
+	t.Setenv("DATABASE_PATH", "/data/gateway.db")
 	t.Setenv("BROWSER_ORIGIN", "http://localhost:5173")
 	t.Setenv("SHUTDOWN_TIMEOUT", "5s")
 	t.Setenv("SESSION_LIFETIME", "12h")
@@ -37,13 +37,13 @@ func setValidEnv(t *testing.T) {
 func TestLoad(t *testing.T) {
 	setValidEnv(t)
 	t.Setenv("HTTP_ADDR", "[::1]:9000")
-	t.Setenv("DATABASE_URL", "postgres://gateway:secret@postgres:5432/gateway?sslmode=disable")
+	t.Setenv("DATABASE_PATH", "/data/gateway.db")
 	t.Setenv("SHUTDOWN_TIMEOUT", "250ms")
 	cfg, err := Load()
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.HTTPAddr != "[::1]:9000" || cfg.BrowserOrigin != "http://localhost:5173" || cfg.ShutdownTimeout != 250*time.Millisecond || cfg.DatabaseURL == "" {
+	if cfg.HTTPAddr != "[::1]:9000" || cfg.BrowserOrigin != "http://localhost:5173" || cfg.ShutdownTimeout != 250*time.Millisecond || cfg.DatabasePath == "" {
 		t.Fatalf("unexpected configuration fields")
 	}
 }
@@ -57,7 +57,7 @@ func TestInvalidConfig(t *testing.T) {
 		{"SESSION_LIFETIME", "0s"}, {"SESSION_LIFETIME", "-1h"}, {"SESSION_LIFETIME", "500ms"}, {"SESSION_LIFETIME", "bad"}, {"SESSION_LIFETIME", ""},
 		{"CHALLENGE_LIFETIME", "0s"}, {"CHALLENGE_LIFETIME", "-1m"}, {"CHALLENGE_LIFETIME", "1ns"}, {"CHALLENGE_LIFETIME", "bad"}, {"CHALLENGE_LIFETIME", ""},
 		{"BROWSER_ORIGIN", "ftp://localhost"}, {"BROWSER_ORIGIN", "http://localhost:99999"}, {"BROWSER_ORIGIN", ""},
-		{"DATABASE_URL", "postgres://user:secret%zz@db/app"}, {"DATABASE_URL", "https://db/app"}, {"DATABASE_URL", ""},
+		{"DATABASE_PATH", "postgres://user:secret%zz@db/app"}, {"DATABASE_PATH", "https://db/app"}, {"DATABASE_PATH", ""},
 		{"SHUTDOWN_TIMEOUT", "0s"}, {"SHUTDOWN_TIMEOUT", "-1s"}, {"SHUTDOWN_TIMEOUT", "five"}, {"SHUTDOWN_TIMEOUT", ""},
 	} {
 		t.Run(tc.key+"/"+tc.value, func(t *testing.T) {
@@ -76,7 +76,7 @@ func TestInvalidConfig(t *testing.T) {
 
 func TestRequiredDatabase(t *testing.T) {
 	setValidEnv(t)
-	t.Setenv("DATABASE_URL", "")
+	t.Setenv("DATABASE_PATH", "")
 	if _, err := Load(); err == nil {
 		t.Fatal("expected missing database URL error")
 	}

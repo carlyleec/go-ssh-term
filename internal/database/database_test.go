@@ -1,148 +1,142 @@
-package database
+package database_test
 
 import (
 	"context"
-	"fmt"
-	"io/fs"
-	"net/url"
+	"database/sql"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/carlyleec/go-ssh-term/db/legacy/migrations"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/carlyleec/go-ssh-term/internal/database"
+	"github.com/carlyleec/go-ssh-term/internal/database/testdb"
 )
 
-func TestVersions(t *testing.T) {
-	for _, tc := range []struct {
-		name    string
-		applied map[string]bool
-		want    string
-	}{
-		{"current", map[string]bool{"20261003000100": true, "20261003000200": true}, ""},
-		{"pending", map[string]bool{}, "pending"},
-		{"baseline only", map[string]bool{"20261003000100": true}, "pending"},
-		{"unknown", map[string]bool{"20261003000100": true, "20261003000200": true, "20990101000000": true}, "unknown"},
-	} {
-		t.Run(tc.name, func(t *testing.T) {
-			err := verifyVersions(tc.applied)
-			if tc.want == "" {
-				if err != nil {
-					t.Fatal(err)
-				}
-				return
-			}
-			if err == nil || !strings.Contains(err.Error(), tc.want) {
-				t.Fatalf("expected %q, got %v", tc.want, err)
-			}
-		})
+func TestOpenAndReplacement(t *testing.T) {
+	db, path := testdb.New(t)
+	if db.Stats().MaxOpenConnections != 1 {
+		t.Fatal("database must serialize operations")
 	}
-}
-
-func TestInvalidURLDoesNotLeakCredentials(t *testing.T) {
-	_, err := Open(context.Background(), "postgres://user:secret%zz@localhost/db")
-	if err == nil || strings.Contains(err.Error(), "secret") {
-		t.Fatal("expected redacted configuration error")
-	}
-}
-
-// TEST_DATABASE_URL must allow creating disposable databases for integration checks.
-func TestPostgres(t *testing.T) {
-	databaseURL := os.Getenv("TEST_DATABASE_URL")
-	if databaseURL == "" {
-		t.Skip("set TEST_DATABASE_URL to run Postgres integration checks")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	admin, err := pgxpool.New(ctx, databaseURL)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer admin.Close()
-	name := fmt.Sprintf("gateway_test_%d", time.Now().UnixNano())
-	if _, err := admin.Exec(ctx, "CREATE DATABASE "+pgx.Identifier{name}.Sanitize()); err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		cleanup, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		if _, err := admin.Exec(cleanup, "DROP DATABASE "+pgx.Identifier{name}.Sanitize()+" WITH (FORCE)"); err != nil {
-			t.Error(err)
+	for range 2 {
+		if err := database.Check(t.Context(), db); err != nil {
+			t.Fatal(err)
 		}
-	}()
-	u, err := url.Parse(databaseURL)
+		for pragma, want := range map[string]string{"journal_mode": "wal", "foreign_keys": "1", "synchronous": "2", "busy_timeout": "5000"} {
+			var got string
+			if err := db.QueryRowContext(t.Context(), "PRAGMA "+pragma).Scan(&got); err != nil || got != want {
+				t.Fatalf("%s = %s, %v", pragma, got, err)
+			}
+		}
+		db.SetMaxIdleConns(0)
+		db.SetMaxIdleConns(1)
+	}
+	if err := db.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if err := database.Check(t.Context(), db); err == nil {
+		t.Fatal("closed database ready")
+	}
+	reopened, err := database.Open(t.Context(), path)
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.Path = "/" + name
-	testURL := u.String()
-	if pool, err := Open(ctx, testURL); err == nil {
-		pool.Close()
+	defer reopened.Close()
+	if err := database.Check(t.Context(), reopened); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStorageFailures(t *testing.T) {
+	dir := t.TempDir()
+	for _, path := range []string{"", ":memory:", "relative.db", "file:/tmp/test.db", filepath.Join(dir, "missing.db"), dir} {
+		if db, err := database.Open(t.Context(), path); err == nil {
+			db.Close()
+			t.Fatalf("accepted %q", path)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(dir, "missing.db")); !os.IsNotExist(err) {
+		t.Fatal("startup created a missing database")
+	}
+	path := filepath.Join(dir, "unmigrated.db")
+	if err := os.WriteFile(path, nil, 0600); err != nil {
+		t.Fatal(err)
+	}
+	if db, err := database.Open(t.Context(), path); err == nil {
+		db.Close()
 		t.Fatal("unmigrated database accepted")
-	}
-	raw, err := pgxpool.New(ctx, testURL)
-	if err != nil {
+	} else if !strings.Contains(err.Error(), "make migrate") {
 		t.Fatal(err)
 	}
-	defer raw.Close()
-	if _, err := raw.Exec(ctx, "CREATE TABLE public.schema_migrations (version varchar(255) PRIMARY KEY)"); err != nil {
+	if err := os.WriteFile(path, []byte("not a SQLite database"), 0600); err != nil {
 		t.Fatal(err)
 	}
-	if pool, err := Open(ctx, testURL); err == nil {
-		pool.Close()
-		t.Fatal("pending migration accepted")
+	if db, err := database.Open(t.Context(), path); err == nil {
+		db.Close()
+		t.Fatal("corrupt database accepted")
 	}
-	if _, err := raw.Exec(ctx, "INSERT INTO public.schema_migrations VALUES ('20261003000100')"); err != nil {
-		t.Fatal(err)
+}
+
+func TestUnwritableStorage(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("permission checks require a non-root process")
 	}
-	if pool, err := Open(ctx, testURL); err == nil {
-		pool.Close()
-		t.Fatal("database without account migration accepted")
-	}
-	files, err := fs.Glob(migrations.Files, "*.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, file := range files {
-		body, err := migrations.Files.ReadFile(file)
+	db, path := testdb.New(t)
+	db.Close()
+	for _, target := range []string{path, filepath.Dir(path)} {
+		info, err := os.Stat(target)
 		if err != nil {
 			t.Fatal(err)
 		}
-		up, _, _ := strings.Cut(string(body), "-- migrate:down")
-		if _, err := raw.Exec(ctx, up); err != nil {
+		if err := os.Chmod(target, 0400); err != nil {
 			t.Fatal(err)
 		}
-		version, _, _ := strings.Cut(file, "_")
-		if _, err := raw.Exec(ctx, "INSERT INTO public.schema_migrations VALUES ($1) ON CONFLICT DO NOTHING", version); err != nil {
+		got, openErr := database.Open(t.Context(), path)
+		restoreErr := os.Chmod(target, info.Mode().Perm())
+		if restoreErr != nil {
+			t.Fatal(restoreErr)
+		}
+		if openErr == nil {
+			got.Close()
+			t.Fatalf("accepted unwritable %s", target)
+		}
+	}
+}
+
+func TestMigrationFailuresAndPoolCancellation(t *testing.T) {
+	db, path := testdb.New(t)
+	for _, tc := range []struct{ statement, want string }{
+		{"DELETE FROM schema_migrations", "pending"},
+		{"INSERT INTO schema_migrations VALUES ('20261003000300'), ('20261003000100')", "unknown"},
+	} {
+		if _, err := db.ExecContext(t.Context(), tc.statement); err != nil {
+			t.Fatal(err)
+		}
+		other, err := database.Open(t.Context(), path)
+		if err == nil {
+			other.Close()
+			t.Fatal("bad history accepted")
+		}
+		if !strings.Contains(err.Error(), tc.want) {
 			t.Fatal(err)
 		}
 	}
-	testAccountSchema(t, ctx, raw)
-	pool, err := Open(ctx, testURL)
+	conn, err := db.Conn(t.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	pool.Close()
-	if _, err := raw.Exec(ctx, "INSERT INTO public.schema_migrations VALUES ('20990101000000')"); err != nil {
+	ctx, cancel := context.WithTimeout(t.Context(), 25*time.Millisecond)
+	defer cancel()
+	if err := database.Check(ctx, db); err == nil {
+		t.Fatal("pool wait ignored cancellation")
+	}
+	conn.Close()
+	if err := database.Check(t.Context(), db); err != nil {
 		t.Fatal(err)
 	}
-	if pool, err := Open(ctx, testURL); err == nil {
-		pool.Close()
-		t.Fatal("newer database accepted")
-	}
-	u.Path = "/nonexistent_" + name
-	if pool, err := Open(ctx, u.String()); err == nil {
-		pool.Close()
-		t.Fatal("nonexistent database accepted")
-	}
-	u.Path = "/" + name
-	u.User = url.UserPassword("gateway", "deliberately-wrong-secret")
-	if pool, err := Open(ctx, u.String()); err == nil {
-		pool.Close()
-		t.Fatal("wrong credentials accepted")
-	} else if strings.Contains(err.Error(), "deliberately-wrong-secret") {
-		t.Fatal("credentials leaked")
+	// No-row errors retain database/sql semantics.
+	var ignored int
+	if err := db.QueryRow("SELECT 1 WHERE 0").Scan(&ignored); err != sql.ErrNoRows {
+		t.Fatal(err)
 	}
 }

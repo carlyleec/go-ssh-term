@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2/memstore"
+	"github.com/carlyleec/go-ssh-term/internal/auth/sqlitestore"
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
@@ -16,7 +16,7 @@ import (
 func TestAuthConfiguration(t *testing.T) {
 	for _, origin := range []string{"http://localhost:8080", "http://localhost:5173", "https://localhost:8443"} {
 		t.Run(origin, func(t *testing.T) {
-			t.Setenv("DATABASE_URL", "postgres://gateway@localhost/gateway")
+			t.Setenv("DATABASE_PATH", "/data/gateway.db")
 			t.Setenv("HTTP_ADDR", ":8080")
 			t.Setenv("SHUTDOWN_TIMEOUT", "5s")
 			t.Setenv("BROWSER_ORIGIN", origin)
@@ -58,8 +58,8 @@ func TestAuthConfiguration(t *testing.T) {
 			// Exercise cookies without requiring the schema that will back the store.
 			sessions, stop := NewSessions(cfg, nil)
 			defer stop()
-			if _, ok := sessions.Store.(*pgxstore.PostgresStore); !ok {
-				t.Fatal("expected Postgres store")
+			if _, ok := sessions.Store.(*sqlitestore.Store); !ok {
+				t.Fatal("expected SQLite store")
 			}
 			memory := memstore.NewWithCleanupInterval(0)
 			sessions.Store = memory

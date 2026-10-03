@@ -2,16 +2,15 @@ package auth
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"net/http"
 	"strings"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/carlyleec/go-ssh-term/internal/database/queries"
+	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
+	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 type Account struct {
@@ -37,13 +36,15 @@ type Access struct {
 	lookup   func(context.Context, uuid.UUID) (Account, error)
 }
 
-func NewAccess(sessions *scs.SessionManager, pool *pgxpool.Pool, rpID, origin string) *Access {
+func NewAccess(sessions *scs.SessionManager, pool *sql.DB, rpID, origin string) *Access {
 	return &Access{sessions: sessions, origin: origin, lookup: func(ctx context.Context, id uuid.UUID) (Account, error) {
-		row, err := queries.New(pool).GetSessionAccount(ctx, queries.GetSessionAccountParams{ID: pgtype.UUID{Bytes: id, Valid: true}, RpID: rpID})
+		ctx, cancel := sqlite.WorkContext(ctx)
+		defer cancel()
+		row, err := queries.New(pool).GetSessionAccount(ctx, queries.GetSessionAccountParams{ID: id.String(), RpID: rpID})
 		if err != nil {
 			return Account{}, err
 		}
-		return Account{ID: uuid.UUID(row.ID.Bytes).String(), DisplayName: row.DisplayName}, nil
+		return Account{ID: row.ID, DisplayName: row.DisplayName}, nil
 	}}
 }
 
@@ -57,7 +58,7 @@ func (a *Access) Require(next http.Handler) http.Handler {
 			return
 		}
 		account, err := a.lookup(r.Context(), id)
-		if errors.Is(err, pgx.ErrNoRows) {
+		if errors.Is(err, sql.ErrNoRows) {
 			authError(w, http.StatusUnauthorized, "sign in to continue")
 			return
 		}

@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -17,8 +18,8 @@ import (
 	"github.com/alexedwards/scs/v2"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/jackc/pgx/v5/pgxpool"
+	driver "modernc.org/sqlite"
+	"modernc.org/sqlite/lib"
 )
 
 const registrationBinding = "registration_binding"
@@ -50,7 +51,7 @@ type registration struct {
 
 // NewRegistration keeps one pending ceremony per browser session. Restarting
 // the process invalidates pending ceremonies, while login sessions remain stored.
-func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *pgxpool.Pool, origin string) http.Handler {
+func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB, origin string) http.Handler {
 	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration)}
 	h.save = func(ctx context.Context, user registrationUser, credential *webauthn.Credential) error {
 		return saveRegistration(ctx, pool, wa.Config.RPID, user, credential)
@@ -167,8 +168,8 @@ func (h *registration) finish(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if err := h.save(r.Context(), pending.user, credential); err != nil {
-		var pgErr *pgconn.PgError
-		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+		var sqliteErr *driver.Error
+		if errors.As(err, &sqliteErr) && (sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE || sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY) {
 			authError(w, http.StatusConflict, "account or passkey is already registered; sign in instead")
 		} else {
 			authError(w, http.StatusServiceUnavailable, "could not save registration; try signing in or begin again")

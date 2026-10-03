@@ -34,7 +34,7 @@ func run() error {
 	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	pool, err := database.Open(ctx, cfg.DatabaseURL)
+	pool, err := database.Open(ctx, cfg.DatabasePath)
 	if err != nil {
 		return err
 	}
@@ -47,7 +47,7 @@ func run() error {
 	mux.Handle("POST /api/auth/logout", access.Logout())
 	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, pool, cfg.BrowserOrigin))
 	mux.Handle("/api/auth/login/", auth.NewLogin(wa, sessions, pool, cfg.BrowserOrigin))
-	mux.Handle("GET /api/readyz", readiness(pool.Ping, os.DirFS("frontend/dist")))
+	mux.Handle("GET /api/readyz", readiness(func(ctx context.Context) error { return database.Check(ctx, pool) }, os.DirFS("frontend/dist")))
 	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	listener, err := net.Listen("tcp", cfg.HTTPAddr)

@@ -1,14 +1,15 @@
 package auth
 
 import (
+	"database/sql"
 	"net/http"
+	"time"
 
-	"github.com/alexedwards/scs/pgxstore"
 	"github.com/alexedwards/scs/v2"
+	"github.com/carlyleec/go-ssh-term/internal/auth/sqlitestore"
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func NewWebAuthn(cfg config.Config) (*webauthn.WebAuthn, error) {
@@ -32,8 +33,8 @@ func NewWebAuthn(cfg config.Config) (*webauthn.WebAuthn, error) {
 
 // NewSessions requires the sessions table and a shared pool. Call stopCleanup
 // after HTTP shutdown and before closing the pool.
-func NewSessions(cfg config.Config, pool *pgxpool.Pool) (*scs.SessionManager, func()) {
-	store := pgxstore.New(pool)
+func NewSessions(cfg config.Config, pool *sql.DB) (*scs.SessionManager, func()) {
+	store := sqlitestore.New(pool, time.Minute)
 	sessions := scs.New()
 	sessions.Store = store
 	sessions.Lifetime = cfg.SessionLifetime

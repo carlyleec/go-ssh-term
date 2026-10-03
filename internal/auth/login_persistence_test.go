@@ -3,32 +3,32 @@ package auth
 import (
 	"context"
 	"crypto/ecdsa"
+	"database/sql"
 	"net/http"
 	"strings"
 	"sync"
 	"testing"
 
-	"github.com/alexedwards/scs/pgxstore"
+	"github.com/carlyleec/go-ssh-term/internal/auth/sqlitestore"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-func loginDatabaseFixture(t *testing.T, pool *pgxpool.Pool) (*login, http.Handler, loginUser, *ecdsa.PrivateKey) {
+func loginDatabaseFixture(t *testing.T, pool *sql.DB) (*login, http.Handler, loginUser, *ecdsa.PrivateKey) {
 	t.Helper()
 	h, _, user, key := loginFixture(t)
-	h.sessions.Store = pgxstore.NewWithCleanupInterval(pool, 0)
-	if err := saveRegistration(context.Background(), pool, "localhost", registrationUser{ID: uuid.UUID(user.account.ID.Bytes), Handle: user.account.WebauthnUserHandle, DisplayName: user.account.DisplayName}, &user.credential); err != nil {
+	h.sessions.Store = sqlitestore.New(pool, 0)
+	if err := saveRegistration(context.Background(), pool, "localhost", registrationUser{ID: uuid.MustParse(user.account.ID), Handle: user.account.WebauthnUserHandle, DisplayName: user.account.DisplayName}, &user.credential); err != nil {
 		t.Fatal(err)
 	}
 	return h, NewLogin(h.webauthn, h.sessions, pool, testOrigin), user, key
 }
 
-func TestLoginPostgres(t *testing.T) {
+func TestLoginSQLite(t *testing.T) {
 	pool := registrationDatabase(t)
 	for _, scenario := range []string{"metadata and sessions", "identity scope", "failed verification", "update failure", "commit failure", "session failure", "concurrent metadata"} {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()
-			if _, err := pool.Exec(ctx, "TRUNCATE accounts, passkey_credentials, sessions"); err != nil {
+			if _, err := pool.ExecContext(ctx, "DELETE FROM accounts; DELETE FROM sessions"); err != nil {
 				t.Fatal(err)
 			}
 			h, handler, user, key := loginDatabaseFixture(t, pool)
@@ -48,13 +48,13 @@ func TestLoginPostgres(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if h.sessions.GetString(session, accountIDKey) != uuid.UUID(user.account.ID.Bytes).String() || h.sessions.Exists(session, loginBinding) {
+				if h.sessions.GetString(session, accountIDKey) != user.account.ID || h.sessions.Exists(session, loginBinding) {
 					t.Fatal("incorrect login session")
 				}
 				var count int64
 				var flags int16
 				var used bool
-				if err := pool.QueryRow(ctx, "SELECT sign_count,flags,last_used_at IS NOT NULL FROM passkey_credentials").Scan(&count, &flags, &used); err != nil {
+				if err := pool.QueryRowContext(ctx, "SELECT sign_count,flags,last_used_at IS NOT NULL FROM passkey_credentials").Scan(&count, &flags, &used); err != nil {
 					t.Fatal(err)
 				}
 				if count != 1 || flags&0x1d != 0x1d || !used {
@@ -67,7 +67,7 @@ func TestLoginPostgres(t *testing.T) {
 					t.Fatal("counter warning unexpectedly rejected a valid signature")
 				}
 				var warning bool
-				if err := pool.QueryRow(ctx, "SELECT sign_count,clone_warning,flags FROM passkey_credentials").Scan(&count, &warning, &flags); err != nil {
+				if err := pool.QueryRowContext(ctx, "SELECT sign_count,clone_warning,flags FROM passkey_credentials").Scan(&count, &warning, &flags); err != nil {
 					t.Fatal(err)
 				}
 				if count != 1 || !warning || flags&0x10 != 0 {
@@ -77,7 +77,7 @@ func TestLoginPostgres(t *testing.T) {
 				if err != nil || h.sessions.GetString(session, accountIDKey) == "" {
 					t.Fatal("another login invalidated the first login session")
 				}
-				if _, err := pool.Exec(ctx, "UPDATE passkey_credentials SET sign_count=0,clone_warning=false"); err != nil {
+				if _, err := pool.ExecContext(ctx, "UPDATE passkey_credentials SET sign_count=0,clone_warning=false"); err != nil {
 					t.Fatal(err)
 				}
 				options, cookie = beginLoginTest(t, handler, nil)
@@ -86,7 +86,7 @@ func TestLoginPostgres(t *testing.T) {
 				}
 			case "identity scope":
 				second, secondKey := loginIdentity(t)
-				if err := saveRegistration(ctx, pool, "localhost", registrationUser{ID: uuid.UUID(second.account.ID.Bytes), Handle: second.account.WebauthnUserHandle, DisplayName: second.account.DisplayName}, &second.credential); err != nil {
+				if err := saveRegistration(ctx, pool, "localhost", registrationUser{ID: uuid.MustParse(second.account.ID), Handle: second.account.WebauthnUserHandle, DisplayName: second.account.DisplayName}, &second.credential); err != nil {
 					t.Fatal(err)
 				}
 				wrong := user
@@ -96,15 +96,15 @@ func TestLoginPostgres(t *testing.T) {
 				}
 				options, cookie = beginLoginTest(t, handler, nil)
 				w := loginRequestTest(handler, "finish", assertionResponse(t, secondKey, second, options, 1, 0x1d, testOrigin, "localhost"), testOrigin, cookie)
-				if w.Code != 200 || !strings.Contains(w.Body.String(), uuid.UUID(second.account.ID.Bytes).String()) {
+				if w.Code != 200 || !strings.Contains(w.Body.String(), second.account.ID) {
 					t.Fatal("duplicate display names confused identity lookup")
 				}
-				if _, err := pool.Exec(ctx, "UPDATE passkey_credentials SET rp_id='other.example' WHERE account_id=$1", user.account.ID); err == nil {
+				if _, err := pool.ExecContext(ctx, "UPDATE passkey_credentials SET rp_id='other.example' WHERE account_id=$1", user.account.ID); err == nil {
 					t.Fatal("RP foreign-key invariant missing")
 				}
 				// Move both rows together in a deferred-free order by inserting a separate RP account.
 				other, otherKey := loginIdentity(t)
-				if err := saveRegistration(ctx, pool, "other.example", registrationUser{ID: uuid.UUID(other.account.ID.Bytes), Handle: other.account.WebauthnUserHandle, DisplayName: other.account.DisplayName}, &other.credential); err != nil {
+				if err := saveRegistration(ctx, pool, "other.example", registrationUser{ID: uuid.MustParse(other.account.ID), Handle: other.account.WebauthnUserHandle, DisplayName: other.account.DisplayName}, &other.credential); err != nil {
 					t.Fatal(err)
 				}
 				options, cookie = beginLoginTest(t, handler, nil)
@@ -118,28 +118,29 @@ func TestLoginPostgres(t *testing.T) {
 					t.Fatal("invalid signature granted access")
 				}
 				var untouched bool
-				if err := pool.QueryRow(ctx, "SELECT sign_count=0 AND last_used_at IS NULL FROM passkey_credentials").Scan(&untouched); err != nil || !untouched {
+				if err := pool.QueryRowContext(ctx, "SELECT sign_count=0 AND last_used_at IS NULL FROM passkey_credentials").Scan(&untouched); err != nil || !untouched {
 					t.Fatal("invalid signature changed metadata")
 				}
 			case "update failure", "commit failure":
-				trigger := "CREATE TRIGGER reject_login BEFORE UPDATE ON passkey_credentials FOR EACH ROW EXECUTE FUNCTION reject_login_update()"
 				if scenario == "commit failure" {
-					trigger = "CREATE CONSTRAINT TRIGGER reject_login AFTER UPDATE ON passkey_credentials DEFERRABLE INITIALLY DEFERRED FOR EACH ROW EXECUTE FUNCTION reject_login_update()"
-				}
-				if _, err := pool.Exec(ctx, `CREATE FUNCTION reject_login_update() RETURNS trigger LANGUAGE plpgsql AS $$BEGIN RAISE EXCEPTION 'private test failure'; END$$;`+trigger); err != nil {
-					t.Fatal(err)
-				}
-				t.Cleanup(func() {
-					if _, err := pool.Exec(ctx, "DROP TRIGGER reject_login ON passkey_credentials; DROP FUNCTION reject_login_update()"); err != nil {
-						t.Error(err)
+					rejectCommit(t, pool, "UPDATE", "reject_login")
+				} else {
+					if _, err := pool.ExecContext(ctx, `CREATE TRIGGER reject_login BEFORE UPDATE ON passkey_credentials BEGIN SELECT RAISE(ABORT, 'private test failure'); END`); err != nil {
+						t.Fatal(err)
 					}
-				})
+					t.Cleanup(func() {
+						if _, err := pool.ExecContext(ctx, "DROP TRIGGER reject_login"); err != nil {
+							t.Error(err)
+						}
+					})
+				}
+
 				w := loginRequestTest(handler, "finish", body, testOrigin, cookie)
 				if w.Code != 503 || len(w.Result().Cookies()) != 0 || strings.Contains(w.Body.String(), "private") {
 					t.Fatal("metadata failure granted access or leaked details")
 				}
 				var untouched bool
-				if err := pool.QueryRow(ctx, "SELECT sign_count=0 AND last_used_at IS NULL FROM passkey_credentials").Scan(&untouched); err != nil || !untouched {
+				if err := pool.QueryRowContext(ctx, "SELECT sign_count=0 AND last_used_at IS NULL FROM passkey_credentials").Scan(&untouched); err != nil || !untouched {
 					t.Fatal("metadata was not rolled back")
 				}
 				if retry := loginRequestTest(handler, "finish", body, testOrigin, cookie); retry.Code != 400 {
@@ -154,7 +155,7 @@ func TestLoginPostgres(t *testing.T) {
 					t.Fatal("failed session commit sent success")
 				}
 				var count int64
-				if err := pool.QueryRow(ctx, "SELECT sign_count FROM passkey_credentials").Scan(&count); err != nil || count != 1 {
+				if err := pool.QueryRowContext(ctx, "SELECT sign_count FROM passkey_credentials").Scan(&count); err != nil || count != 1 {
 					t.Fatal("verified metadata was lost")
 				}
 				options, cookie = beginLoginTest(t, handler, cookie)
@@ -187,7 +188,7 @@ func TestLoginPostgres(t *testing.T) {
 					}
 				}
 				var count int64
-				if err := pool.QueryRow(ctx, "SELECT sign_count FROM passkey_credentials").Scan(&count); err != nil || count != 2 {
+				if err := pool.QueryRowContext(ctx, "SELECT sign_count FROM passkey_credentials").Scan(&count); err != nil || count != 2 {
 					t.Fatal("concurrent update lost the newer counter")
 				}
 			}

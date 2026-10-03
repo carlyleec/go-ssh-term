@@ -18,12 +18,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/carlyleec/go-ssh-term/internal/database/queries"
+	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgtype"
 )
 
 func loginIdentity(t *testing.T) (loginUser, *ecdsa.PrivateKey) {
@@ -38,7 +37,7 @@ func loginIdentity(t *testing.T) (loginUser, *ecdsa.PrivateKey) {
 	}
 	id := uuid.New()
 	return loginUser{
-		account:    queries.Account{ID: pgtype.UUID{Bytes: id, Valid: true}, DisplayName: "Same name", RpID: "localhost", WebauthnUserHandle: []byte(uuid.NewString())},
+		account:    queries.Account{ID: id.String(), DisplayName: "Same name", RpID: "localhost", WebauthnUserHandle: []byte(uuid.NewString())},
 		credential: webauthn.Credential{ID: []byte(uuid.NewString()), PublicKey: public, AttestationType: "none", AttestationFormat: "none", Flags: webauthn.NewCredentialFlags(0x0d), Authenticator: webauthn.Authenticator{AAGUID: make([]byte, 16)}},
 	}, key
 }
@@ -140,7 +139,7 @@ func TestLoginSessionAndReplay(t *testing.T) {
 	}
 	before := time.Now()
 	w := loginRequestTest(handler, "finish", body, testOrigin, cookie)
-	if w.Code != 200 || !strings.Contains(w.Body.String(), uuid.UUID(user.account.ID.Bytes).String()) {
+	if w.Code != 200 || !strings.Contains(w.Body.String(), user.account.ID) {
 		t.Fatalf("finish: %d %s", w.Code, w.Body.String())
 	}
 	cookies := w.Result().Cookies()
@@ -151,7 +150,7 @@ func TestLoginSessionAndReplay(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if h.sessions.GetString(ctx, accountIDKey) != uuid.UUID(user.account.ID.Bytes).String() || h.sessions.Exists(ctx, loginBinding) || h.sessions.Exists(ctx, "anonymous_state") || h.sessions.Deadline(ctx).Before(before.Add(12*time.Hour)) {
+	if h.sessions.GetString(ctx, accountIDKey) != user.account.ID || h.sessions.Exists(ctx, loginBinding) || h.sessions.Exists(ctx, "anonymous_state") || h.sessions.Deadline(ctx).Before(before.Add(12*time.Hour)) {
 		t.Fatal("new session retained anonymous state or deadline")
 	}
 	if _, found, err := h.sessions.Store.Find(cookie.Value); err != nil || found {

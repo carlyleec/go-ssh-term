@@ -7,11 +7,13 @@ import (
 	"os"
 	"strconv"
 	"time"
+
+	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
 )
 
 type Config struct {
 	HTTPAddr          string
-	DatabaseURL       string
+	DatabasePath      string
 	BrowserOrigin     string
 	ShutdownTimeout   time.Duration
 	RPID              string
@@ -23,7 +25,7 @@ type Config struct {
 func Load() (Config, error) {
 	cfg := Config{
 		HTTPAddr:      value("HTTP_ADDR", ":8080"),
-		DatabaseURL:   os.Getenv("DATABASE_URL"),
+		DatabasePath:  os.Getenv("DATABASE_PATH"),
 		BrowserOrigin: value("BROWSER_ORIGIN", "http://localhost:8080"),
 	}
 	_, port, err := net.SplitHostPort(cfg.HTTPAddr)
@@ -50,12 +52,8 @@ func Load() (Config, error) {
 	if err != nil || cfg.ChallengeLifetime < time.Millisecond {
 		return Config{}, fmt.Errorf("CHALLENGE_LIFETIME must be a duration of at least 1ms")
 	}
-	if cfg.DatabaseURL == "" {
-		return Config{}, fmt.Errorf("DATABASE_URL is required")
-	}
-	database, err := url.Parse(cfg.DatabaseURL)
-	if err != nil || (database.Scheme != "postgres" && database.Scheme != "postgresql") || database.Hostname() == "" {
-		return Config{}, fmt.Errorf("DATABASE_URL must be a postgres:// or postgresql:// URL with a host")
+	if err := sqlite.ValidatePath(cfg.DatabasePath); err != nil {
+		return Config{}, err
 	}
 	cfg.ShutdownTimeout, err = time.ParseDuration(value("SHUTDOWN_TIMEOUT", "5s"))
 	if err != nil || cfg.ShutdownTimeout <= 0 {

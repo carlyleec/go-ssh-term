@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -12,11 +13,9 @@ import (
 	"time"
 
 	"github.com/alexedwards/scs/v2"
-	"github.com/carlyleec/go-ssh-term/internal/database/queries"
+	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
-	"github.com/google/uuid"
-	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const loginBinding = "login_binding"
@@ -32,7 +31,7 @@ type login struct {
 	pending  map[string]webauthn.SessionData
 }
 
-func NewLogin(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *pgxpool.Pool, origin string) http.Handler {
+func NewLogin(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB, origin string) http.Handler {
 	h := &login{webauthn: wa, sessions: sessions, pending: make(map[string]webauthn.SessionData)}
 	h.verify = func(ctx context.Context, session webauthn.SessionData, assertion *protocol.ParsedCredentialAssertionData) (queries.Account, error) {
 		return verifyLogin(ctx, pool, wa, session, assertion)
@@ -137,7 +136,7 @@ func (h *login) finish(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	id := uuid.UUID(account.ID.Bytes).String()
+	id := account.ID
 	if err := establishSession(w, r, h.sessions, id); err != nil {
 		authError(w, http.StatusServiceUnavailable, "could not start authenticated session; begin login again")
 		return

@@ -22,7 +22,7 @@ Keep sqlc v1.31.1 query generation and explicit dbmate v2.36.0 migrations. A
 strict-table disposable-file check verified dbmate up/down/up, deterministic
 sqlc generation, and binary/nanosecond round trips through generated queries
 and the local SCS adapter described in [auth ADR 011](../auth/011-sqlite-account-persistence.md).
-Application schema translation remains separate; SQLite sqlc support is beta.
+The active schema and queries use SQLite; sqlc SQLite support is beta.
 
 Share a single `sql.DB` across application queries and session storage, with
 `SetMaxOpenConns(1)` and `SetMaxIdleConns(1)`. This deliberately serializes database
@@ -67,9 +67,7 @@ files in `t.TempDir()` with production settings for integration tests, including
 second connection to create real contention; do not substitute shared in-memory
 SQLite for file/WAL tests.
 
-The existing Postgres implementation remains runnable until the migration tasks
-are completed. This decision changes storage, not authorization or account-access
-behavior. Multiple replicas, Postgres compatibility, and online data migration
+This decision changes storage, not authorization or account-access behavior. Multiple replicas, Postgres compatibility, and online data migration
 are outside scope.
 
 ## References

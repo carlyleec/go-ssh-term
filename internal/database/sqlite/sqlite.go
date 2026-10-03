@@ -3,7 +3,10 @@ package sqlite
 
 import (
 	"context"
+	"errors"
 	"net/url"
+	"path/filepath"
+	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -24,4 +27,12 @@ func DSN(path, mode string) string {
 
 func WorkContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(ctx, OperationTimeout)
+}
+
+// ValidatePath disallows relative paths and SQLite URI/in-memory alternatives.
+func ValidatePath(path string) error {
+	if !filepath.IsAbs(path) || filepath.Clean(path) != path || strings.ContainsRune(path, 0) {
+		return errors.New("DATABASE_PATH must be an absolute, clean filesystem path")
+	}
+	return nil
 }

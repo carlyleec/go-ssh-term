@@ -35,6 +35,13 @@ record. Reject unknown versions, invalid lengths, and authentication failures.
 Random-nonce GCM permits fewer than 2^32 encryptions per application key; this
 local application does not implement automatic rotation.
 
+Encryption accepts 1–16,384 plaintext bytes and requires canonical account and
+record UUIDs; upload validation remains a separate step before encryption. The
+standard-library Seal operation generates a fresh random nonce for each write.
+Encryption does not modify or clear the caller's input; callers clear plaintext
+buffers after use. Both operations reject uninitialized cipher state with safe
+errors. Ciphertext is returned only for internal storage, never as API metadata.
+
 Startup authenticates/decrypts every record and clears the temporary plaintext
 buffers. Any failure stops startup with a generic recovery message. Neither key
 material, plaintext, ciphertext, nor library parsing details appear in errors or
@@ -50,5 +57,5 @@ again. The app never deletes those records as part of startup recovery.
 
 Verification is a startup check, not continuous monitoring of the key file. The
 single-process deployment assumption remains. Authentication is implemented with
-the standard library; upload encryption and its nonce tests are completed with
-the encryption implementation task.
+the standard library; the gateway's handlers remain responsible for ownership
+authorization and validating uploads before encryption.

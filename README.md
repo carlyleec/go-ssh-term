@@ -54,12 +54,22 @@ make migrate
 make up
 ```
 
-Open http://127.0.0.1:5173 for the React frontend. The Compose port is bound to
+Open http://127.0.0.1:5173 for development pages, API requests, and future terminal
+WebSockets. The Compose port is bound to
 IPv4 loopback; using this address avoids reaching a different service if
 `localhost` resolves to IPv6 (`::1`). Vite updates the browser when
-you edit React components or styles. The Go server serves the compiled frontend
-at http://127.0.0.1:8080 after `make build`. API proxying through Vite remains
-a later task.
+you edit React components or styles. Vite forwards `/api` and `/api/...`, including
+WebSocket upgrades, to `http://app:8080` on the Compose network without changing
+the path, browser Host, or Origin. Other paths stay with Vite, including its hot
+update connection. Use relative `/api/...` URLs for HTTP and derive WebSocket
+URLs from the browser's current host and scheme.
+
+Keep `BROWSER_ORIGIN=http://127.0.0.1:5173` in development (the default).
+The proxy preserves origin headers for future backend validation; it does not
+implement authentication or origin enforcement itself. Those checks belong to
+the account-access and terminal slices. No permissive CORS setting is needed.
+Go's port 8080 remains available for direct debugging and compiled-asset checks
+after `make build`; use port 5173 for the development workflow.
 
 Air rebuilds and restarts Go when Go source or SQL migrations change. Go build errors appear in
 the container logs and stop the previous server until the build succeeds.
@@ -213,7 +223,7 @@ listener. An explicitly empty `DATABASE_URL` fails; if an older `.env` contains
 an empty value, replace it with the development URL in `.env.example`.
 
 In development, changing `HTTP_ADDR` does not change Compose's published port automatically. Keep
-its container port mapping in sync, and use an unspecified host (`:8080`) to
+its container port mapping and Vite's proxy target in sync, and use an unspecified host (`:8080`) to
 accept traffic forwarded into the container.
 
 Normal HTTP shutdown waits up to `SHUTDOWN_TIMEOUT`, then closes remaining HTTP

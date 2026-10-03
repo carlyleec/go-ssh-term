@@ -104,11 +104,11 @@ func TestUnwritableStorage(t *testing.T) {
 }
 
 func TestMigrationFailuresAndPoolCancellation(t *testing.T) {
-	db, path := testdb.New(t)
 	for _, tc := range []struct{ statement, want string }{
 		{"DELETE FROM schema_migrations", "pending"},
-		{"INSERT INTO schema_migrations VALUES ('20261003000300'), ('20261003000100')", "unknown"},
+		{"INSERT INTO schema_migrations VALUES ('20261003000100')", "unknown"},
 	} {
+		db, path := testdb.New(t)
 		if _, err := db.ExecContext(t.Context(), tc.statement); err != nil {
 			t.Fatal(err)
 		}
@@ -121,6 +121,7 @@ func TestMigrationFailuresAndPoolCancellation(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	db, _ := testdb.New(t)
 	conn, err := db.Conn(t.Context())
 	if err != nil {
 		t.Fatal(err)

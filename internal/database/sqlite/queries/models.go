@@ -40,3 +40,12 @@ type Session struct {
 	Data   []byte
 	Expiry int64
 }
+
+type SshKey struct {
+	ID                  string
+	AccountID           string
+	Name                string
+	PublicFingerprint   string
+	EncryptedPrivateKey []byte
+	CreatedAt           int64
+}

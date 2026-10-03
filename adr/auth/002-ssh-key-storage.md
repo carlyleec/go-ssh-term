@@ -14,6 +14,8 @@ Accept only unencrypted Ed25519 private keys in OpenSSH private-key format (`BEG
 
 Use `golang.org/x/crypto/ssh` for private-key parsing and SHA-256 public fingerprints. Keep parser details out of user-facing errors and return only the fingerprint from validation. Enforce the file-size limit before trimming whitespace; HTTP upload handlers must also bound reads before allocating the file.
 
+Persist keys in a strict `ssh_keys` table with a canonical UUID primary key, an indexed account foreign key, nonblank name and public fingerprint, nonempty encrypted BLOB, and application-supplied UTC Unix nanosecond creation time. Account deletion cascades to its keys. Names and fingerprints need not be unique; the UUID identifies each uploaded record. The encryption code defines the BLOB encoding, including nonce and authentication data; the schema does not establish that bytes are encrypted or valid. User-scoped queries and reference-protected deletion are enforced when their APIs and saved connections are introduced.
+
 Allow reuse across saved connections and block deletion while referenced. Include one unencrypted Ed25519 demo key pair under `demo/keys/` as `demo_ed25519` and `demo_ed25519.pub`, with a README. Users upload the private key; the bastion and targets authorize the matching public key when the lab hosts are introduced. Label the private key as intentionally public and only for the disposable local lab. This demo SSH identity is separate from application encryption material, which must never be committed.
 
 ## Consequences

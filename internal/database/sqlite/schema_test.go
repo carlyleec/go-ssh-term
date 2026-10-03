@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -36,8 +37,12 @@ func TestMigrationHistory(t *testing.T) {
 		t.Fatal(err)
 	}
 	check("pending")
-	if _, err := db.Exec("INSERT INTO schema_migrations VALUES ('20261003000300')"); err != nil {
-		t.Fatal(err)
+	for _, file := range activeMigrations(t) {
+		check("pending")
+		version, _, _ := strings.Cut(file, "_")
+		if _, err := db.Exec("INSERT INTO schema_migrations VALUES (?)", version); err != nil {
+			t.Fatal(err)
+		}
 	}
 	check("")
 	for _, version := range []string{"20261003000100", "20261003000200", "20990101000000"} {
@@ -51,17 +56,22 @@ func TestMigrationHistory(t *testing.T) {
 	}
 }
 
-func migrated(t *testing.T) *sql.DB {
+func activeMigrations(t *testing.T) []string {
 	t.Helper()
-	db := rawOpen(t, filepath.Join(t.TempDir(), "schema.db"))
 	files, err := fs.Glob(migrations.Files, "*.sql")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(files) != 1 || files[0] != "20261003000300_account_access.sql" {
+	if len(files) == 0 || files[0] != "20261003000300_account_access.sql" {
 		t.Fatalf("unexpected active lineage: %v", files)
 	}
-	for _, file := range files {
+	return files
+}
+
+func migrated(t *testing.T) *sql.DB {
+	t.Helper()
+	db := rawOpen(t, filepath.Join(t.TempDir(), "schema.db"))
+	for _, file := range activeMigrations(t) {
 		body, err := migrations.Files.ReadFile(file)
 		if err != nil {
 			t.Fatal(err)
@@ -213,22 +223,32 @@ func TestSchemaAndGeneratedQueries(t *testing.T) {
 
 func TestSchemaRollbackAndReapply(t *testing.T) {
 	db := migrated(t)
-	body, err := migrations.Files.ReadFile("20261003000300_account_access.sql")
-	if err != nil {
-		t.Fatal(err)
-	}
-	up, down, ok := strings.Cut(string(body), "-- migrate:down")
-	if !ok {
-		t.Fatal("missing rollback")
-	}
-	if _, err := db.ExecContext(t.Context(), down); err != nil {
-		t.Fatal(err)
+	files := activeMigrations(t)
+	for _, file := range slices.Backward(files) {
+		body, err := migrations.Files.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, down, ok := strings.Cut(string(body), "-- migrate:down")
+		if !ok {
+			t.Fatalf("missing rollback in %s", file)
+		}
+		if _, err := db.ExecContext(t.Context(), down); err != nil {
+			t.Fatal(err)
+		}
 	}
 	var tables int
 	if err := db.QueryRowContext(t.Context(), "SELECT count(*) FROM sqlite_schema WHERE type = 'table'").Scan(&tables); err != nil || tables != 0 {
 		t.Fatalf("rollback left %d tables: %v", tables, err)
 	}
-	if _, err := db.ExecContext(t.Context(), up); err != nil {
-		t.Fatal(err)
+	for _, file := range files {
+		body, err := migrations.Files.ReadFile(file)
+		if err != nil {
+			t.Fatal(err)
+		}
+		up, _, _ := strings.Cut(string(body), "-- migrate:down")
+		if _, err := db.ExecContext(t.Context(), up); err != nil {
+			t.Fatal(err)
+		}
 	}
 }

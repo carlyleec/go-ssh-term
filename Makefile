@@ -6,12 +6,12 @@ COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
 help:
 	@printf '%s\n' \
 	  'make setup             Install pinned host tools and editor dependencies' \
-	  'make migrate           Start Postgres and apply pending SQL migrations' \
+	  'make migrate           Stop app and apply pending SQLite migrations' \
 	  'make migrate-status    Show applied and pending migrations' \
 	  'make generate          Generate Go queries with sqlc' \
 	  'make up                Start development servers (Ctrl-C stops them)' \
 	  'make down              Remove development containers; preserve volumes' \
-	  'make logs              Follow Go, frontend, and Postgres logs' \
+	  'make logs              Follow Go and frontend logs' \
 	  'make ps                Show service status' \
 	  'make test              Run Go package tests' \
 	  'make frontend-test     Run frontend helper and rendered UI tests' \
@@ -38,7 +38,7 @@ down:
 	$(COMPOSE) down
 
 logs:
-	$(COMPOSE) logs -f app frontend postgres
+	$(COMPOSE) logs -f app frontend
 
 ps:
 	$(COMPOSE) ps
@@ -72,11 +72,11 @@ frontend-restart:
 	$(COMPOSE) up -d --force-recreate frontend
 
 migrate:
-	$(COMPOSE) up -d --wait postgres
+	$(COMPOSE) stop app
+	$(COMPOSE) run --rm --no-deps -T storage-init
 	$(COMPOSE) run --rm --no-deps -T dbmate
 
 migrate-status:
-	$(COMPOSE) up -d --wait postgres
 	$(COMPOSE) run --rm --no-deps -T dbmate status
 
 generate:

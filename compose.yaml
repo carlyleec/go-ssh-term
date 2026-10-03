@@ -3,15 +3,17 @@ services:
     build: .
     environment:
       HTTP_ADDR: :8080
-      DATABASE_URL: ${DATABASE_URL-postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable}
+      DATABASE_PATH: ${DATABASE_PATH-/data/gateway.db}
       BROWSER_ORIGIN: ${BROWSER_ORIGIN-http://localhost:8080}
       SESSION_LIFETIME: ${SESSION_LIFETIME-12h}
       CHALLENGE_LIFETIME: ${CHALLENGE_LIFETIME-5m}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT-5s}
     stop_grace_period: ${APP_STOP_GRACE_PERIOD:-15s}
     depends_on:
-      postgres:
-        condition: service_healthy
+      storage-init:
+        condition: service_completed_successfully
+    volumes:
+      - sqlite-data:/data
     ports:
       - "127.0.0.1:8080:8080"
     healthcheck:
@@ -21,29 +23,24 @@ services:
       retries: 3
       start_period: 5s
 
-  postgres:
-    image: postgres:18.1-alpine
-    environment:
-      POSTGRES_USER: gateway
-      POSTGRES_PASSWORD: gateway-local-only
-      POSTGRES_DB: gateway
+  storage-init:
+    image: alpine:3.23.0
+    user: "0:0"
     volumes:
-      - postgres-data:/var/lib/postgresql
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U gateway -d gateway"]
-      interval: 2s
-      timeout: 3s
-      retries: 15
+      - sqlite-data:/data
+    command: ["sh", "-c", "chown 65532:65532 /data && chmod 700 /data"]
 
   dbmate:
     image: ghcr.io/amacneil/dbmate:2.36.0
     profiles: ["tools"]
+    user: "65532:65532"
     environment:
-      DBMATE_MIGRATIONS_DIR: /db/legacy/migrations
-      DATABASE_URL: ${DATABASE_URL-postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable}
+      DBMATE_MIGRATIONS_DIR: /db/migrations
+      DATABASE_URL: sqlite:${DATABASE_PATH-/data/gateway.db}
     volumes:
-      - ./db:/db
+      - ./db/migrations:/db/migrations:ro
+      - sqlite-data:/data
     command: ["--no-dump-schema", "migrate", "--strict"]
 
 volumes:
-  postgres-data:
+  sqlite-data:

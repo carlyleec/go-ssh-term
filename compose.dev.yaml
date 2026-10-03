@@ -3,9 +3,12 @@ services:
     build: !reset null
     image: golang:1.27.0
     entrypoint: []
+    user: "65532:65532"
     working_dir: /app
     environment:
       GOTOOLCHAIN: local
+      GOCACHE: /cache/go-build
+      HOME: /tmp
       HTTP_ADDR: ${HTTP_ADDR-:8080}
       BROWSER_ORIGIN: ${BROWSER_ORIGIN-http://localhost:5173}
     # Vite serves the frontend without a compiled build in development.
@@ -13,10 +16,17 @@ services:
     volumes:
       - .:/app
       - go-mod:/go/pkg/mod
-      - go-build:/root/.cache/go-build
+      - go-build:/cache/go-build
       - go-tmp:/app/tmp
       - frontend-build:/app/frontend/dist:ro
     command: ["go", "tool", "air"]
+
+  storage-init:
+    volumes:
+      - go-mod:/go/pkg/mod
+      - go-build:/cache/go-build
+      - go-tmp:/worktmp
+    command: ["sh", "-c", "chown 65532:65532 /data && chmod 700 /data && chown -R 65532:65532 /go/pkg/mod /cache/go-build /worktmp"]
 
   sqlc:
     image: sqlc/sqlc:1.31.1

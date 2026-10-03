@@ -38,6 +38,8 @@ Number records independently within each area. Each record states its context, d
 
 - [005 Use TanStack Query and Form for account access and workspace data](frontend/005-forms-and-server-state.md)
 
+- [006 Test session UI with real routes and mocked HTTP](frontend/006-rendered-session-tests.md)
+
 ## Docker
 
 - [001 Provide an isolated OpenSSH lab with Compose](docker/001-compose-lab.md)

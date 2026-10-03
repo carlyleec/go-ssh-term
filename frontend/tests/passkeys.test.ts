@@ -1,4 +1,5 @@
 import { afterEach, expect, mock, test } from 'bun:test'
+import { mockFetch } from './mock-fetch'
 
 const registration = mock(async () => ({ id: 'created-credential' }))
 const authentication = mock(async () => ({ id: 'existing-credential' }))
@@ -20,12 +21,12 @@ test('registration unwraps Go options and sends the credential before returning 
   const calls: { url: string; body: unknown }[] = []
   const options = { challenge: 'challenge' }
   const account = { id: 'account', display_name: 'Cam' }
-  globalThis.fetch = mock(async (url, init) => {
+  globalThis.fetch = mockFetch(async (url, init) => {
     calls.push({ url: String(url), body: JSON.parse(String(init?.body)) })
     return Response.json(
       calls.length === 1 ? { publicKey: options } : { account },
     )
-  }) as typeof fetch
+  })
   expect(
     await accessWithPasskey({ kind: 'register', displayName: ' Cam ' }),
   ).toEqual(account)
@@ -38,14 +39,14 @@ test('registration unwraps Go options and sends the credential before returning 
 
 test('cancellation does not finish; a manual login retry begins again', async () => {
   const calls: string[] = []
-  globalThis.fetch = mock(async (url) => {
+  globalThis.fetch = mockFetch(async (url) => {
     calls.push(String(url))
     return Response.json(
       String(url).endsWith('begin')
         ? { publicKey: { challenge: 'fresh' } }
         : { account: { id: 'account', display_name: 'Cam' } },
     )
-  }) as typeof fetch
+  })
   authentication.mockRejectedValueOnce(
     new DOMException('Cancelled', 'NotAllowedError'),
   )
@@ -68,12 +69,12 @@ test('registration preserves session-failure recovery guidance without retrying'
   let requests = 0
   const recovery =
     'account saved but session could not be started; sign in with your passkey'
-  globalThis.fetch = mock(async () => {
+  globalThis.fetch = mockFetch(async () => {
     requests++
     return requests === 1
       ? Response.json({ publicKey: {} })
       : Response.json({ error: recovery }, { status: 503 })
-  }) as typeof fetch
+  })
   const error = await accessWithPasskey({
     kind: 'register',
     displayName: 'Cam',

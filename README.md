@@ -187,11 +187,25 @@ with `docker compose down`, then start development with `make migrate` and
 With development running, use another terminal:
 
 ```sh
-make check      # Go package tests, Biome lint/format checks, and TypeScript
+make check      # Go and frontend tests, Biome checks, and TypeScript
 make test       # Go package tests only; database integration is skipped
+make frontend-test # Frontend helper and rendered UI tests
 make lint       # Frontend lint rules only
 make typecheck  # Generate route source and check TypeScript
 ```
+
+Frontend tests run in separate Bun processes: helper tests in `tests/*.test.ts`
+and rendered UI tests in `tests/ui`. The UI suite uses React Testing Library,
+Happy DOM, the real route tree, and a fresh QueryClient with mocked HTTP responses.
+A controlled Query clock exercises polling and background expiry without real
+30-second waits. This checks session UI wiring, not native passkey behavior or
+real-browser timer throttling. Those remain browser walkthrough checks.
+
+With pinned host dependencies installed, run `bun run test` from `frontend`, or
+use `bun run test:unit` / `bun run test:ui` for either suite. Use these scripts
+rather than running every test in a single Bun process: helper module mocks must
+not leak into UI tests, and the UI suite needs its DOM preload. `make typecheck`
+also checks test files through `frontend/tsconfig.test.json`.
 
 `make check` does not apply Biome fixes. TypeScript checking runs the route
 generator, which can update `frontend/src/routetree.gen.ts`; review generated

@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down logs ps test format fix lint typecheck check build frontend-restart migrate migrate-status generate
+.PHONY: help setup up down logs ps test frontend-test format fix lint typecheck check build frontend-restart migrate migrate-status generate
 
 help:
 	@printf '%s\n' \
@@ -14,11 +14,12 @@ help:
 	  'make logs              Follow Go, frontend, and Postgres logs' \
 	  'make ps                Show service status' \
 	  'make test              Run Go package tests' \
+	  'make frontend-test     Run frontend helper and rendered UI tests' \
 	  'make format            Format frontend files' \
 	  'make fix               Apply safe Biome fixes, including import ordering' \
 	  'make lint              Lint frontend files' \
 	  'make typecheck         Check frontend TypeScript' \
-	  'make check             Run Go tests, Biome checks, and TypeScript checks' \
+	  'make check             Run Go/frontend tests, Biome, and TypeScript' \
 	  'make build             Build frontend assets in a temporary container' \
 	  'make frontend-restart  Recreate frontend and install locked dependencies' \
 	  '' \
@@ -45,6 +46,9 @@ ps:
 test:
 	$(COMPOSE) exec -T app go test ./...
 
+frontend-test:
+	$(COMPOSE) exec -T frontend bun run test
+
 format:
 	$(COMPOSE) exec -T frontend bun run format
 
@@ -57,7 +61,7 @@ lint:
 typecheck:
 	$(COMPOSE) exec -T frontend bun run typecheck
 
-check: test
+check: test frontend-test
 	$(COMPOSE) exec -T frontend bun run check
 	$(COMPOSE) exec -T frontend bun run typecheck
 

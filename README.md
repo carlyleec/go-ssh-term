@@ -15,9 +15,9 @@ make up
 Open http://127.0.0.1:5173 for the React frontend. The Compose port is bound to
 IPv4 loopback; using this address avoids reaching a different service if
 `localhost` resolves to IPv6 (`::1`). Vite updates the browser when
-you edit React components or styles. The Go server listens at
-http://localhost:8080 and currently returns 404 for all paths. API proxying and
-Go serving the compiled frontend will be added in later tasks.
+you edit React components or styles. The Go server serves the compiled frontend
+at http://127.0.0.1:8080 after `make build`. API proxying through Vite remains
+a later task.
 
 Air rebuilds and restarts Go when Go source changes. Go build errors appear in
 the container logs and stop the previous server until the build succeeds.
@@ -79,6 +79,20 @@ make build
 This runs a frozen-lockfile install, type checking, and a Vite build in a temporary
 container, so it also works when development services are stopped. Output is stored
 in the frontend build volume at `/app/dist` inside the container.
+
+The Go container mounts that same volume read-only at `/app/frontend/dist`.
+After `make build` and `make up`, open http://127.0.0.1:8080 to use the compiled
+frontend through Go. Rebuild and refresh to see frontend changes there; Vite on
+port 5173 remains the hot-update workflow. No Go restart is needed after a build.
+For a host-run Go server, build the frontend locally and run Go from the repository
+root so `frontend/dist` resolves correctly.
+
+Direct navigation to `/login`, `/connections`, and other extensionless page URLs
+serves the React entry point. Missing `/api` endpoints, `/assets` files, and URLs
+with file extensions return 404. Only GET and HEAD are supported for frontend
+requests, and directories are not listed. An absent frontend build returns 503
+with build instructions. A multi-stage demo image remains a later task.
+
 
 To add a frontend dependency, use Bun in the container and review both the
 manifest and lockfile changes:

@@ -9,6 +9,7 @@ services:
       - go-mod:/go/pkg/mod
       - go-build:/root/.cache/go-build
       - go-tmp:/app/tmp
+      - frontend-build:/app/frontend/dist:ro
     ports:
       - "127.0.0.1:8080:8080"
     command: ["go", "tool", "air"]

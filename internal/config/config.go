@@ -10,17 +10,21 @@ import (
 )
 
 type Config struct {
-	HTTPAddr        string
-	DatabaseURL     string
-	BrowserOrigin   string
-	ShutdownTimeout time.Duration
+	HTTPAddr          string
+	DatabaseURL       string
+	BrowserOrigin     string
+	ShutdownTimeout   time.Duration
+	RPID              string
+	CookieSecure      bool
+	SessionLifetime   time.Duration
+	ChallengeLifetime time.Duration
 }
 
 func Load() (Config, error) {
 	cfg := Config{
 		HTTPAddr:      value("HTTP_ADDR", ":8080"),
 		DatabaseURL:   os.Getenv("DATABASE_URL"),
-		BrowserOrigin: value("BROWSER_ORIGIN", "http://127.0.0.1:8080"),
+		BrowserOrigin: value("BROWSER_ORIGIN", "http://localhost:8080"),
 	}
 	_, port, err := net.SplitHostPort(cfg.HTTPAddr)
 	if err != nil || !validPort(port) {
@@ -32,6 +36,19 @@ func Load() (Config, error) {
 	}
 	if origin.Port() != "" && !validPort(origin.Port()) {
 		return Config{}, fmt.Errorf("BROWSER_ORIGIN port must be from 1 to 65535")
+	}
+	if net.ParseIP(origin.Hostname()) != nil || (origin.Scheme == "http" && origin.Hostname() != "localhost") {
+		return Config{}, fmt.Errorf("BROWSER_ORIGIN must use localhost for HTTP or a domain name over HTTPS for WebAuthn")
+	}
+	cfg.RPID = origin.Hostname()
+	cfg.CookieSecure = origin.Scheme == "https"
+	cfg.SessionLifetime, err = time.ParseDuration(value("SESSION_LIFETIME", "12h"))
+	if err != nil || cfg.SessionLifetime < time.Second {
+		return Config{}, fmt.Errorf("SESSION_LIFETIME must be a duration of at least 1s")
+	}
+	cfg.ChallengeLifetime, err = time.ParseDuration(value("CHALLENGE_LIFETIME", "5m"))
+	if err != nil || cfg.ChallengeLifetime < time.Millisecond {
+		return Config{}, fmt.Errorf("CHALLENGE_LIFETIME must be a duration of at least 1ms")
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")

@@ -16,10 +16,10 @@ docker compose run --rm --no-deps dbmate
 docker compose up --build -d --wait
 ```
 
-Open http://127.0.0.1:8080. The image contains the compiled frontend and a Go
+Open http://localhost:8080. The image contains the compiled frontend and a Go
 server running as a non-root user. It has no source mounts or development servers.
 The demo fixes the container HTTP address at `:8080` and publishes it only on
-IPv4 loopback. `BROWSER_ORIGIN` defaults to `http://127.0.0.1:8080`; if an existing
+IPv4 loopback. `BROWSER_ORIGIN` defaults to `http://localhost:8080`; if an existing
 `.env` sets the Vite origin on port 5173, remove that override or change it for
 the demo. Other configuration is described below.
 
@@ -54,17 +54,18 @@ make migrate
 make up
 ```
 
-Open http://127.0.0.1:5173 for development pages, API requests, and future terminal
-WebSockets. The Compose port is bound to
-IPv4 loopback; using this address avoids reaching a different service if
-`localhost` resolves to IPv6 (`::1`). Vite updates the browser when
-you edit React components or styles. Vite forwards `/api` and `/api/...`, including
+Open http://localhost:5173 for development pages, API requests, and future terminal
+WebSockets. Compose publishes ports only on IPv4 loopback. Use the `localhost`
+hostname consistently because passkeys are scoped to the relying-party domain.
+If another service listens on IPv6 localhost at these ports, stop it or choose
+an unused port rather than switching the browser to an IP address. Vite updates
+the browser when you edit React components or styles. Vite forwards `/api` and `/api/...`, including
 WebSocket upgrades, to `http://app:8080` on the Compose network without changing
 the path, browser Host, or Origin. Other paths stay with Vite, including its hot
 update connection. Use relative `/api/...` URLs for HTTP and derive WebSocket
 URLs from the browser's current host and scheme.
 
-Keep `BROWSER_ORIGIN=http://127.0.0.1:5173` in development (the default).
+Keep `BROWSER_ORIGIN=http://localhost:5173` in development (the default).
 The proxy preserves origin headers for future backend validation; it does not
 implement authentication or origin enforcement itself. Those checks belong to
 the account-access and terminal slices. No permissive CORS setting is needed.
@@ -127,7 +128,7 @@ container, so it also works when development services are stopped. Output is sto
 in the frontend build volume at `/app/dist` inside the container.
 
 The Go container mounts that same volume read-only at `/app/frontend/dist`.
-After `make build` and `make up`, open http://127.0.0.1:8080 to use the compiled
+After `make build` and `make up`, open http://localhost:8080 to use the compiled
 frontend through Go. Rebuild and refresh to see frontend changes there; Vite on
 port 5173 remains the hot-update workflow. No Go restart is needed after a build.
 For a host-run Go server, build the frontend locally and run Go from the repository
@@ -275,14 +276,29 @@ not load `.env` files. Export the variables explicitly when running Go locally.
 | --- | --- | --- |
 | `HTTP_ADDR` | `:8080` | Listen address in `host:port` form, including `:port` or `[IPv6]:port`. |
 | `DATABASE_URL` | Required | Postgres connection URL; Compose supplies the local development URL. |
-| `BROWSER_ORIGIN` | `http://127.0.0.1:8080` | Exact browser origin, without a trailing slash, path, query, or credentials. |
+| `BROWSER_ORIGIN` | `http://localhost:8080` | Exact browser origin; HTTP requires `localhost`, otherwise use an HTTPS domain. No IP address, trailing slash, path, query, or credentials. |
+| `SESSION_LIFETIME` | `12h` | Absolute login-session lifetime, at least 1 second; no idle timeout. |
+| `CHALLENGE_LIFETIME` | `5m` | Registration/login challenge lifetime, at least 1 millisecond, enforced server-side. |
 | `SHUTDOWN_TIMEOUT` | `5s` | Positive Go duration for draining HTTP requests on SIGINT or SIGTERM. |
 
-Development Compose defaults `BROWSER_ORIGIN` to `http://127.0.0.1:5173` for Vite;
+Development Compose defaults `BROWSER_ORIGIN` to `http://localhost:5173` for Vite;
 demo Compose defaults to port 8080. Leave the variable unset to keep these
 mode-specific defaults. Use the 8080 origin when testing Go-served assets in
-development. Origin validation here checks config
-syntax only; request-origin enforcement and WebAuthn are implemented with auth.
+development. The WebAuthn relying-party ID is derived from the origin hostname
+(`localhost` in both modes), without scheme or port. Only the configured origin
+is allowed by the WebAuthn configuration; switching ports changes that origin.
+Existing `.env` files using `127.0.0.1` must be updated.
+
+Auth configuration uses `go-webauthn/webauthn` and `scs/v2` with `pgxstore`.
+Passkeys require discoverable credentials and user verification, with no
+attestation requested. Session cookies are named `ssh_term_session`, host-only,
+HTTP-only, `SameSite=Strict`, and scoped to `/`. They persist for the session lifetime
+and use `Secure` when the configured browser origin uses HTTPS.
+These constructors are ready for auth handlers; session-table migrations, HTTP
+middleware wiring, single-use challenge storage, request-origin protection, and
+logout/expiry handling are still pending Slice 2 tasks. Passkey flows are not
+available yet.
+
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP
 listener. An explicitly empty `DATABASE_URL` fails; if an older `.env` contains

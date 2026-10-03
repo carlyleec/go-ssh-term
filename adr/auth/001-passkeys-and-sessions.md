@@ -14,4 +14,4 @@ Enforce ownership on keys, saved connections, host trust, and live sessions. Log
 
 ## Consequences
 
-Passkeys establish identity; login sessions authorize subsequent requests. Display names do not grant access. Losing access to the passkey requires a new account. Expiry and logout must reach active SSH sessions as well as HTTP handlers. Library selection and lifetime values remain open.
+Passkeys establish identity; login sessions authorize subsequent requests. Display names do not grant access. Losing access to the passkey requires a new account. Expiry and logout must reach active SSH sessions as well as HTTP handlers. Library selection and configuration are defined in [004 Auth libraries and configuration](004-auth-libraries.md).

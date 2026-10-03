@@ -19,6 +19,7 @@ Number records independently within each area. Each record states its context, d
 - [001 Authenticate with passkeys and server-side sessions](auth/001-passkeys-and-sessions.md)
 - [002 Encrypt uploaded SSH keys separately from login credentials](auth/002-ssh-key-storage.md)
 - [003 Require explicit SSH host trust](auth/003-host-verification.md)
+- [004 Configure go-webauthn and SCS](auth/004-auth-libraries.md)
 
 ## Frontend
 
@@ -34,4 +35,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-Exact Go libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.
+Remaining SSH and WebSocket libraries, accepted SSH key formats and config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.

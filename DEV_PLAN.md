@@ -35,11 +35,12 @@ Implement the slices in order, using [PRD.md](PRD.md) for scope and acceptance c
 
 **Deliverable:** Passkey registration and login with a protected, user-specific workspace.
 
-**Related ADRs:** [Passkeys and sessions](adr/auth/001-passkeys-and-sessions.md).
+**Related ADRs:** [Passkeys and sessions](adr/auth/001-passkeys-and-sessions.md), [Auth libraries and configuration](adr/auth/004-auth-libraries.md).
 
-- [ ] **S2.1** Select Go WebAuthn and session libraries. Configure the relying-party ID, allowed browser origin, cookie settings, session lifetime, and challenge lifetime for demo and development modes.
-- [ ] **S2.2** Add migrations for accounts, one credential per account, and server-side login sessions. Use stable account IDs; display names are not unique authentication identifiers.
-- [ ] **S2.3** Implement registration begin and finish endpoints with display-name validation, browser-bound pending registration state, and expiring single-use challenges.
+- [x] **S2.1** Pin go-webauthn and SCS with pgxstore. Add auth constructors for discoverable, user-verified passkeys, exact configured origins, host-only HTTP-only `SameSite=Strict` cookies, a 12-hour absolute session lifetime, and five-minute server-enforced challenges. Derive the RP ID and Secure cookie setting from the browser origin; use localhost for both Compose modes. Document configuration and the library decision.
+  - Verified generated registration/login options, challenge deadlines, emitted cookies, invalid configuration, HTTPS settings, and both Compose configurations. Go package tests pass; database integration checks were not run. Constructors await schema and handler wiring in S2.2–S2.3; browser passkey flows remain for S2.10.
+- [ ] **S2.2** Add migrations for accounts, one credential per account, and the SCS `pgxstore` sessions table (`token`, `data`, `expiry`, with an expiry index). Use stable account IDs; display names are not unique authentication identifiers.
+- [ ] **S2.3** Implement registration begin and finish endpoints using the configured auth constructors and SCS middleware, with cleanup stopped before pool shutdown. Add display-name validation, browser-bound pending registration state, and expiring challenges consumed atomically even under concurrent finish requests.
 - [ ] **S2.4** Persist the account and verified public credential together only after successful registration. Establish a fresh authenticated session.
 - [ ] **S2.5** Implement passkey login begin and finish endpoints, credential lookup, verification, credential metadata updates, and session renewal on login.
 - [ ] **S2.6** Build the login page with account creation, display-name entry, passkey prompts, loading states, cancellation handling, and useful error messages.

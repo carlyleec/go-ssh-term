@@ -4,7 +4,9 @@ services:
     environment:
       HTTP_ADDR: :8080
       DATABASE_URL: ${DATABASE_URL-postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable}
-      BROWSER_ORIGIN: ${BROWSER_ORIGIN-http://127.0.0.1:8080}
+      BROWSER_ORIGIN: ${BROWSER_ORIGIN-http://localhost:8080}
+      SESSION_LIFETIME: ${SESSION_LIFETIME-12h}
+      CHALLENGE_LIFETIME: ${CHALLENGE_LIFETIME-5m}
       SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT-5s}
     stop_grace_period: ${APP_STOP_GRACE_PERIOD:-15s}
     depends_on:

@@ -7,11 +7,11 @@ workspace at `/connections`. SSH features are not implemented yet.
 ## Demo with Docker
 
 Docker builds the React assets and Go executable; no host Go or Bun installation
-is needed. From a fresh checkout, start Postgres and explicitly apply migrations
-before starting the application:
+is needed. From a fresh checkout, initialize SQLite storage and explicitly apply
+migrations before starting the application:
 
 ```sh
-docker compose up -d --wait postgres
+docker compose run --rm --no-deps storage-init
 docker compose run --rm --no-deps dbmate
 docker compose up --build -d --wait
 ```
@@ -25,23 +25,25 @@ the demo. Other configuration is described below.
 
 The server checks migration history before accepting requests and never runs
 migrations itself. Repeat the migration command after pulling schema changes.
-Postgres readiness alone does not mean migrations have been applied.
+Stop the app before applying later migrations (`docker compose stop app`).
 
 ```sh
 docker compose ps
-docker compose logs -f app postgres
+docker compose logs -f app
 docker compose run --rm --no-deps dbmate status
 docker compose down
 ```
 
-Ordinary shutdown preserves the `postgres-data` volume. Demo and development
+Ordinary shutdown preserves the `sqlite-data` directory volume, including the
+database and SQLite journal files. Demo and development
 use the same Compose project and database volume when run from this directory;
 stop one mode before starting the other (`make down` for development,
 `docker compose down` for the demo). Do not add `--volumes` when switching modes.
 
-`GET /api/readyz` returns 204 when a database ping succeeds and the frontend
+`GET /api/readyz` returns 204 when a database schema read succeeds and the frontend
 entry point is readable, or 503 otherwise. The database probe has a two-second
-deadline. Docker probes every five seconds and marks the app unhealthy after
+context deadline; an external SQLite lock wait can last up to the separate
+five-second busy timeout. Docker probes every five seconds and marks the app unhealthy after
 three failures; it does not automatically restart an unhealthy container.
 Migration history is checked at startup, not on each readiness request.
 
@@ -110,7 +112,7 @@ also be used directly.
 With `make up` running in one terminal, use another terminal for:
 
 ```sh
-make logs       # Follow Go, frontend, and Postgres logs
+make logs       # Follow Go and frontend logs
 make ps         # Show service status
 ```
 
@@ -163,7 +165,7 @@ make down
 ```
 
 Development layers `compose.dev.yaml` over `compose.yaml`. The base owns
-Postgres, migration tooling, the default network, database storage, shared server
+SQLite storage initialization, migration tooling, the default network, shared server
 settings, and the Go port mapping. The override replaces the application image
 with Go/Air, clears the demo build and entrypoint, adds source and cache mounts,
 and starts Vite. Use both files in this order; the override is not standalone.
@@ -188,7 +190,7 @@ With development running, use another terminal:
 
 ```sh
 make check      # Go and frontend tests, Biome checks, and TypeScript
-make test       # Go package tests only; database integration is skipped
+make test       # Go package tests, including SQLite integration
 make frontend-test # Frontend helper and rendered UI tests
 make lint       # Frontend lint rules only
 make typecheck  # Generate route source and check TypeScript
@@ -218,19 +220,20 @@ make fix        # Apply safe Biome fixes, including import ordering
 ```
 
 For Go race detection and database integration checks, use a temporary tool
-container. This works with the application and frontend stopped:
+container. This also works with the app and frontend stopped:
 
 ```sh
-make migrate
-docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T \
-  -e 'TEST_DATABASE_URL=postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable' \
-  app go test -race ./...
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T storage-init
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T app go test -race ./...
 ```
 
-The integration tests create and remove uniquely named disposable databases;
-the test role needs database-creation privileges. They apply the embedded schema
-and check account/credential constraints, session-store compatibility, and
-rollback/reapply. The URL above targets the local Compose Postgres service. Without `TEST_DATABASE_URL`, these tests are skipped.
+Integration tests run by default on independent files in `t.TempDir()` with
+production migrations and connection settings. No database service or
+`TEST_DATABASE_URL` is needed, and tests do not modify the application's database.
+They cover schema constraints, complete credential metadata, transaction and
+session failures, expiry, concurrent writes, cleanup, reconnects, pool/query
+cancellation, and external lock timeout/recovery. Run as the non-root container
+user to include file/directory permission checks.
 
 `make build` additionally checks the frontend production build, using a temporary
 container and the shared build volume as described above. Package and frontend
@@ -251,18 +254,19 @@ modes, so this command works after either demo or development use:
 docker compose -f compose.yaml -f compose.dev.yaml down --volumes
 ```
 
-The reset removes `postgres-data`, `go-mod`, `go-build`, `go-tmp`,
+The reset removes `sqlite-data`, `go-mod`, `go-build`, `go-tmp`,
 `frontend-deps`, `frontend-build`, and `bun-cache` for this Compose project.
 It preserves repository files, `.env`, host editor dependencies, and Docker
 images. If you used a custom Compose project name, use that same name for the
-reset. An external database configured through `DATABASE_URL` is not erased by
-this command.
+reset. The inactive legacy `postgres-data` volume is not declared in this
+configuration and is preserved. Do not delete it as part of the SQLite transition.
+A host database outside these named volumes is not erased by this command.
 
 After resetting, choose one mode and repeat its migration-first startup:
 
 - Development: `make migrate`, then `make up`. Container dependencies are
   downloaded again; run `make build` only if you need Go-served compiled assets.
-- Demo: follow [Demo with Docker](#demo-with-docker), starting with Postgres and
+- Demo: follow [Demo with Docker](#demo-with-docker), starting with storage initialization and
   the explicit dbmate migration command.
 
 ## Frontend routes
@@ -290,7 +294,7 @@ not load `.env` files. Export the variables explicitly when running Go locally.
 | Setting | Go default | Meaning |
 | --- | --- | --- |
 | `HTTP_ADDR` | `:8080` | Listen address in `host:port` form, including `:port` or `[IPv6]:port`. |
-| `DATABASE_URL` | Required | Postgres connection URL; Compose supplies the local development URL. |
+| `DATABASE_PATH` | Required | Absolute, clean path to an existing migrated SQLite file. Compose defaults to `/data/gateway.db` inside the shared directory volume. |
 | `BROWSER_ORIGIN` | `http://localhost:8080` | Exact browser origin; HTTP requires `localhost`, otherwise use an HTTPS domain. No IP address, trailing slash, path, query, or credentials. |
 | `SESSION_LIFETIME` | `12h` | Absolute login-session lifetime, at least 1 second; no idle timeout. |
 | `CHALLENGE_LIFETIME` | `5m` | Registration/login challenge lifetime, at least 1 millisecond, enforced server-side. |
@@ -304,7 +308,8 @@ development. The WebAuthn relying-party ID is derived from the origin hostname
 is allowed by the WebAuthn configuration; switching ports changes that origin.
 Existing `.env` files using `127.0.0.1` must be updated.
 
-Auth configuration uses `go-webauthn/webauthn` and `scs/v2` with `pgxstore`.
+Auth configuration uses `go-webauthn/webauthn` and `scs/v2` with the local
+context-aware SQLite store and the same database pool as application queries.
 Passkeys require discoverable credentials and user verification, with no
 attestation requested. Session cookies are named `ssh_term_session`, host-only,
 HTTP-only, `SameSite=Strict`, and scoped to `/`. They persist for the session lifetime
@@ -360,8 +365,9 @@ user handles, and failed verification return the same generic 401. Already
 signed-in sessions return 409. Storage failures return 503 without a new
 authenticated cookie. Begin again after a failed finish.
 
-Credential lookup is scoped to RP ID, credential ID, and user handle. A row lock
-serializes verification and counter/flag updates, including last-use time.
+Credential lookup is scoped to RP ID, credential ID, and user handle. An immediate SQLite
+transaction reserves the writer before lookup and serializes verification and
+counter/flag updates, including last-use time.
 Zero signature counters are supported. Counter regressions retain the library's
 clone warning and previous counter; the warning is advisory and does not by
 itself reject a cryptographically valid assertion. Metadata commits before the
@@ -371,10 +377,12 @@ Other login sessions for the account remain valid.
 The browser passkey UI, current-user endpoint, and authorization middleware are
 implemented. The workspace includes sign-out and observes session expiry.
 
-Database URLs are syntax-checked without logging their contents. Startup requires
-a reachable database with the expected migration history before opening the HTTP
-listener. An explicitly empty `DATABASE_URL` fails; if an older `.env` contains
-an empty value, replace it with the development URL in `.env.example`.
+Database paths must be absolute filesystem paths; relative paths, SQLite URIs,
+and in-memory alternatives are rejected. Startup requires an existing, migrated
+file and writable file/directory permissions before opening the HTTP listener.
+An explicitly empty `DATABASE_PATH` fails. Replace old `DATABASE_URL` settings
+with the path in `.env.example`; old Postgres accounts and sessions are not imported.
+Register a fresh account with a passkey after migrating to SQLite.
 
 In development, changing `HTTP_ADDR` does not change Compose's published port automatically. Keep
 its container port mapping and Vite's proxy target in sync, and use an unspecified host (`:8080`) to
@@ -395,34 +403,60 @@ docker compose -f compose.yaml -f compose.dev.yaml up -d --force-recreate app
 
 ## Database and queries
 
-Both modes use Postgres 18.1 with a named `postgres-data` volume. Ordinary
-container recreation and `make down` preserve it. Unlike build caches, this volume
-contains application data. Postgres is reachable as `postgres:5432` inside Compose
-and has no published host port. The fixed `gateway` / `gateway-local-only`
-credentials are for this disposable local lab only. To run Go on the host, provide
-a reachable Postgres URL; the Compose hostname does not resolve on the host.
+Both modes share `/data/gateway.db` in the named `sqlite-data` directory volume.
+Keep the database, `-wal`, and `-shm` files together; do not mount only the database
+file. Use a local filesystem and one app process at a time. Stop one mode before
+starting the other. Ordinary container recreation, Air restarts, and `make down`
+preserve accounts and unexpired sessions. Pending passkey challenges are intentionally
+process-local and must be restarted after an app restart.
+
+The app, development Air process, and dbmate run as UID/GID 65532. The
+`storage-init` service gives that user ownership of the database directory;
+the development override also prepares Go cache volumes. Migrations therefore
+create files writable by both serving modes. Custom `DATABASE_PATH` values must
+stay in a writable mounted directory shared with dbmate. Future SSH encryption
+keys will use a separate volume; the database volume does not hold that key.
 
 Run `make migrate` before the first startup and whenever you pull new migrations.
-It starts Postgres, waits for readiness, and runs pinned dbmate with strict ordering.
-Repeated runs apply only pending migrations. `make migrate-status` shows the ledger.
-The Go process checks migration versions but never applies migrations itself.
-The pool allows up to ten connections, uses a five-second startup deadline, and
-closes after HTTP shutdown. Missing, pending, or unknown migration versions prevent
-startup. This checks migration history, not manual schema drift.
+It stops the app, initializes storage permissions, and runs pinned dbmate with
+strict ordering. Restart with `make up` afterward. Repeated migration runs apply
+only pending files; `make migrate-status` shows the ledger without stopping the
+app. The Go process checks migration history but never applies migrations.
+Missing, pending, or unknown versions prevent startup with actionable errors.
+This checks history, not manual schema drift.
 
-The SQLite lineage is in `db/migrations`, with named queries in `db/queries`.
+The shared pool has one open/idle connection. Every connection uses foreign keys,
+WAL, `synchronous=FULL`, a five-second busy timeout, and immediate transactions.
+Database operations have a ten-second context budget, preserving earlier caller
+deadlines. Pool waits are cancelable; external SQLite lock waits may outlast context
+cancellation until the busy timeout. Readiness retains its two-second context.
+Transactions close before session-store access to avoid waiting for their own
+connection. Shutdown stops session cleanup before closing the pool.
+
+The active SQLite lineage is in `db/migrations`, with named queries in `db/queries`.
 `make generate` uses pinned sqlc to generate `database/sql` methods in
 `internal/database/sqlite/queries`. Review generated Go with its SQL changes;
-do not edit generated code manually. SQLite tables store application timestamps
-and session expiry as UTC Unix nanoseconds.
+do not edit generated code manually. Creation/last-use timestamps and session
+expiry are UTC Unix nanoseconds. Keep applied migrations immutable and add
+new timestamped files for later changes.
 
-During the runtime transition, Postgres still uses the unchanged migrations in
-`db/legacy/migrations`; Compose dbmate and the Postgres startup checks explicitly
-select that lineage. Its query sources and configuration are retained under
-`db/legacy`, and its generated code remains in `internal/database/queries` until
-the auth port. SQLite startup checks accept only the new lineage. Neither tool
-applies SQLite migrations to the old database or imports its accounts/sessions.
-Keep applied migrations immutable and add timestamped files for later changes.
+Original Postgres migrations remain unchanged in `db/legacy/migrations`, outside
+embedding, generation, and dbmate's active path. The old Postgres volume is left
+intact; no data import or automatic deletion occurs. Existing accounts must
+register again. Old cookies grant no access to the new database.
+
+To run Go on the host, migrate a local file explicitly with dbmate and export its
+absolute `DATABASE_PATH`; do not point two running apps at the same file. The
+pinned tools are dbmate 2.36.0 and sqlc 1.31.1. For example, with those installed:
+
+```sh
+mkdir -p "$PWD/local-data"
+DATABASE_URL="sqlite:$PWD/local-data/gateway.db" dbmate --no-dump-schema up
+DATABASE_PATH="$PWD/local-data/gateway.db" go run ./cmd/server
+```
+
+Build `frontend/dist` first for host serving. Keep local database files outside
+source control and initialize/migrate while the app is stopped.
 
 ### Current user and protected workspace
 

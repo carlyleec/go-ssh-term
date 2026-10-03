@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/carlyleec/go-ssh-term/internal/database"
 	"github.com/carlyleec/go-ssh-term/internal/web"
@@ -27,6 +28,10 @@ func run() error {
 	if err != nil {
 		return err
 	}
+	wa, err := auth.NewWebAuthn(cfg)
+	if err != nil {
+		return err
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	pool, err := database.Open(ctx, cfg.DatabaseURL)
@@ -34,7 +39,10 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
+	sessions, stopCleanup := auth.NewSessions(cfg, pool)
+	defer stopCleanup()
 	mux := http.NewServeMux()
+	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, cfg.BrowserOrigin))
 	mux.Handle("GET /api/readyz", readiness(pool.Ping, os.DirFS("frontend/dist")))
 	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}

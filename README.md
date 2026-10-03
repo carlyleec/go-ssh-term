@@ -66,9 +66,9 @@ update connection. Use relative `/api/...` URLs for HTTP and derive WebSocket
 URLs from the browser's current host and scheme.
 
 Keep `BROWSER_ORIGIN=http://localhost:5173` in development (the default).
-The proxy preserves origin headers for future backend validation; it does not
-implement authentication or origin enforcement itself. Those checks belong to
-the account-access and terminal slices. No permissive CORS setting is needed.
+The proxy preserves origin headers for backend validation. Registration
+endpoints enforce the configured origin; protection for other account and
+terminal routes is added alongside those endpoints. No permissive CORS setting is needed.
 Go's port 8080 remains available for direct debugging and compiled-asset checks
 after `make build`; use port 5173 for the development workflow.
 
@@ -296,10 +296,29 @@ attestation requested. Session cookies are named `ssh_term_session`, host-only,
 HTTP-only, `SameSite=Strict`, and scoped to `/`. They persist for the session lifetime
 and use `Secure` when the configured browser origin uses HTTPS.
 Account, credential, and SCS session tables are defined in the account-access
-migration; run `make migrate` to apply it. Auth constructors are ready for
-handlers. HTTP middleware wiring, single-use challenge storage, request-origin
-protection, and logout/expiry handling remain pending Slice 2 tasks. Passkey
-flows are not available yet.
+migration; run `make migrate` to apply it. Registration routes now use SCS and
+browser-bound, single-use pending state:
+
+- `POST /api/auth/register/begin` accepts `{"display_name":"Alice"}` and returns
+  WebAuthn creation options under `publicKey`. It sets an anonymous session cookie.
+- `POST /api/auth/register/finish` accepts the browser's serialized WebAuthn
+  credential response with that cookie. It consumes the pending attempt before
+  verification, even if verification fails.
+
+Both routes require `Content-Type: application/json` and an `Origin` header
+matching `BROWSER_ORIGIN`. Names are trimmed and must contain 1–64 Unicode code
+points without control characters. Begin bodies are limited to 4 KiB and finish
+bodies to 64 KiB. Each browser session has one pending attempt; a new begin replaces
+it. Pending attempts expire after `CHALLENGE_LIFETIME`, and Go/Air restarts clear
+them. The process accepts at most 1,024 pending attempts, pruning expired entries
+on begin and returning 503 when full. Failed or expired attempts require a new
+begin. Missing or invalid pending state and failed verification return 400;
+wrong/missing origins return 403 and unsupported content types return 415.
+
+**Registration is verification-only at this stage.** A successful finish returns
+`{"verified":true,"account_created":false}`. It does not save an account or
+credential, or authenticate the browser. Account persistence, login, the browser
+passkey UI, and logout/expiry handling remain pending Slice 2 tasks.
 
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP

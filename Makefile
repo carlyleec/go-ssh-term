@@ -1,4 +1,4 @@
-COMPOSE := docker compose -f compose.dev.yaml
+COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
 
 .DEFAULT_GOAL := help
 .PHONY: help setup up down logs ps test format fix lint typecheck check build frontend-restart migrate migrate-status generate

@@ -1,36 +1,22 @@
 services:
   app:
+    build: !reset null
     image: golang:1.27.0
+    entrypoint: []
     working_dir: /app
     environment:
       GOTOOLCHAIN: local
       HTTP_ADDR: ${HTTP_ADDR-:8080}
-      DATABASE_URL: ${DATABASE_URL-postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable}
       BROWSER_ORIGIN: ${BROWSER_ORIGIN-http://127.0.0.1:5173}
-      SHUTDOWN_TIMEOUT: ${SHUTDOWN_TIMEOUT-5s}
-    stop_grace_period: ${APP_STOP_GRACE_PERIOD:-15s}
-    depends_on:
-      postgres:
-        condition: service_healthy
+    # Vite serves the frontend without a compiled build in development.
+    healthcheck: !reset {}
     volumes:
       - .:/app
       - go-mod:/go/pkg/mod
       - go-build:/root/.cache/go-build
       - go-tmp:/app/tmp
       - frontend-build:/app/frontend/dist:ro
-    ports:
-      - "127.0.0.1:8080:8080"
     command: ["go", "tool", "air"]
-
-  postgres:
-    extends:
-      file: compose.yaml
-      service: postgres
-
-  dbmate:
-    extends:
-      file: compose.yaml
-      service: dbmate
 
   sqlc:
     image: sqlc/sqlc:1.31.1
@@ -53,7 +39,6 @@ services:
     command: ["sh", "-c", "bun install --frozen-lockfile && exec bun run dev"]
 
 volumes:
-  postgres-data:
   go-mod:
   go-build:
   go-tmp:

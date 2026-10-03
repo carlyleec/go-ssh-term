@@ -94,7 +94,8 @@ Docker also keeps Go dependencies, build caches, Air binaries, Bun's download
 cache, and Vite build output in volumes. These are disposable build artifacts.
 
 Run `make help` (or just `make`) to list the available commands. Targets wrap
-`docker compose -f compose.dev.yaml`; the Compose file can still be used directly.
+`docker compose -f compose.yaml -f compose.dev.yaml`; this combined command can
+also be used directly.
 With `make up` running in one terminal, use another terminal for:
 
 ```sh
@@ -140,8 +141,8 @@ To add a frontend dependency, use Bun in the container and review both the
 manifest and lockfile changes:
 
 ```sh
-docker compose -f compose.dev.yaml exec frontend bun add --exact PACKAGE
-docker compose -f compose.dev.yaml exec frontend bun add --dev --exact PACKAGE
+docker compose -f compose.yaml -f compose.dev.yaml exec frontend bun add --exact PACKAGE
+docker compose -f compose.yaml -f compose.dev.yaml exec frontend bun add --dev --exact PACKAGE
 ```
 
 After pulling dependency changes, recreate the frontend service to install from
@@ -157,9 +158,20 @@ Stop the services while preserving volumes:
 make down
 ```
 
-This standalone development setup includes Go, the frontend, and persistent
-Postgres. It reuses the Postgres and dbmate definitions from `compose.yaml`.
-Integration of Air and Vite into a development override remains a later Slice 1 task.
+Development layers `compose.dev.yaml` over `compose.yaml`. The base owns
+Postgres, migration tooling, the default network, database storage, shared server
+settings, and the Go port mapping. The override replaces the application image
+with Go/Air, clears the demo build and entrypoint, adds source and cache mounts,
+and starts Vite. Use both files in this order; the override is not standalone.
+Docker Compose must support the `!reset` tag used to remove the demo build and
+health check. Project settings in `.zed/settings.json` register this custom tag
+with Zed's YAML language server.
+
+The demo health check is disabled in development because Vite does not need
+compiled frontend assets. Container status alone does not confirm that Air has
+successfully built and started Go; inspect `make logs` for build/startup errors.
+The `/api/readyz` endpoint still checks the database and compiled frontend when
+requested directly, so it can return 503 until `make build` has run.
 
 ## Frontend routes
 
@@ -214,7 +226,7 @@ also increase Air's `kill_delay` and Docker's grace period to leave enough time.
 Environment changes require recreating the Go service:
 
 ```sh
-docker compose -f compose.dev.yaml up -d --force-recreate app
+docker compose -f compose.yaml -f compose.dev.yaml up -d --force-recreate app
 ```
 
 ## Database and queries
@@ -240,7 +252,7 @@ ledger without introducing feature tables. Add those tables with their slices.
 Create a migration using:
 
 ```sh
-docker compose -f compose.dev.yaml run --rm --no-deps -T dbmate new create_accounts
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T dbmate new create_accounts
 ```
 
 Write SQL under the generated `-- migrate:up` and `-- migrate:down` markers. Keep
@@ -249,7 +261,7 @@ changes. Apply it with `make migrate`. Air watches SQL files, but if it previous
 stopped because a migration was pending, restart Go after applying it:
 
 ```sh
-docker compose -f compose.dev.yaml restart app
+docker compose -f compose.yaml -f compose.dev.yaml restart app
 ```
 
 Write named queries in `db/queries` and run `make generate`. sqlc generates typed
@@ -260,7 +272,7 @@ methods directly without an additional repository layer.
 `make test` runs package tests. For database integration checks, run:
 
 ```sh
-docker compose -f compose.dev.yaml run --rm --no-deps -T \
+docker compose -f compose.yaml -f compose.dev.yaml run --rm --no-deps -T \
   -e 'TEST_DATABASE_URL=postgres://gateway:gateway-local-only@postgres:5432/gateway?sslmode=disable' \
   app go test -race ./...
 ```

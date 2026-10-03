@@ -9,6 +9,7 @@
   },
   "scripts": {
     "dev": "bun --bun vite",
+    "test": "bun test ./tests",
     "format": "bun --bun biome format --write .",
     "lint": "bun --bun biome lint .",
     "check": "bun --bun biome check .",
@@ -18,6 +19,9 @@
     "preview": "bun --bun vite preview"
   },
   "dependencies": {
+    "@simplewebauthn/browser": "14.0.0",
+    "@tanstack/react-form": "1.33.5",
+    "@tanstack/react-query": "5.104.1",
     "@tanstack/react-router": "1.170.41",
     "react": "19.3.0",
     "react-dom": "19.3.0"

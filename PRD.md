@@ -5,7 +5,7 @@ Build a small, locally runnable portfolio project demonstrating Go networking, c
 ## Product and architecture
 
 - Go API serving the built React frontend from the same origin.
-- React with TanStack Router, Tailwind CSS, and daisyUI.
+- React with TanStack Router, TanStack Query for server state, TanStack Form for forms, Tailwind CSS, and daisyUI.
 - xterm.js with WebSockets for interactive terminal input and output.
 - WebAuthn passkeys for authentication and server-side login sessions.
 - Postgres for persistent application data, backed by a Docker volume.

@@ -32,6 +32,8 @@ Number records independently within each area. Each record states its context, d
 - [003 Use Bun and TypeScript for the frontend toolchain](frontend/003-bun-and-typescript.md) (routing choice superseded by 004)
 - [004 Use file-based TanStack Router routes](frontend/004-file-based-routing.md)
 
+- [005 Use TanStack Query and Form for account access and workspace data](frontend/005-forms-and-server-state.md)
+
 ## Docker
 
 - [001 Provide an isolated OpenSSH lab with Compose](docker/001-compose-lab.md)

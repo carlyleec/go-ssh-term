@@ -1,0 +1,19 @@
+services:
+  app:
+    image: golang:1.26.0
+    working_dir: /app
+    environment:
+      GOTOOLCHAIN: local
+    volumes:
+      - .:/app
+      - go-mod:/go/pkg/mod
+      - go-build:/root/.cache/go-build
+      - go-tmp:/app/tmp
+    ports:
+      - "127.0.0.1:8080:8080"
+    command: ["go", "tool", "air"]
+
+volumes:
+  go-mod:
+  go-build:
+  go-tmp:

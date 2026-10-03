@@ -8,14 +8,15 @@ Implement the slices in order, using [PRD.md](PRD.md) for scope and acceptance c
 
 **Related ADRs:** [Vertical slices](adr/api/001-vertical-slices.md), [Postgres](adr/api/002-postgres.md), [React and Go](adr/frontend/001-react-and-go.md), [Compose lab](adr/docker/001-compose-lab.md), [Development workflow](adr/docker/002-development-workflow.md).
 
-- [ ] **S1.1** Establish `cmd/server` as the Go entry point and organize application code by feature under `internal`. Remove redundant starter entry points once the server runs.
+- [x] **S1.1** Establish `cmd/server` as the Go HTTP entry point and remove redundant starter entry points. Add standalone Go development in `compose.dev.yaml` with pinned Go and Air, mounted source, Docker volumes for dependencies and build output, and watcher exclusions. Document startup, logs, package checks, and shutdown. Verify server startup, Go rebuilds, and compile-error recovery.
+  - The server currently has no registered routes and returns 404. The temporary Go landing package was removed; the landing page belongs in React (S1.3), with Go serving compiled assets in S1.4. Future Go features belong under `internal`.
 - [ ] **S1.2** Create the React application with Vite, TanStack Router, Tailwind CSS, and daisyUI. Pin tool versions and commit the frontend dependency lockfile.
-- [ ] **S1.3** Define `/`, `/login`, and `/connections` routes, using placeholders for the later slices. Port the landing page into React.
+- [ ] **S1.3** Define `/`, `/login`, and `/connections` routes, using placeholders for the later slices. Build the landing page in React.
 - [ ] **S1.4** Serve compiled frontend assets from Go. Support direct SPA navigation while keeping missing API endpoints and missing assets from falling through to HTML.
 - [ ] **S1.5** Add environment configuration for the HTTP address, database connection, browser-facing origin, and shutdown timeouts. Provide a documented example without secrets.
 - [ ] **S1.6** Add a Postgres connection and a minimal SQL migration workflow. Document how to apply migrations and fail startup clearly when required configuration or database setup is missing.
 - [ ] **S1.7** Add a multi-stage application Dockerfile and Compose services for the app and Postgres, with persistent database storage and readiness checks.
-- [ ] **S1.8** Add a development Compose override with mounted source, Air for Go, and Vite for React. Exclude generated output from watchers and keep build caches and dependencies out of source control.
+- [ ] **S1.8** Integrate the Go/Air development setup from S1.1 with the demo Compose services from S1.7 as a development override. Add Vite for React with mounted frontend source, container-managed dependencies, and watcher exclusions for frontend dependencies and generated output. Preserve the existing Go caches and rebuild workflow, and reuse the demo's persistent storage and network topology.
 - [ ] **S1.9** Configure the Vite development proxy for API requests and terminal WebSockets. Use a single documented browser-facing localhost URL and preserve origin validation.
 - [ ] **S1.10** Document demo and development startup, logs, migrations, tests, shutdown, and a separately labeled destructive volume reset.
 - [ ] **S1.11** Verify a fresh Compose build, direct navigation, missing API routes, database persistence, Go rebuilds, frontend hot updates, and visible compile errors.

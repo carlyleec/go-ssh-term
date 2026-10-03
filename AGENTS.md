@@ -13,8 +13,15 @@ Start with the requested task and relevant documents; avoid rereading every docu
 ## Track work
 
 - Reference task IDs in progress updates and completion summaries.
+- Treat `DEV_PLAN.md` as a living document. When authorized work changes a task's scope or brings work forward from a later task, update the current task to reflect what was actually completed and verified, and rewrite affected later tasks to describe only what remains. Do not leave completed work described only as a partial-progress note under a future task. Keep entries concise and focused on the current state rather than conversation history.
 - Keep IDs stable. Add new tasks using the next unused number within their slice; do not renumber existing tasks or reuse removed IDs.
 - Check off a task only when its work and relevant verification are complete. Leave partial or blocked tasks unchecked and report what remains.
 - Run focused checks appropriate to the change and report results and limitations. Do not claim a feature works just because its task is listed or its architecture is accepted.
 - Record significant new architectural decisions in the appropriate ADR directory. When replacing a decision, link the replacement and mark the old record superseded. Keep records short and free of conversation history.
 - Keep PRD requirements, plan tasks, and ADR decisions consistent without duplicating the same detail across all three.
+
+## Commit messages and code comments
+
+- Describe concrete behavior and rationale in commit messages and code comments; do not reference development-plan task IDs there.
+- Use a concise, descriptive commit subject and a body explaining what changed, why, and relevant verification or limitations. Write for a reader who has not seen the plan or conversation.
+- Keep code comments focused on intent, constraints, or non-obvious behavior rather than work tracking or implementation history.

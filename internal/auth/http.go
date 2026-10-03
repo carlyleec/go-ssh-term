@@ -28,20 +28,28 @@ func loadSession(sessions *scs.SessionManager, next http.Handler) http.Handler {
 	})
 }
 
-func authRequest(origin string, next http.Handler) http.Handler {
+// RequireOrigin protects browser mutations and WebSocket handshakes without
+// imposing a content type on uploads or upgrade requests.
+func RequireOrigin(origin string, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-store")
 		if r.Header.Get("Origin") != origin {
 			authError(w, http.StatusForbidden, "request origin is not allowed")
 			return
 		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func authRequest(origin string, next http.Handler) http.Handler {
+	return RequireOrigin(origin, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		mediaType, _, err := mime.ParseMediaType(r.Header.Get("Content-Type"))
 		if err != nil || mediaType != "application/json" {
 			authError(w, http.StatusUnsupportedMediaType, "Content-Type must be application/json")
 			return
 		}
 		next.ServeHTTP(w, r)
-	})
+	}))
 }
 
 func authError(w http.ResponseWriter, status int, message string) {

@@ -1,10 +1,17 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 
+import { AccessError, AccessPending } from '../auth/access-status'
+import { requireAccount } from '../auth/current-user'
+
 export const Route = createFileRoute('/connections')({
+  beforeLoad: ({ context }) => requireAccount(context.queryClient),
+  pendingComponent: AccessPending,
+  errorComponent: AccessError,
   component: ConnectionsPage,
 })
 
 function ConnectionsPage() {
+  const { account } = Route.useRouteContext()
   return (
     <section className="mx-auto max-w-2xl px-6 py-20">
       <span className="badge badge-outline mb-5">Coming soon</span>
@@ -14,8 +21,7 @@ function ConnectionsPage() {
         configuration import, and SSH connections aren’t available yet.
       </p>
       <p className="mt-4 leading-relaxed text-base-content/75">
-        This preview is public. The workspace will require sign-in once account
-        access is implemented.
+        Signed in as {account.display_name}.
       </p>
       <Link to="/" className="btn btn-primary mt-8">
         Back to home

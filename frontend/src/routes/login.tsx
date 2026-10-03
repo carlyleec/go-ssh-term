@@ -3,6 +3,8 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation } from '@tanstack/react-query'
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useRef } from 'react'
+import { AccessError, AccessPending } from '../auth/access-status'
+import { currentUserOptions, redirectSignedIn } from '../auth/current-user'
 import {
   type AccessAttempt,
   accessErrorMessage,
@@ -10,10 +12,16 @@ import {
   validateDisplayName,
 } from '../auth/passkeys'
 
-export const Route = createFileRoute('/login')({ component: LoginPage })
+export const Route = createFileRoute('/login')({
+  beforeLoad: ({ context }) => redirectSignedIn(context.queryClient),
+  pendingComponent: AccessPending,
+  errorComponent: AccessError,
+  component: LoginPage,
+})
 
 function LoginPage() {
   const navigate = useNavigate()
+  const { queryClient } = Route.useRouteContext()
   const activeAttempt = useRef(false)
   const supported = window.isSecureContext && browserSupportsWebAuthn()
   const access = useMutation({
@@ -34,7 +42,9 @@ function LoginPage() {
     } finally {
       activeAttempt.current = false
     }
-    await navigate({ to: '/connections' })
+    await queryClient.cancelQueries({ queryKey: currentUserOptions.queryKey })
+    queryClient.removeQueries({ queryKey: currentUserOptions.queryKey })
+    await navigate({ to: '/connections', replace: true })
   }
 
   const form = useForm({

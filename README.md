@@ -1,8 +1,8 @@
 # Browser SSH Gateway
 
 A Go and React browser SSH gateway in development. The frontend has a landing
-page at `/` and placeholder pages at `/login` and `/connections`. Account access
-and SSH features are not implemented; the connections preview is currently public.
+page at `/`, passkey account access at `/login`, and a protected placeholder
+workspace at `/connections`. SSH features and logout are not implemented yet.
 
 ## Demo with Docker
 
@@ -354,9 +354,8 @@ itself reject a cryptographically valid assertion. Metadata commits before the
 new session is saved; if session saving fails, retry with a fresh login ceremony.
 Other login sessions for the account remain valid.
 
-Current-user and authorization middleware, the browser passkey UI, and
-logout/expiry handling remain pending Slice 2 tasks. The auth endpoints establish
-server-side identity but do not yet provide a usable private workspace.
+The browser passkey UI, current-user endpoint, and authorization middleware are
+implemented. Logout and active-page expiry handling remain pending Slice 2 tasks.
 
 Database URLs are syntax-checked without logging their contents. Startup requires
 a reachable database with the expected migration history before opening the HTTP
@@ -419,3 +418,20 @@ Write named queries in `db/queries` and run `make generate`. sqlc generates type
 Go methods for pgx in `internal/database/queries`. Review and commit generated Go
 with its SQL changes; do not edit it manually. Feature handlers can use these
 methods directly without an additional repository layer.
+
+### Current user and protected workspace
+
+`GET /api/auth/me` returns `{"account":{"id":"…","display_name":"…"}}`
+for a valid session and existing account in the configured RP. Anonymous, invalid,
+or expired sessions return 401; session/database failures return 503. Identity
+responses are not cached by HTTP and do not extend the session lifetime.
+
+The `/connections` route checks this endpoint before rendering and redirects
+signed-out users to `/login`. Signed-in users visiting `/login` return to the
+workspace. Connection failures show a retry screen. Logout and active-page expiry
+handling are still pending; account recovery remains unavailable.
+
+Future private API handlers must use `Access.Require` and scope resource queries
+to `AccountFromContext`. The middleware also enforces the configured Origin on
+unsafe requests and WebSocket upgrades. Serving the SPA shell does not authorize
+API access.

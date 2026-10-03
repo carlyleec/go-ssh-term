@@ -25,6 +25,8 @@ Number records independently within each area. Each record states its context, d
 - [007 Commit registration before issuing an authenticated session](auth/007-registration-session-boundary.md)
 - [008 Verify login and update credential metadata together](auth/008-passkey-login.md)
 
+- [009 Verify server sessions before granting workspace access](auth/009-current-user-and-route-protection.md)
+
 ## Frontend
 
 - [001 Serve a React application from Go](frontend/001-react-and-go.md)

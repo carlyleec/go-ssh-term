@@ -41,8 +41,8 @@ cleanup; no additional auth store or polling loop is introduced.
 ## Consequences
 
 The first browser shell is wired without introducing tabs, restoration, audit
-events, or a dedicated Reconnect action. Logout/shutdown guarantees on the Go
-registry and remaining stalled-I/O handling are still separate lifecycle tasks.
+events, or a dedicated Reconnect action. [Server lifecycle bounds](../api/017-terminal-lifetime-and-io-bounds.md)
+define Go registry cleanup on logout/shutdown and stalled-I/O handling.
 Rendered tests use xterm/WebSocket fakes; native rendering, keyboard behavior,
 and the development-proxy/bastion walkthrough remain explicit verification work.
 

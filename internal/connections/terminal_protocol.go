@@ -37,21 +37,35 @@ type terminalStatus struct {
 // terminalSocket has one reader and serializes output/status writes, including
 // SSH stdout and stderr. Close may run concurrently. No terminal data is logged.
 type terminalSocket struct {
-	conn    *websocket.Conn
-	writeMu sync.Mutex
+	conn            *websocket.Conn
+	writeMu         sync.Mutex
+	pongWait        time.Duration
+	messageTimeout  time.Duration
+	messageDeadline time.Time
+	writeTimeout    time.Duration
 }
 
 func newTerminalSocket(conn *websocket.Conn) *terminalSocket {
 	conn.SetReadLimit(terminalDataLimit)
-	return &terminalSocket{conn: conn}
+	return &terminalSocket{conn: conn, writeTimeout: terminalWriteTimeout}
 }
 
 // read returns either raw input bytes or a resize. Message limits apply across
 // continuation frames, before an entire payload is buffered.
 func (s *terminalSocket) read() ([]byte, *terminalResize, error) {
+	s.messageDeadline = time.Time{}
+	if err := s.readDeadline(); err != nil {
+		return nil, nil, err
+	}
 	kind, reader, err := s.conn.NextReader()
 	if err != nil {
 		return nil, nil, err
+	}
+	if s.messageTimeout > 0 {
+		s.messageDeadline = time.Now().Add(s.messageTimeout)
+		if err := s.readDeadline(); err != nil {
+			return nil, nil, err
+		}
 	}
 	limit := terminalDataLimit
 	if kind == websocket.TextMessage {
@@ -80,6 +94,17 @@ func (s *terminalSocket) read() ([]byte, *terminalResize, error) {
 		return nil, nil, errTerminalMessage
 	}
 	return nil, &resize, nil
+}
+
+func (s *terminalSocket) readDeadline() error {
+	if s.pongWait == 0 {
+		return nil
+	}
+	deadline := time.Now().Add(s.pongWait)
+	if !s.messageDeadline.IsZero() && s.messageDeadline.Before(deadline) {
+		deadline = s.messageDeadline
+	}
+	return s.conn.SetReadDeadline(deadline)
 }
 
 func (s *terminalSocket) writeData(data []byte) error {
@@ -112,13 +137,13 @@ func (s *terminalSocket) writeStatus(state, message string) error {
 func (s *terminalSocket) write(kind int, payload []byte) error {
 	s.writeMu.Lock()
 	defer s.writeMu.Unlock()
-	if err := s.conn.SetWriteDeadline(time.Now().Add(terminalWriteTimeout)); err != nil {
+	if err := s.conn.SetWriteDeadline(time.Now().Add(s.writeTimeout)); err != nil {
 		return err
 	}
 	return s.conn.WriteMessage(kind, payload)
 }
 
 func (s *terminalSocket) close(code int, reason string) {
-	_ = s.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, reason), time.Now().Add(terminalWriteTimeout))
+	_ = s.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, reason), time.Now().Add(s.writeTimeout))
 	_ = s.conn.Close()
 }

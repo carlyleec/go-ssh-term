@@ -56,5 +56,6 @@ Initial trust depends on the user's fingerprint comparison.
 The picker verifies the host before offering **Open terminal**. The backend
 [terminal path](../api/015-direct-terminal-shell.md) attaches a PTY and shell
 after dialing, with [login-owned handles and expiry](../api/016-login-owned-terminal-registry.md).
-Auditing, logout, and remaining lifetime management are
-subsequent tasks. Trust decisions are not themselves terminal connection events.
+[Lifetime management](../api/017-terminal-lifetime-and-io-bounds.md) handles
+logout, shutdown, and stalled peers. Auditing remains pending; trust decisions
+are not themselves terminal connection events.

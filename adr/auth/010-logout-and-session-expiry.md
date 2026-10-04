@@ -29,7 +29,8 @@ without relying on HTTP polling or database cleanup, and coordinate the logout
 callback with in-flight connection publication. The callback alone does not solve
 that race. The [terminal registry](../api/016-login-owned-terminal-registry.md)
 now enforces login ownership and absolute expiry for pending and live terminals;
-logout invalidation and publication coordination remain to be integrated.
+[invalidation and lifetime handling](../api/017-terminal-lifetime-and-io-bounds.md)
+wire the callback and prevent admission/publication after logout.
 
 The pathless `_authed` layout observes the current-user query every 30 seconds while visible,
 and refetches when the document becomes visible or the network reconnects.
@@ -49,6 +50,6 @@ automatically or queues it for a later reconnect.
 
 Logout affects only the current login session and never changes the passkey.
 Concurrent authenticated requests already admitted before logout may complete;
-future terminal creation must enforce the documented registry boundary. A lost
+terminal creation enforces the documented registry boundary. A lost
 logout response is safe to retry. Multi-tab coordination remains outside v1;
 other open workspaces discover invalidation through their session checks.

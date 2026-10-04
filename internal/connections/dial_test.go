@@ -26,9 +26,10 @@ import (
 )
 
 type peer struct {
-	listener net.Listener
-	config   atomic.Pointer[ssh.ServerConfig]
-	auths    atomic.Int64
+	listener       net.Listener
+	config         atomic.Pointer[ssh.ServerConfig]
+	auths          atomic.Int64
+	ignoreRequests atomic.Bool
 }
 
 func newSigner(t *testing.T) (ssh.Signer, ed25519.PrivateKey) {
@@ -101,7 +102,9 @@ func startPeerChannels(t *testing.T, host, user ssh.Signer, serve func(ssh.NewCh
 					}
 				}()
 				for request := range requests {
-					_ = request.Reply(true, nil)
+					if !p.ignoreRequests.Load() {
+						_ = request.Reply(true, nil)
+					}
 				}
 			}()
 		}
@@ -155,6 +158,8 @@ func dialFixture(t *testing.T) (fixture, *Dialer, ssh.Signer) {
 	access := auth.NewAccess(f.sessions, f.db, "localhost", origin)
 	sshkeys.NewHandler(f.db, encryption).Register(contract, access)
 	d := NewDialer(f.db, encryption)
+	access.OnLogout = d.InvalidateSession
+	access.RegisterLogout(contract)
 	t.Cleanup(func() {
 		d.terminals.mu.Lock()
 		defer d.terminals.mu.Unlock()

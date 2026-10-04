@@ -22,6 +22,7 @@ Number records independently within each area. Each record states its context, d
 - [014 Bound and authenticate the terminal WebSocket transport](api/014-terminal-websocket-protocol.md)
 - [015 Attach one direct SSH shell to each terminal socket](api/015-direct-terminal-shell.md)
 - [016 Bind live terminal handles to verified login sessions](api/016-login-owned-terminal-registry.md)
+- [017 Cancel terminal work on invalidation and bound stalled I/O](api/017-terminal-lifetime-and-io-bounds.md)
 
 ## Auth
 

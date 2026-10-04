@@ -26,25 +26,25 @@ func TestTerminalRegistryAdmissionAndRemoval(t *testing.T) {
 	r := newTerminalRegistry()
 	owner := testTerminalOwner()
 	for _, invalid := range []terminalOwner{{}, {accountID: owner.accountID}, {accountID: owner.accountID, session: auth.LoginSession{ID: owner.session.ID, ExpiresAt: time.Now().Add(-time.Second)}}} {
-		if _, err := r.start(t.Context(), invalid); !errors.Is(err, errLiveTerminal) {
+		if _, err := r.start(t.Context(), invalid, nil); !errors.Is(err, errLiveTerminal) {
 			t.Fatal("invalid owner admitted")
 		}
 	}
 	parent, cancel := context.WithCancel(t.Context())
 	cancel()
-	if _, err := r.start(parent, owner); !errors.Is(err, errLiveTerminal) {
+	if _, err := r.start(parent, owner, nil); !errors.Is(err, errLiveTerminal) {
 		t.Fatal("canceled attempt admitted")
 	}
-	a, err := r.start(t.Context(), owner)
+	a, err := r.start(t.Context(), owner, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.release(a)
-	b, err := r.start(t.Context(), owner)
+	defer r.complete(a)
+	b, err := r.start(t.Context(), owner, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.release(b)
+	defer r.complete(b)
 	if a.id == b.id {
 		t.Fatal("terminal IDs reused")
 	}
@@ -81,11 +81,11 @@ func TestTerminalRegistryExpiryAndLatePublication(t *testing.T) {
 	r := newTerminalRegistry()
 	owner := testTerminalOwner()
 	owner.session.ExpiresAt = time.Now().Add(50 * time.Millisecond)
-	entry, err := r.start(t.Context(), owner)
+	entry, err := r.start(t.Context(), owner, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer r.release(entry)
+	defer r.complete(entry)
 	select {
 	case <-entry.ctx.Done():
 	case <-time.After(time.Second):

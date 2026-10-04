@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"golang.org/x/crypto/ssh"
@@ -18,7 +19,7 @@ type terminalInput struct {
 // runTerminal owns this socket and SSH client until the shell or transport ends.
 // Input is bounded to one pending message; output uses direct, bounded writes.
 func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, owner terminalOwner, id string) {
-	live, err := d.terminals.start(parent, owner)
+	live, err := d.terminals.start(parent, owner, socket.conn)
 	if err != nil {
 		terminalSetupFailure(parent, socket, failure(401, "sign in to open a terminal"))
 		_ = socket.conn.Close()
@@ -35,9 +36,29 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 			_ = client.Close()
 		}
 		workers.Wait()
+		d.terminals.complete(live)
 	}()
 	stopSocket := context.AfterFunc(ctx, func() { _ = socket.conn.Close() })
 	defer stopSocket()
+	socket.pongWait = d.pongWait
+	socket.writeTimeout = d.terminals.ioTimeout
+	socket.messageTimeout = d.terminals.ioTimeout
+	socket.conn.SetPongHandler(func(string) error { return socket.readDeadline() })
+	workers.Go(func() {
+		ticker := time.NewTicker(d.pingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				if socket.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(d.terminals.ioTimeout)) != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	})
 	input := make(chan terminalInput)
 	workers.Go(func() {
 		defer func() { _ = d.terminals.close(owner, live.id); cancel() }()
@@ -61,6 +82,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	client, _, err = d.Dial(setupCtx, owner.accountID, id)
 	if err != nil {
 		terminalSetupFailure(ctx, socket, err)
+		return
+	}
+	if err := d.terminals.attach(owner, live.id, client); err != nil {
 		return
 	}
 	stopClient := context.AfterFunc(ctx, func() { _ = client.Close() })
@@ -94,6 +118,23 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	if socket.writeStatus("connected", "") != nil {
 		return
 	}
+	workers.Go(func() {
+		ticker := time.NewTicker(d.pingInterval)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				timer := time.AfterFunc(d.terminals.ioTimeout, cancel)
+				_, _, err := client.SendRequest("keepalive@openssh.com", true, nil)
+				if !timer.Stop() || err != nil {
+					cancel()
+					return
+				}
+			}
+		}
+	})
 
 	ioFailed := make(chan struct{}, 1)
 	reportFailure := func() {
@@ -107,7 +148,7 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		output.Add(1)
 		workers.Go(func() {
 			defer output.Done()
-			if _, err := io.Copy(terminalOutput{socket}, stream); err != nil {
+			if _, err := io.Copy(terminalOutput{socket: socket, cancel: cancel}, stream); err != nil {
 				reportFailure()
 			}
 		})
@@ -135,7 +176,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	workers.Go(func() {
 		err := session.Wait()
 		// Drain both SSH streams before publishing the final status.
+		timer := time.AfterFunc(d.terminals.ioTimeout, cancel)
 		output.Wait()
+		timer.Stop()
 		wait <- err
 	})
 	message := "SSH connection ended."
@@ -168,13 +211,17 @@ func terminalSetupFailure(ctx context.Context, socket *terminalSocket, err error
 	socket.close(websocket.CloseNormalClosure, "terminal setup failed")
 }
 
-type terminalOutput struct{ socket *terminalSocket }
+type terminalOutput struct {
+	socket *terminalSocket
+	cancel context.CancelFunc
+}
 
 func (w terminalOutput) Write(data []byte) (int, error) {
 	written := 0
 	for len(data) > 0 {
 		size := min(len(data), terminalDataLimit)
 		if err := w.socket.writeData(data[:size]); err != nil {
+			w.cancel()
 			return written, err
 		}
 		written += size

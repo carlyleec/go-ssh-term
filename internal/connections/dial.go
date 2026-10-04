@@ -22,15 +22,17 @@ var errProbeComplete = errors.New("host key inspection complete")
 // Dialer opens direct SSH connections. Callers supply verified account identity
 // and own the returned client's lifetime; no live handles are persisted here.
 type Dialer struct {
-	db         *sql.DB
-	q          *queries.Queries
-	encryption *sshkeys.Encryption
-	timeout    time.Duration
-	terminals  *terminalRegistry
+	db           *sql.DB
+	q            *queries.Queries
+	encryption   *sshkeys.Encryption
+	timeout      time.Duration
+	terminals    *terminalRegistry
+	pingInterval time.Duration
+	pongWait     time.Duration
 }
 
 func NewDialer(db *sql.DB, encryption *sshkeys.Encryption) *Dialer {
-	return &Dialer{db: db, q: queries.New(db), encryption: encryption, timeout: SSHSetupTimeout, terminals: newTerminalRegistry()}
+	return &Dialer{db: db, q: queries.New(db), encryption: encryption, timeout: SSHSetupTimeout, terminals: newTerminalRegistry(), pingInterval: 15 * time.Second, pongWait: 45 * time.Second}
 }
 
 func (d *Dialer) owned(ctx context.Context, accountID, id string) (queries.SavedConnection, error) {

@@ -55,6 +55,7 @@ func run() error {
 	sshkeys.NewHandler(pool, encryption).Register(contract, access)
 	connections.NewHandler(pool).Register(contract, access)
 	dialer := connections.NewDialer(pool, encryption)
+	access.OnLogout = dialer.InvalidateSession
 	dialer.Register(contract, access)
 	dialer.RegisterTerminal(apiMux, access, cfg.BrowserOrigin)
 	access.RegisterCurrentUser(contract)
@@ -70,25 +71,33 @@ func run() error {
 		return err
 	}
 	log.Printf("Listening on %s", listener.Addr())
-	return serve(ctx, server, listener, cfg.ShutdownTimeout)
+	return serve(ctx, server, listener, cfg.ShutdownTimeout, dialer.Shutdown)
 }
 
-func serve(ctx context.Context, server *http.Server, listener net.Listener, timeout time.Duration) error {
+func serve(ctx context.Context, server *http.Server, listener net.Listener, timeout time.Duration, stopTerminals func(context.Context) error) error {
 	result := make(chan error, 1)
 	go func() { result <- server.Serve(listener) }()
+	var serveErr error
 	select {
 	case err := <-result:
-		if errors.Is(err, http.ErrServerClosed) {
-			return nil
+		if !errors.Is(err, http.ErrServerClosed) {
+			serveErr = err
 		}
-		return err
 	case <-ctx.Done():
-		shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
-		defer cancel()
-		if err := server.Shutdown(shutdownCtx); err != nil {
-			_ = server.Close()
-			return err
-		}
-		return nil
 	}
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	terminalsDone := make(chan error, 1)
+	go func() {
+		if stopTerminals == nil {
+			terminalsDone <- nil
+			return
+		}
+		terminalsDone <- stopTerminals(shutdownCtx)
+	}()
+	httpErr := server.Shutdown(shutdownCtx)
+	if httpErr != nil {
+		_ = server.Close()
+	}
+	return errors.Join(serveErr, httpErr, <-terminalsDone)
 }

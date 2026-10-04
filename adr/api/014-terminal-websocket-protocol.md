@@ -60,8 +60,8 @@ terminal payloads or return raw SSH/storage errors in status messages.
 The endpoint attaches one [direct SSH shell](015-direct-terminal-shell.md) after
 verified dialing. Transport helpers are exercised with loopback peers.
 The [registry](016-login-owned-terminal-registry.md) enforces login ownership
-and expiry. Logout enforcement, complete bounded I/O cleanup, shutdown,
-heartbeat detection, and auditing remain in the following tasks. The
+and expiry. [Lifecycle bounds](017-terminal-lifetime-and-io-bounds.md) cover
+logout, shutdown, heartbeat detection, and stalled I/O. Auditing remains pending. The
 [first browser terminal](../frontend/008-first-browser-terminal.md) consumes this protocol.
 
 Library behavior: [Gorilla WebSocket documentation](https://pkg.go.dev/github.com/gorilla/websocket).

@@ -61,8 +61,8 @@ func (a *Access) RegisterLogout(api huma.API) {
 		if err := a.sessions.Destroy(ctx); err != nil {
 			return nil, &AuthErrorBody{Message: "could not sign out; try again", status: http.StatusServiceUnavailable}
 		}
-		// The future terminal registry must synchronously revoke this owner before
-		// success, coordinating invalidation with in-flight connection publication.
+		// Revoke this owner before success, including attempts admitted before
+		// session deletion but not yet published in the terminal registry.
 		if session.ID != "" && a.OnLogout != nil {
 			a.OnLogout(session)
 		}

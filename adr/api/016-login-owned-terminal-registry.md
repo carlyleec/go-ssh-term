@@ -18,8 +18,8 @@ the verified account ID and `auth.LoginSession` from request context. Never take
 ownership claims from WebSocket messages, expose the session digest/deadline,
 or persist runtime handles.
 
-Register pending setup before dialing, then publish the SSH client, session, and
-stdin handle together after shell startup and before `connected`. The registry
+Register pending setup before dialing, attach the SSH client before PTY setup,
+then publish the session and stdin together before `connected`. The registry
 rejects duplicate publication and publication after cancellation or expiry.
 Use a mutex for map/handle changes; never hold it while doing network I/O.
 
@@ -44,8 +44,8 @@ There are no new HTTP endpoints or wire fields. The existing socket selects one
 server-owned terminal; reconnecting creates a distinct attempt. The registry
 holds no terminal contents, private-key bytes, or bearer cookies.
 
-Logout invalidation, cancellation/publication races with logout, coordinated
-server shutdown, and remaining stalled-I/O cleanup are still lifecycle work.
-Registry checks do not reload the session store per keystroke. Deadline expiry
-may end the transport without a final status message. Restoration, heartbeat
-detection, aggregate resource limits, and multi-tab coordination are unchanged.
+[Invalidation and I/O bounds](017-terminal-lifetime-and-io-bounds.md) define
+logout, shutdown, stalled-peer cleanup, and heartbeat detection. Registry checks
+do not reload the session store per keystroke. Forced closure may end transport
+without a final status. Restoration, aggregate resource limits, and multi-tab
+coordination remain separate work.

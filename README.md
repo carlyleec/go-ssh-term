@@ -71,8 +71,12 @@ session cleanup closes its socket. There is no automatic reconnect or shell
 restoration. The terminal retains 1,000 scrollback lines and disconnects if its
 pending input/output queue exceeds 1 MiB.
 
-Server-side logout cleanup, shutdown coordination, remaining stalled-I/O
-handling, auditing, and multiple terminal tabs are subsequent work.
+Logout cancels pending setup and closes shells belonging to that login before
+returning success. Other logins remain connected. Server shutdown closes and
+waits for terminal work alongside HTTP requests. Heartbeats detect silent peers,
+and five-second I/O deadlines release stalled connections; see the
+[lifetime and I/O bounds](adr/api/017-terminal-lifetime-and-io-bounds.md).
+Auditing and multiple terminal tabs are subsequent work.
 
 ## SSH lab bastion
 
@@ -160,7 +164,7 @@ make migrate
 make up
 ```
 
-Open http://localhost:5173 for development pages, API requests, and future terminal
+Open http://localhost:5173 for development pages, API requests, and terminal
 WebSockets. Compose publishes ports only on IPv4 loopback. Use the `localhost`
 hostname consistently because passkeys are scoped to the relying-party domain.
 If another service listens on IPv6 localhost at these ports, stop it or choose
@@ -537,9 +541,11 @@ In development, changing `HTTP_ADDR` does not change Compose's published port au
 its container port mapping and Vite's proxy target in sync, and use an unspecified host (`:8080`) to
 accept traffic forwarded into the container.
 
-Normal HTTP shutdown waits up to `SHUTDOWN_TIMEOUT`, then closes remaining HTTP
-connections and exits with an error if the deadline expires. Future SSH/WebSocket
-sessions need their own cleanup; HTTP shutdown does not close hijacked connections.
+Server shutdown stops terminal admission, closes SSH/WebSocket transports, and
+waits for terminal workers alongside HTTP draining within `SHUTDOWN_TIMEOUT`.
+It closes remaining HTTP connections and exits with an error if that deadline
+expires. The terminal registry handles hijacked sockets separately because
+HTTP shutdown alone does not close or wait for them.
 Air sends an interrupt and allows 10 seconds before killing Go. Compose's
 `APP_STOP_GRACE_PERIOD` defaults to 15 seconds. If increasing the shutdown timeout,
 also increase Air's `kill_delay` and Docker's grace period to leave enough time.
@@ -712,8 +718,9 @@ Missing or already expired sessions also return 204. Storage failures return 503
 without reporting successful logout. The workspace's Sign out button clears
 cached data after success; uncertain failures offer a manual retry.
 
-Future terminals must use `SessionFromContext` for their non-secret login-session
-owner ID and absolute deadline. `Access.OnLogout` provides a synchronous cleanup
-callback after session deletion. Terminal deadline enforcement and coordination
-with in-flight connection creation belong to the terminal implementation; database
+Terminals use `SessionFromContext` for their non-secret login-session owner ID
+and absolute deadline. After session deletion, `Access.OnLogout` synchronously
+revokes registry admission, cancels pending setup, closes owned shells, and waits
+for their workers. Requests authenticated before logout cannot publish a shell
+after invalidation. Absolute expiry independently cancels terminal work; database
 cleanup is not an expiry notification.

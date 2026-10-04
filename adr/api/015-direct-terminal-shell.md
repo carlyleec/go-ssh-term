@@ -48,9 +48,7 @@ Controlled SSH/WebSocket peers verify the protocol and resource handoff. Native
 browser/xterm.js and Docker-bastion walkthroughs remain separate verification.
 
 The [login-owned registry](016-login-owned-terminal-registry.md) tracks pending
-and live handles and enforces absolute expiry. Logout enforcement and
-server-shutdown coordination remain the following lifecycle tasks. Observing a
-close is not a heartbeat guarantee: silent peers and blocked SSH input still
-need bounded I/O/interrupt detection. Audit events remain pending. The
+and live handles and enforces absolute expiry. [Lifecycle bounds](017-terminal-lifetime-and-io-bounds.md)
+cover logout, shutdown, heartbeats, and stalled I/O. Audit events remain pending. The
 [browser terminal](../frontend/008-first-browser-terminal.md) is wired separately;
 no restoration or automatic reconnect is introduced.

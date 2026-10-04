@@ -19,7 +19,7 @@ const SSHSetupTimeout = 10 * time.Second
 
 var errProbeComplete = errors.New("host key inspection complete")
 
-// Dialer opens direct SSH connections. Callers supply verified account identity
+// Dialer opens direct or single-jump SSH connections. Callers supply verified account identity
 // and own the returned client's lifetime; no live handles are persisted here.
 type Dialer struct {
 	db           *sql.DB
@@ -92,20 +92,21 @@ func hostAlgorithms(trusted []byte) []string {
 // closes the socket even while the peer is silent. Successful clients have their
 // setup deadline removed before ownership is transferred to the caller.
 func (d *Dialer) exchange(ctx context.Context, row queries.SavedConnection, config *ssh.ClientConfig) (*ssh.Client, error) {
-	if row.JumpConnectionID.Valid {
-		return nil, failure(409, "SSH jump forwarding is not available yet")
-	}
 	address := net.JoinHostPort(row.Host, strconv.FormatInt(row.Port, 10))
-	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
+	conn, err := d.transport(ctx, row, address)
 	if err != nil {
-		return nil, failure(502, "could not reach SSH host")
+		return nil, err
 	}
 	stop := context.AfterFunc(ctx, func() { _ = conn.Close() })
 	defer stop()
 	deadline, _ := ctx.Deadline()
-	if err = conn.SetDeadline(deadline); err != nil {
-		_ = conn.Close()
-		return nil, failure(502, "could not configure SSH connection")
+	// Forwarded SSH channels have no deadline support. The setup context closes
+	// the entire owning transport instead, bounding both channel I/O and handshake.
+	if !row.JumpConnectionID.Valid {
+		if err = conn.SetDeadline(deadline); err != nil {
+			_ = conn.Close()
+			return nil, failure(502, "could not configure SSH connection")
+		}
 	}
 	clientConn, chans, requests, err := ssh.NewClientConn(conn, address, config)
 	if err != nil {
@@ -116,9 +117,11 @@ func (d *Dialer) exchange(ctx context.Context, row queries.SavedConnection, conf
 		_ = clientConn.Close()
 		return nil, failure(504, "SSH setup timed out or was canceled")
 	}
-	if err = conn.SetDeadline(time.Time{}); err != nil {
-		_ = clientConn.Close()
-		return nil, failure(502, "could not configure SSH connection")
+	if !row.JumpConnectionID.Valid {
+		if err = conn.SetDeadline(time.Time{}); err != nil {
+			_ = clientConn.Close()
+			return nil, failure(502, "could not configure SSH connection")
+		}
 	}
 	return ssh.NewClient(clientConn, chans, requests), nil
 }

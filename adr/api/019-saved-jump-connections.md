@@ -32,10 +32,10 @@ existing connection data. Rollback drops only this extension; saved configuratio
 remain but lose jump routing. Reapplication leaves those configurations direct.
 Use the existing explicit migration workflow before restarting the application.
 
-Until SSH forwarding is implemented, the transport rejects any attempt to dial
-or probe a configuration carrying a jump. It must never silently connect directly
-to the target. Forwarding, per-hop trust flow, and audit snapshots
-for both hops remain subsequent work; the wire terminal protocol is unchanged.
+The [single-jump transport](020-single-jump-transport.md) forwards target probes
+and dialing through the selected bastion, with no direct fallback. Guided per-hop
+trust flow and audit snapshots for both hops remain subsequent work; the wire
+terminal protocol is unchanged.
 
 ## Connection forms
 

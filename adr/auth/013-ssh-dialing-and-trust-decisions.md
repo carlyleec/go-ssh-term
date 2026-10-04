@@ -18,7 +18,9 @@ owns the returned client and configuration snapshot, including later session
 invalidation, terminal closure, and shutdown cleanup.
 
 Inspect hosts by completing cryptographic key exchange and aborting in the host
-key callback, before any user authentication. Display SHA-256 fingerprints and
+key callback, before user authentication to the inspected endpoint. For a target behind a
+bastion, inspection first verifies and authenticates the bastion as described in
+[single-jump transport](../api/020-single-jump-transport.md). Display SHA-256 fingerprints and
 the normalized host/port. Offer Ed25519, ECDSA, and RSA SHA-2 host signatures;
 prefer the trusted key's algorithm when available. Do not use an insecure host-key
 callback, SSH certificates, password authentication, or automatic key replacement.
@@ -40,7 +42,8 @@ Expose authenticated, exact-Origin-protected POST operations under
 
 Rejecting the browser prompt simply closes it and saves nothing. Decision bodies
 are bounded JSON; errors use safe envelopes without raw SSH errors. Inspection and
-approval do not load private keys or attempt SSH login. Each actual dial rechecks
+approval do not load the inspected endpoint’s private key or attempt login to
+that endpoint; traversing a bastion requires its configured credentials. Each actual dial rechecks
 the server key against stored trust during key exchange, then loads only the
 owning account's encrypted key. Clear decrypted file bytes after parsing the
 signer. In-memory signer material remains subject to Go's memory management.

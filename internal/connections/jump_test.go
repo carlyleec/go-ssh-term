@@ -135,9 +135,8 @@ func TestJumpSchemaAndRollback(t *testing.T) {
 }
 
 func TestJumpCannotFallBackToDirectDial(t *testing.T) {
-	d := NewDialer(nil, nil)
-	_, err := d.exchange(t.Context(), queries.SavedConnection{JumpConnectionID: sql.NullString{String: uuid.NewString(), Valid: true}}, nil)
-	if err == nil || err.Error() != "SSH jump forwarding is not available yet" {
-		t.Fatalf("unexpected direct fallback: %v", err)
-	}
+	f := setup(t)
+	d := NewDialer(f.db, nil)
+	_, err := d.exchange(t.Context(), queries.SavedConnection{AccountID: f.owners[0], JumpConnectionID: sql.NullString{String: uuid.NewString(), Valid: true}}, nil)
+	requireStatus(t, err, 404)
 }

@@ -99,6 +99,10 @@ func (h *handler) Register(api huma.API, access *auth.Access) {
 	create.Middlewares = append(create.Middlewares, jsonOnly)
 	update := operation("updateConnection", "PUT", "/api/connections/{id}", "Replace an owned saved connection configuration", 200)
 	update.Middlewares = append(update.Middlewares, jsonOnly)
+	preview := operation("previewConnectionImport", "POST", "/api/connections/import/preview", "Preview a bounded SSH config without saving", 200)
+	preview.MaxBodyBytes = 512 * 1024
+	preview.Middlewares = append(preview.Middlewares, jsonOnly)
+	huma.Register(api, preview, h.previewImport)
 	huma.Register(api, create, h.create)
 	huma.Register(api, operation("listConnections", "GET", "/api/connections", "List owned saved connections", 200), h.list)
 	huma.Register(api, update, h.update)

@@ -116,6 +116,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/connections/import/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview a bounded SSH config without saving */
+        post: operations["previewConnectionImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/connections/{id}": {
         parameters: {
             query?: never;
@@ -385,6 +402,29 @@ export interface components {
             state: string;
             trusted_fingerprint: string;
         };
+        ImportDiagnostic: {
+            /** Format: int64 */
+            line: number;
+            message: string;
+        };
+        ImportEntry: {
+            host: string;
+            identity: string;
+            jump: string;
+            /** Format: int64 */
+            line: number;
+            name: string;
+            /** Format: int64 */
+            port: number;
+            username: string;
+        };
+        ImportPreview: {
+            diagnostics: components["schemas"]["ImportDiagnostic"][];
+            entries: components["schemas"]["ImportEntry"][];
+        };
+        ImportRequest: {
+            config: string;
+        };
         KeyBody: {
             key: components["schemas"]["KeyMetadata"];
         };
@@ -511,6 +551,10 @@ export type SchemaHmacGetSecretInputs = components['schemas']['HMACGetSecretInpu
 export type SchemaHmacGetSecretOutputs = components['schemas']['HMACGetSecretOutputs'];
 export type SchemaHostDecision = components['schemas']['HostDecision'];
 export type SchemaHostInspection = components['schemas']['HostInspection'];
+export type SchemaImportDiagnostic = components['schemas']['ImportDiagnostic'];
+export type SchemaImportEntry = components['schemas']['ImportEntry'];
+export type SchemaImportPreview = components['schemas']['ImportPreview'];
+export type SchemaImportRequest = components['schemas']['ImportRequest'];
 export type SchemaKeyBody = components['schemas']['KeyBody'];
 export type SchemaKeyErrorBody = components['schemas']['KeyErrorBody'];
 export type SchemaKeyMetadata = components['schemas']['KeyMetadata'];
@@ -1064,6 +1108,102 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConnectionBody"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Request Entity Too Large */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Unsupported Media Type */
+            415: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+        };
+    };
+    previewConnectionImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImportRequest"];
+            };
+        };
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ImportPreview"];
                 };
             };
             /** @description Bad Request */

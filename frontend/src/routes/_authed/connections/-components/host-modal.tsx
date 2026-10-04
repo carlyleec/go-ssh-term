@@ -8,10 +8,12 @@ export function HostModal({
   accountID,
   connection,
   onClose,
+  onConnect,
 }: {
   accountID: string
   connection: SavedConnection
   onClose: () => void
+  onConnect: () => void
 }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const mounted = useRef(false)
@@ -142,10 +144,19 @@ export function HostModal({
               </>
             )}
             {view.state === 'trusted' && (
-              <p role="status">
-                Host fingerprint verified. Browser terminals are not available
-                yet; no SSH login has been attempted.
-              </p>
+              <div>
+                <p role="status">
+                  Host fingerprint verified. Ready to open a shell.
+                </p>
+                <Button
+                  type="button"
+                  className="btn-primary mt-3"
+                  disabled={busy}
+                  onClick={onConnect}
+                >
+                  Open terminal
+                </Button>
+              </div>
             )}
             {view.state === 'changed' && (
               <>

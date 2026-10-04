@@ -55,6 +55,7 @@ Number records independently within each area. Each record states its context, d
 - [006 Test session UI with real routes and mocked HTTP](frontend/006-rendered-session-tests.md)
 
 - [007 Organize the frontend by routes, shared components, and API modules](frontend/007-frontend-organization.md)
+- [008 Attach a disposable xterm.js terminal to the workspace](frontend/008-first-browser-terminal.md)
 
 ## Docker
 

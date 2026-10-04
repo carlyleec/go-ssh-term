@@ -38,7 +38,8 @@ export function ConnectModal({
           </Button>
         </div>
         <p className="mt-3 text-base-content/75">
-          Choose a saved destination. Browser terminals are not available yet.
+          Choose a saved destination and verify its host fingerprint to open a
+          shell.
         </p>
         {connections.length === 0 ? (
           <div className="mt-5">

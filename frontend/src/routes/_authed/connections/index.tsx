@@ -9,6 +9,7 @@ import { ConnectModal } from './-components/connect-modal'
 import { ConnectionModal } from './-components/connection-modal'
 import { HostModal } from './-components/host-modal'
 import { KeyModal } from './-components/key-modal'
+import { TerminalPanel } from './-components/terminal-panel'
 
 export const Route = createFileRoute('/_authed/connections/')({
   component: ConnectionsPage,
@@ -24,6 +25,7 @@ function ConnectionsPage() {
   >(null)
   const [confirmation, setConfirmation] = useState<SavedConnection | null>(null)
   const [hostTarget, setHostTarget] = useState<SavedConnection | null>(null)
+  const [terminal, setTerminal] = useState<SavedConnection | null>(null)
   const [notice, setNotice] = useState('')
   const mounted = useRef(false)
   const active = useRef(false)
@@ -84,7 +86,7 @@ function ConnectionsPage() {
         <Button
           type="button"
           className="btn-primary"
-          disabled={busy || !connections.isSuccess}
+          disabled={busy || !connections.isSuccess || terminal !== null}
           onClick={() => {
             setNotice('')
             setModal('connect')
@@ -112,6 +114,12 @@ function ConnectionsPage() {
       <p role="status" className="mt-4">
         {notice}
       </p>
+      {terminal && (
+        <TerminalPanel
+          connection={terminal}
+          onClose={() => setTerminal(null)}
+        />
+      )}
       {connections.isPending && (
         <p role="status" className="mt-6">
           Loading connections…
@@ -154,8 +162,9 @@ function ConnectionsPage() {
               <code>demo</code>, and your uploaded key.
             </li>
             <li>
-              Use Connect to choose your saved destination. Browser terminals
-              are not available yet.
+              Use Connect to choose your saved destination, verify its host
+              fingerprint, and open a terminal. Try{' '}
+              <code>cat /host-info.txt</code>.
             </li>
           </ol>
         </div>
@@ -279,6 +288,11 @@ function ConnectionsPage() {
           accountID={accountID}
           connection={hostTarget}
           onClose={() => setHostTarget(null)}
+          onConnect={() => {
+            if (terminal || !mounted.current) return
+            setTerminal(hostTarget)
+            setHostTarget(null)
+          }}
         />
       )}
       <Link to="/" className="btn btn-ghost mt-8">

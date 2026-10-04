@@ -6,7 +6,9 @@ workspace at `/connections`. SSH key management and the Docker bastion are
 implemented, along with saved-connection forms, editing, confirmed deletion,
 and a Connect picker. The empty workspace explains the local demo setup.
 The picker inspects SSH host fingerprints and asks for approval before trusting
-an unfamiliar host. It does not attempt an SSH login or open a terminal yet.
+an unfamiliar host. Once verified, **Open terminal** opens an interactive shell
+in the workspace. One terminal is supported at a time; close it before opening
+another.
 
 Saved configurations support `GET`/`POST /api/connections` and
 `PUT`/`DELETE /api/connections/{id}`. Create/edit requests require JSON fields
@@ -23,7 +25,8 @@ fingerprint with a trusted source before choosing **Approve fingerprint**.
 **Reject and close** stores nothing. Inspection and approval stop before user
 authentication; approval is remembered for your account and that host/port.
 The backend terminal endpoint supports key-based SSH login and a PTY-backed
-shell after approval. Connecting the picker to a browser terminal is still pending.
+shell after approval. Choose **Open terminal** after verification to use it in
+the browser. Try `cat /host-info.txt` on the local bastion.
 
 A changed host key blocks connection. Verify why the identity changed first
 (for example, the lab host-key volume was intentionally replaced). In the
@@ -61,9 +64,15 @@ deadline cancels pending setup and closes live shells; editing/deleting a saved
 configuration does not affect a running shell. See the
 [registry decision](adr/api/016-login-owned-terminal-registry.md).
 
-The picker remains a host-verification flow. Logout cleanup, shutdown
-coordination, remaining stalled-I/O handling, auditing, and xterm.js integration
-are subsequent work.
+The browser shows connection status and preserves terminal output after the
+shell ends. **Close terminal** releases the browser resources; closing and
+using Connect again opens a fresh shell. Leaving the workspace or confirmed
+session cleanup closes its socket. There is no automatic reconnect or shell
+restoration. The terminal retains 1,000 scrollback lines and disconnects if its
+pending input/output queue exceeds 1 MiB.
+
+Server-side logout cleanup, shutdown coordination, remaining stalled-I/O
+handling, auditing, and multiple terminal tabs are subsequent work.
 
 ## SSH lab bastion
 
@@ -96,8 +105,7 @@ docker compose exec bastion sh -c 'for key in /var/lib/ssh-host-keys/*_key.pub; 
 Deleting the volume deliberately replaces the bastion's identity on its next
 startup. Upgrading from the original container-only keys also changes its
 identity once; those old keys are not migrated. Clients that trusted the old
-identity will report a changed host key. Private targets and browser terminal
-access are still pending.
+identity will report a changed host key. Private targets remain pending.
 
 ## Demo with Docker
 

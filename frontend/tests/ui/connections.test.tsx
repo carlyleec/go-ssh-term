@@ -18,6 +18,12 @@ import { StrictMode } from 'react'
 import type { SavedConnection } from '~/api/queries'
 import { routeTree } from '~/routetree.gen'
 import { mockFetch } from '../mock-fetch'
+import {
+  FakeSocket,
+  FakeTerminal,
+  installTerminals,
+  restoreTerminals,
+} from './terminal-fakes'
 
 const originalFetch = globalThis.fetch
 const keyID = '11111111-1111-4111-8111-111111111111'
@@ -46,6 +52,7 @@ let approvals: number
 let resets: number
 let hostStatus: number
 beforeEach(() => {
+  installTerminals()
   client = new QueryClient()
   records = []
   keys = true
@@ -154,6 +161,7 @@ afterEach(async () => {
   await client.cancelQueries()
   client.clear()
   globalThis.fetch = originalFetch
+  restoreTerminals()
 })
 async function open() {
   const router = createRouter({
@@ -415,6 +423,7 @@ test('host approval shows the fingerprint and rejection persists nothing', async
   fireEvent.click(screen.getByRole('button', { name: 'Reject and close' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   expect(approvals).toBe(0)
+  expect(FakeSocket.instances).toHaveLength(0)
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
   fireEvent.click(
     within(await screen.findByRole('dialog')).getByRole('button', {
@@ -432,6 +441,7 @@ test('changed host requires confirmed reset and a separate fresh approval', asyn
   hostState = 'changed'
   await inspectHost()
   await screen.findByText('SHA256:previous')
+  expect(FakeSocket.instances).toHaveLength(0)
   expect(
     screen.queryByRole('button', { name: 'Approve fingerprint' }),
   ).toBeNull()
@@ -459,4 +469,34 @@ test('host inspection can retry and 401 approval clears private state', async ()
   expect(
     client.getQueryData(['host-inspection', 'account-id', record.id]),
   ).toBeUndefined()
+})
+
+test('verified picker opens one terminal and session cleanup disposes it', async () => {
+  hostState = 'trusted'
+  await inspectHost()
+  fireEvent.click(await screen.findByRole('button', { name: 'Open terminal' }))
+  await screen.findByRole('region', { name: 'Terminal for Local bastion' })
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
+  expect(
+    (screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(true)
+  signedIn = false
+  await act(async () => client.setQueryData(['current-user'], null))
+  await screen.findByRole('heading', { name: 'Account access' })
+  expect(FakeSocket.instances[0]?.closed).toBe(1)
+  expect(FakeTerminal.instances[0]?.disposed).toBe(true)
+})
+
+test('closing a terminal allows another explicit connection', async () => {
+  hostState = 'trusted'
+  await inspectHost()
+  fireEvent.click(await screen.findByRole('button', { name: 'Open terminal' }))
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
+  fireEvent.click(screen.getByRole('button', { name: 'Close terminal' }))
+  expect(FakeSocket.instances[0]?.closed).toBe(1)
+  expect(
+    (screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement)
+      .disabled,
+  ).toBe(false)
 })

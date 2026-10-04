@@ -61,6 +61,7 @@ The endpoint attaches one [direct SSH shell](015-direct-terminal-shell.md) after
 verified dialing. Transport helpers are exercised with loopback peers.
 The [registry](016-login-owned-terminal-registry.md) enforces login ownership
 and expiry. Logout enforcement, complete bounded I/O cleanup, shutdown,
-heartbeat detection, auditing, and browser UI remain in the following tasks.
+heartbeat detection, and auditing remain in the following tasks. The
+[first browser terminal](../frontend/008-first-browser-terminal.md) consumes this protocol.
 
 Library behavior: [Gorilla WebSocket documentation](https://pkg.go.dev/github.com/gorilla/websocket).

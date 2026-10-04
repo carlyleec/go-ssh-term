@@ -51,5 +51,6 @@ The [login-owned registry](016-login-owned-terminal-registry.md) tracks pending
 and live handles and enforces absolute expiry. Logout enforcement and
 server-shutdown coordination remain the following lifecycle tasks. Observing a
 close is not a heartbeat guarantee: silent peers and blocked SSH input still
-need bounded I/O/interrupt detection. Audit events and the browser terminal UI
-also remain pending. No restoration or automatic reconnect is introduced.
+need bounded I/O/interrupt detection. Audit events remain pending. The
+[browser terminal](../frontend/008-first-browser-terminal.md) is wired separately;
+no restoration or automatic reconnect is introduced.

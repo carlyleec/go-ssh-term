@@ -16,6 +16,28 @@ type Account struct {
 	CreatedAt          int64
 }
 
+type ConnectionAuditEvent struct {
+	ID                string
+	AccountID         string
+	SavedConnectionID string
+	AttemptID         string
+	ConnectionName    string
+	Host              string
+	Port              int64
+	Username          string
+	EventType         string
+	FailureCode       sql.NullString
+	OccurredAt        int64
+}
+
+type HostTrust struct {
+	AccountID string
+	Host      string
+	Port      int64
+	PublicKey []byte
+	TrustedAt int64
+}
+
 type PasskeyCredential struct {
 	AccountID         string
 	RpID              string
@@ -33,6 +55,18 @@ type PasskeyCredential struct {
 	Extensions        string
 	CreatedAt         int64
 	LastUsedAt        sql.NullInt64
+}
+
+type SavedConnection struct {
+	ID        string
+	AccountID string
+	Name      string
+	Host      string
+	Port      int64
+	Username  string
+	SshKeyID  string
+	CreatedAt int64
+	UpdatedAt int64
 }
 
 type Session struct {

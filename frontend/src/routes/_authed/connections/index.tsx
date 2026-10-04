@@ -8,6 +8,7 @@ import { useAuth } from '~/hooks/use-auth'
 import { ConnectModal } from './-components/connect-modal'
 import { ConnectionModal } from './-components/connection-modal'
 import { HostModal } from './-components/host-modal'
+import { ImportModal } from './-components/import-modal'
 import { KeyModal } from './-components/key-modal'
 import { TerminalPanel } from './-components/terminal-panel'
 
@@ -21,7 +22,7 @@ function ConnectionsPage() {
   const accountID = account?.id ?? ''
   const connections = queries.connections.useQuery(accountID)
   const [modal, setModal] = useState<
-    'keys' | 'add' | 'connect' | SavedConnection | null
+    'keys' | 'add' | 'connect' | 'import' | SavedConnection | null
   >(null)
   const [confirmation, setConfirmation] = useState<SavedConnection | null>(null)
   const [hostTarget, setHostTarget] = useState<SavedConnection | null>(null)
@@ -145,6 +146,14 @@ function ConnectionsPage() {
           onClick={() => setModal('keys')}
         >
           Manage SSH keys
+        </Button>
+        <Button
+          type="button"
+          className="btn-outline"
+          disabled={busy}
+          onClick={() => setModal('import')}
+        >
+          Import SSH config
         </Button>
       </div>
       <p role="status" className="mt-4">
@@ -311,6 +320,16 @@ function ConnectionsPage() {
             ))}
           </ul>
         </div>
+      )}
+      {modal === 'import' && (
+        <ImportModal
+          accountID={accountID}
+          onClose={() => setModal(null)}
+          onImported={() => {
+            setModal(null)
+            setNotice('Connections imported. Use Connect to open a terminal.')
+          }}
+        />
       )}
       {modal === 'keys' && (
         <KeyModal accountID={accountID} onClose={() => setModal(null)} />

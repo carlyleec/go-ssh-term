@@ -12,6 +12,7 @@ import type {
   SchemaAccount,
   SchemaConnection,
   SchemaConnectionFields,
+  SchemaImportRequest,
   SchemaKeyMetadata,
 } from './generated/schema.gen'
 import {
@@ -19,6 +20,7 @@ import {
   ConnectionsBodySchema,
   CurrentUserOutputBodySchema,
   HostInspectionSchema,
+  ImportPreviewSchema,
   KeysBodySchema,
 } from './generated/zod.gen'
 export type Account = SchemaAccount
@@ -156,6 +158,26 @@ const connectionOptions = (accountID: string) =>
     networkMode: 'always',
   })
 const connections = {
+  previewImport: {
+    mutationFn: async (body: SchemaImportRequest) =>
+      ImportPreviewSchema.parse(
+        await apiClient.post(`${ENDPOINTS.connections}/import/preview`, body, {
+          expectedStatus: 200,
+        }),
+      ),
+    retry: false,
+    networkMode: 'always' as const,
+  },
+  confirmImport: {
+    mutationFn: async (body: SchemaImportRequest) =>
+      ConnectionsBodySchema.parse(
+        await apiClient.post(`${ENDPOINTS.connections}/import/confirm`, body, {
+          expectedStatus: 201,
+        }),
+      ),
+    retry: false,
+    networkMode: 'always' as const,
+  },
   hostOptions: (accountID: string, id: string) =>
     queryOptions({
       queryKey: ['host-inspection', accountID, id],

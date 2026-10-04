@@ -38,6 +38,7 @@ Number records independently within each area. Each record states its context, d
 - [011 Preserve account-access guarantees on SQLite](auth/011-sqlite-account-persistence.md) (replaces Postgres-specific portions of 004, 005, 007, and 008)
 
 - [012 Persist application encryption material separately and verify it at startup](auth/012-application-encryption-material.md)
+- [013 Verify host identity before SSH user authentication](auth/013-ssh-dialing-and-trust-decisions.md)
 
 ## Frontend
 
@@ -59,4 +60,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats, the upload-size limit, and the parsing library are recorded in Auth 002. SSH connection and WebSocket libraries, SSH config syntax, timeout and resource values, and the host-trust reset interface remain implementation decisions. Coordination between multiple browser tabs is outside v1. These are not accepted architecture decisions yet.
+The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats, the upload-size limit, and the parsing library are recorded in Auth 002. The SSH library, setup deadline, and host-trust reset interface are recorded in Auth 013. The WebSocket library, SSH config syntax, and remaining timeout and resource values remain implementation decisions. Coordination between multiple browser tabs is outside v1.

@@ -41,6 +41,10 @@ let deleteStatus: number
 let saved: number
 let deleted: number
 let pending: Promise<void> | undefined
+let hostState: string
+let approvals: number
+let resets: number
+let hostStatus: number
 beforeEach(() => {
   client = new QueryClient()
   records = []
@@ -52,6 +56,10 @@ beforeEach(() => {
   saved = 0
   deleted = 0
   pending = undefined
+  hostState = 'unknown'
+  approvals = 0
+  resets = 0
+  hostStatus = 200
   globalThis.fetch = mockFetch(async (input, init) => {
     const url = String(input)
     if (url === '/api/auth/me')
@@ -79,6 +87,31 @@ beforeEach(() => {
             { error: 'Could not list connections.' },
             { status: listStatus },
           )
+    }
+    if (url.includes('/host-')) {
+      if (hostStatus === 401) signedIn = false
+      if (hostStatus !== 200)
+        return Response.json(
+          { error: 'Host inspection failed.' },
+          { status: hostStatus },
+        )
+      if (url.endsWith('/reset')) {
+        resets++
+        hostState = 'unknown'
+        return new Response(null, { status: 204 })
+      }
+      if (url.endsWith('/host-trust')) {
+        approvals++
+        hostState = 'trusted'
+      }
+      return Response.json({
+        host: 'bastion',
+        port: 22,
+        state: hostState,
+        algorithm: 'ssh-ed25519',
+        fingerprint: 'SHA256:presented',
+        trusted_fingerprint: hostState === 'unknown' ? '' : 'SHA256:previous',
+      })
     }
     if (init?.method === 'POST' || init?.method === 'PUT') {
       saved++
@@ -184,9 +217,11 @@ test('empty demo instructions, create, edit, picker, and confirmed deletion', as
     name: 'Choose a connection',
   })
   fireEvent.click(within(picker).getByRole('button', { name: /Renamed/ }))
-  await screen.findByText(
-    'Selected Renamed. Browser terminals are not available yet.',
+  await screen.findByRole('dialog', { name: 'Verify SSH host' })
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Reject and close' }),
   )
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
   fireEvent.click(screen.getByRole('button', { name: 'Delete Renamed' }))
   expect(deleted).toBe(0)
   fireEvent.click(screen.getByRole('button', { name: 'Cancel deletion' }))
@@ -360,4 +395,68 @@ test('a save finishing after session cleanup cannot restore private query data',
   await act(async () => finish())
   expect(client.getQueryData(['connections', 'account-id'])).toBeUndefined()
   expect(client.getQueryData(['ssh-keys', 'account-id'])).toBeUndefined()
+})
+
+async function inspectHost() {
+  records = [record]
+  await open()
+  await screen.findByRole('button', { name: 'Edit Local bastion' })
+  fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+  const picker = await screen.findByRole('dialog', {
+    name: 'Choose a connection',
+  })
+  fireEvent.click(within(picker).getByRole('button', { name: /Local bastion/ }))
+  await screen.findByRole('dialog', { name: 'Verify SSH host' })
+}
+
+test('host approval shows the fingerprint and rejection persists nothing', async () => {
+  await inspectHost()
+  await screen.findByText('SHA256:presented')
+  fireEvent.click(screen.getByRole('button', { name: 'Reject and close' }))
+  await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
+  expect(approvals).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+  fireEvent.click(
+    within(await screen.findByRole('dialog')).getByRole('button', {
+      name: /Local bastion/,
+    }),
+  )
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Approve fingerprint' }),
+  )
+  await screen.findByText(/Host fingerprint verified/)
+  expect(approvals).toBe(1)
+})
+
+test('changed host requires confirmed reset and a separate fresh approval', async () => {
+  hostState = 'changed'
+  await inspectHost()
+  await screen.findByText('SHA256:previous')
+  expect(
+    screen.queryByRole('button', { name: 'Approve fingerprint' }),
+  ).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Reset host trust' }))
+  expect(resets).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel reset' }))
+  expect(resets).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Reset host trust' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm trust reset' }))
+  await screen.findByRole('button', { name: 'Approve fingerprint' })
+  expect(resets).toBe(1)
+  expect(approvals).toBe(0)
+})
+
+test('host inspection can retry and 401 approval clears private state', async () => {
+  hostStatus = 502
+  await inspectHost()
+  await screen.findByText('Host inspection failed.')
+  hostStatus = 200
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect again' }))
+  await screen.findByRole('button', { name: 'Approve fingerprint' })
+  hostStatus = 401
+  fireEvent.click(screen.getByRole('button', { name: 'Approve fingerprint' }))
+  await screen.findByRole('heading', { name: 'Account access' })
+  expect(
+    client.getQueryData(['host-inspection', 'account-id', record.id]),
+  ).toBeUndefined()
 })

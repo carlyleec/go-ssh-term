@@ -7,6 +7,7 @@ import { Button } from '~/components/button'
 import { useAuth } from '~/hooks/use-auth'
 import { ConnectModal } from './-components/connect-modal'
 import { ConnectionModal } from './-components/connection-modal'
+import { HostModal } from './-components/host-modal'
 import { KeyModal } from './-components/key-modal'
 
 export const Route = createFileRoute('/_authed/connections/')({
@@ -22,6 +23,7 @@ function ConnectionsPage() {
     'keys' | 'add' | 'connect' | SavedConnection | null
   >(null)
   const [confirmation, setConfirmation] = useState<SavedConnection | null>(null)
+  const [hostTarget, setHostTarget] = useState<SavedConnection | null>(null)
   const [notice, setNotice] = useState('')
   const mounted = useRef(false)
   const active = useRef(false)
@@ -267,11 +269,16 @@ function ConnectionsPage() {
           onClose={() => setModal(null)}
           onAdd={() => setModal('add')}
           onSelect={(connection) => {
-            setNotice(
-              `Selected ${connection.name}. Browser terminals are not available yet.`,
-            )
+            setHostTarget(connection)
             setModal(null)
           }}
+        />
+      )}
+      {hostTarget && (
+        <HostModal
+          accountID={accountID}
+          connection={hostTarget}
+          onClose={() => setHostTarget(null)}
         />
       )}
       <Link to="/" className="btn btn-ghost mt-8">

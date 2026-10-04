@@ -1,0 +1,58 @@
+# Verify host identity before SSH user authentication
+
+Status: Accepted; implements [explicit host trust](003-host-verification.md).
+
+## Context
+
+Browser approval must identify the exact endpoint and key inspected. The remote
+server or saved configuration can change while a user considers the fingerprint.
+No open SSH connection or database transaction should wait for that decision.
+
+## Decision
+
+Use the already-pinned `golang.org/x/crypto/ssh` for direct SSH dialing. Apply a
+ten-second setup context and socket deadline to TCP connection and SSH handshake;
+cancellation closes the socket. Existing SQLite lock-wait bounds still apply to
+database operations. Remove the socket deadline on successful handoff. The caller
+owns the returned client and configuration snapshot, including later session
+invalidation, terminal closure, and shutdown cleanup.
+
+Inspect hosts by completing cryptographic key exchange and aborting in the host
+key callback, before any user authentication. Display SHA-256 fingerprints and
+the normalized host/port. Offer Ed25519, ECDSA, and RSA SHA-2 host signatures;
+prefer the trusted key's algorithm when available. Do not use an insecure host-key
+callback, SSH certificates, password authentication, or automatic key replacement.
+
+Expose authenticated, exact-Origin-protected POST operations under
+`/api/connections/{id}`:
+
+- `/host-key` returns the presented fingerprint, key algorithm, normalized endpoint,
+  trust state (`unknown`, `trusted`, or `changed`), and prior trusted fingerprint.
+- `/host-trust` accepts `host`, `port`, and the displayed `fingerprint`. Probe
+  again and require that exact fingerprint. In a short transaction, recheck the
+  owned configuration's endpoint and insert trust only if absent. Existing trust
+  must match; changed keys return 409 and are never overwritten.
+- `/host-trust/reset` accepts the endpoint and the **previously trusted**
+  fingerprint. Recheck configuration and stored trust in a short transaction,
+  then remove only that matching record. Reset neither approves the replacement
+  nor touches an already-established connection. It affects all configurations
+  for this account and endpoint. A subsequent connection requires fresh approval.
+
+Rejecting the browser prompt simply closes it and saves nothing. Decision bodies
+are bounded JSON; errors use safe envelopes without raw SSH errors. Inspection and
+approval do not load private keys or attempt SSH login. Each actual dial rechecks
+the server key against stored trust during key exchange, then loads only the
+owning account's encrypted key. Clear decrypted file bytes after parsing the
+signer. In-memory signer material remains subject to Go's memory management.
+
+## Consequences
+
+First contact and approval use separate short connections. Repeated approval of
+the same key is safe; stale destination/fingerprint decisions fail. Trust is per
+account/endpoint and survives saved-configuration deletion. DNS still determines
+the reachable address, while the approved host key establishes server identity.
+Initial trust depends on the user's fingerprint comparison.
+
+The picker currently performs host verification only. PTYs, browser transport,
+live registries, auditing, and session-bound lifetime management remain subsequent
+tasks. Trust decisions are not themselves terminal connection events.

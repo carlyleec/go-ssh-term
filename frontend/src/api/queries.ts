@@ -18,6 +18,7 @@ import {
   ConnectionBodySchema,
   ConnectionsBodySchema,
   CurrentUserOutputBodySchema,
+  HostInspectionSchema,
   KeysBodySchema,
 } from './generated/zod.gen'
 export type Account = SchemaAccount
@@ -155,6 +156,57 @@ const connectionOptions = (accountID: string) =>
     networkMode: 'always',
   })
 const connections = {
+  hostOptions: (accountID: string, id: string) =>
+    queryOptions({
+      queryKey: ['host-inspection', accountID, id],
+      queryFn: async ({ signal }) =>
+        HostInspectionSchema.parse(
+          await apiClient.post(
+            `${ENDPOINTS.connections}/${encodeURIComponent(id)}/host-key`,
+            {},
+            { signal, expectedStatus: 200 },
+          ),
+        ),
+      retry: false,
+      networkMode: 'always',
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    }),
+  approveHost: {
+    mutationFn: async ({
+      id,
+      decision,
+    }: {
+      id: string
+      decision: { host: string; port: number; fingerprint: string }
+    }) =>
+      HostInspectionSchema.parse(
+        await apiClient.post(
+          `${ENDPOINTS.connections}/${encodeURIComponent(id)}/host-trust`,
+          decision,
+          { expectedStatus: 200 },
+        ),
+      ),
+    retry: false,
+    networkMode: 'always' as const,
+  },
+  resetTrust: {
+    mutationFn: ({
+      id,
+      decision,
+    }: {
+      id: string
+      decision: { host: string; port: number; fingerprint: string }
+    }) =>
+      apiClient.post<void>(
+        `${ENDPOINTS.connections}/${encodeURIComponent(id)}/host-trust/reset`,
+        decision,
+        { expectedStatus: 204 },
+      ),
+    retry: false,
+    networkMode: 'always' as const,
+  },
   options: connectionOptions,
   useQuery: (accountID: string) => useQuery(connectionOptions(accountID)),
   save: {

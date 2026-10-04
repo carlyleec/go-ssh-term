@@ -12,4 +12,4 @@ Show an unfamiliar host's fingerprint and require approval before authentication
 
 ## Consequences
 
-The first connection requires an extra user decision. Trust on first use depends on the user's initial approval; it does not independently establish host identity. Host replacement requires deliberate trust updates. The reset interface remains an implementation choice, with no silent bypass.
+The first connection requires an extra user decision. Trust on first use depends on the user's initial approval; it does not independently establish host identity. Host replacement requires deliberate trust updates. [SSH dialing and trust decisions](013-ssh-dialing-and-trust-decisions.md) defines the explicit reset interface, with no silent bypass.

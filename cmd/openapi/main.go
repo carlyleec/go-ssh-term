@@ -24,6 +24,7 @@ func export(w io.Writer) error {
 	var access auth.Access
 	sshkeys.NewHandler(nil, nil).Register(contract, &access)
 	connections.NewHandler(nil).Register(contract, &access)
+	connections.NewDialer(nil, nil).Register(contract, &access)
 	access.RegisterCurrentUser(contract)
 	access.RegisterLogout(contract)
 	auth.NewRegistration(nil, nil, nil).Register(contract, "")

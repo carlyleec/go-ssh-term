@@ -5,8 +5,8 @@ page at `/`, passkey account access at `/login`, and a protected
 workspace at `/connections`. SSH key management and the Docker bastion are
 implemented, along with saved-connection forms, editing, confirmed deletion,
 and a Connect picker. The empty workspace explains the local demo setup.
-The picker currently selects a destination only; browser SSH terminals are
-not implemented yet.
+The picker inspects SSH host fingerprints and asks for approval before trusting
+an unfamiliar host. It does not attempt an SSH login or open a terminal yet.
 
 Saved configurations support `GET`/`POST /api/connections` and
 `PUT`/`DELETE /api/connections/{id}`. Create/edit requests require JSON fields
@@ -15,6 +15,28 @@ and the configured Origin. Referenced SSH keys cannot be deleted (409 conflict).
 See the [API decision](adr/api/013-saved-connection-api.md) for validation and
 response details. Apply pending migrations with `make migrate` before running
 the updated API against an existing database.
+
+## SSH host verification and trust reset
+
+Choose **Connect**, then a saved destination. Compare the displayed SHA-256
+fingerprint with a trusted source before choosing **Approve fingerprint**.
+**Reject and close** stores nothing. Inspection and approval stop before user
+authentication; approval is remembered for your account and that host/port.
+The reusable backend dialer supports key-based SSH login after approval, but
+terminal transport is still pending.
+
+A changed host key blocks connection. Verify why the identity changed first
+(for example, the lab host-key volume was intentionally replaced). In the
+fingerprint dialog, choose **Reset host trust**, review the old fingerprint,
+then **Confirm trust reset**. This removes trust for all your saved connections
+to that endpoint. Inspect the host again and explicitly approve the replacement;
+reset never approves it automatically. Other users' trust is unchanged.
+
+The reset API is `POST /api/connections/{id}/host-trust/reset`, with the current
+normalized `host`, `port`, and previously trusted `fingerprint` in a JSON body,
+an authenticated cookie, and the configured Origin. Stale decisions return 409.
+If the original configuration was deleted, create another for the same endpoint
+to inspect/reset its retained trust. See [SSH trust decisions](adr/auth/013-ssh-dialing-and-trust-decisions.md).
 
 ## SSH lab bastion
 

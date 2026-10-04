@@ -102,6 +102,25 @@ docker compose up --build -d --wait bastion
 docker compose logs bastion
 ```
 
+The lab also includes `target-1` and `target-2`, Ubuntu OpenSSH hosts on the
+internal `lab-private` network. Only the bastion joins both `lab-gateway` and
+`lab-private`; the application does not join the private network. Neither target
+publishes a host port. Both targets use port `22`, user `demo`, and the same
+supplied demo key. Their `/host-info.txt` files identify the individual target.
+
+Start all three SSH hosts with:
+
+```sh
+docker compose up --build -d --wait bastion target-1 target-2
+```
+
+`make up` includes all three hosts. Browser connections currently support direct
+SSH to the bastion; the Jump through form and application forwarding are still
+pending. The private targets cannot be reached directly by the application.
+Each target keeps its host keys in its own named volume (`target-1-host-keys`
+and `target-2-host-keys`), shared by development and demo modes. Ordinary
+recreation preserves these identities, just as it does for the bastion.
+
 Host keys are generated on first startup in the `bastion-host-keys` volume,
 separate from the image and SSH configuration. Both Compose modes share this
 volume when using the same project name. Ordinary shutdown, image rebuilds, and
@@ -118,7 +137,7 @@ docker compose exec bastion sh -c 'for key in /var/lib/ssh-host-keys/*_key.pub; 
 Deleting the volume deliberately replaces the bastion's identity on its next
 startup. Upgrading from the original container-only keys also changes its
 identity once; those old keys are not migrated. Clients that trusted the old
-identity will report a changed host key. Private targets remain pending.
+identity will report a changed host key.
 
 ## Demo with Docker
 
@@ -152,7 +171,7 @@ docker compose down
 
 Ordinary shutdown preserves the `sqlite-data` directory volume, including the
 database and SQLite journal files, the separate `encryption-key` volume, and
-the `bastion-host-keys` volume.
+the `bastion-host-keys`, `target-1-host-keys`, and `target-2-host-keys` volumes.
 Demo and development use the same Compose project and these persistent volumes when run from this directory;
 stop one mode before starting the other (`make down` for development,
 `docker compose down` for the demo). Do not add `--volumes` when switching modes.
@@ -415,7 +434,8 @@ modes, so this command works after either demo or development use:
 docker compose -f compose.yaml -f compose.dev.yaml down --volumes
 ```
 
-The reset removes `sqlite-data`, `encryption-key`, `bastion-host-keys`, `go-mod`, `go-build`, `go-tmp`,
+The reset removes `sqlite-data`, `encryption-key`, `bastion-host-keys`,
+`target-1-host-keys`, `target-2-host-keys`, `go-mod`, `go-build`, `go-tmp`,
 `frontend-deps`, `frontend-build`, and `bun-cache` for this Compose project.
 It preserves repository files, `.env`, host editor dependencies, and Docker
 images. If you used a custom Compose project name, use that same name for the

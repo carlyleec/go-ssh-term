@@ -36,6 +36,41 @@ services:
       - bastion-host-keys:/var/lib/ssh-host-keys
     networks:
       - lab-gateway
+      - lab-private
+    healthcheck:
+      test: ["CMD-SHELL", "ssh-keyscan -T 2 -t rsa,ecdsa,ed25519 127.0.0.1 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  target-1:
+    build:
+      context: ./demo
+      dockerfile: ssh/Dockerfile
+      args:
+        HOST_INFO: "Private target: target-1"
+    volumes:
+      - target-1-host-keys:/var/lib/ssh-host-keys
+    networks:
+      - lab-private
+    healthcheck:
+      test: ["CMD-SHELL", "ssh-keyscan -T 2 -t rsa,ecdsa,ed25519 127.0.0.1 > /dev/null 2>&1"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  target-2:
+    build:
+      context: ./demo
+      dockerfile: ssh/Dockerfile
+      args:
+        HOST_INFO: "Private target: target-2"
+    volumes:
+      - target-2-host-keys:/var/lib/ssh-host-keys
+    networks:
+      - lab-private
     healthcheck:
       test: ["CMD-SHELL", "ssh-keyscan -T 2 -t rsa,ecdsa,ed25519 127.0.0.1 > /dev/null 2>&1"]
       interval: 5s
@@ -65,8 +100,12 @@ services:
 
 networks:
   lab-gateway:
+  lab-private:
+    internal: true
 
 volumes:
   sqlite-data:
   encryption-key:
   bastion-host-keys:
+  target-1-host-keys:
+  target-2-host-keys:

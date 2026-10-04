@@ -190,13 +190,15 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 
 **Related ADRs:** [SSH configuration](adr/api/005-ssh-configuration.md), [Host verification](adr/auth/003-host-verification.md), [Connection lifecycle](adr/api/004-connection-lifecycle.md), [Compose lab](adr/docker/001-compose-lab.md).
 
-- [ ] **S5.1** Add two Ubuntu OpenSSH targets on a private lab network. Attach the bastion to both lab networks and keep the gateway off the private network; do not publish private-target ports to the host.
-- [ ] **S5.2** Authorize the demo public key on both targets, persist their host keys, and add distinct readable `/host-info.txt` files.
+- [x] **S5.1** Add two Ubuntu OpenSSH targets on a private lab network. Attach the bastion to both lab networks and keep the gateway off the private network; do not publish private-target ports to the host.
+  - Added target-1/target-2 on internal lab-private, with only the bastion also on lab-gateway. Both Compose modes validate; isolated Docker verification confirms healthy hosts, expected network membership, no published SSH ports, and blocked direct target TCP access from lab-gateway. Real OpenSSH forwarding through the bastion succeeds with strict host verification.
+- [x] **S5.2** Authorize the demo public key on both targets, persist their host keys, and add distinct readable `/host-info.txt` files.
+  - Reused the Ubuntu SSH image with per-target identity labels and separate persistent host-key volumes. Verified demo-key authentication as demo through the bastion, both identifying files, distinct host identities, and unchanged RSA/ECDSA/Ed25519 keys after target recreation. README and lab ADR describe the topology and persistence. Verification used a disposable Compose project; application forwarding remains S5.5.
 - [ ] **S5.3** Extend saved connections with an optional user-owned jump connection. Reject self references, cycles, multi-hop chains, and edits that would turn existing dependencies into multi-hop chains.
 - [ ] **S5.4** Add the Jump through selector to connection forms. Block deleting a bastion configuration while another saved connection references it.
 - [ ] **S5.5** Dial the target through SSH forwarding on the bastion. Verify each host independently and use the appropriate configured credentials for each hop without copying private keys to the bastion.
 - [ ] **S5.6** Extend connection errors, fingerprint prompts, audit events, and cleanup to cover failures at either hop.
-- [ ] **S5.7** Verify the gateway cannot reach the private SSH endpoints directly, but can open shells through the bastion and read each identifying file.
+- [ ] **S5.7** Verify application/browser shells reach both targets through the selected bastion and read each identifying file after S5.5–S5.6. Network isolation and real OpenSSH forwarding are verified in S5.1–S5.2; confirm the application enforces the same direct-access boundary.
 - [ ] **S5.8** Test invalid jump references, cross-user references, changed host keys on either hop, target dial failure, and cleanup without disrupting another connection.
 
 ## Slice 6 SSH config import

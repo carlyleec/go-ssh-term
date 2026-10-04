@@ -7,9 +7,9 @@ disposable local SSH lab; never authorize it on a real or publicly reachable hos
 - `demo_ed25519` is the unencrypted OpenSSH Ed25519 private key to upload.
 - `demo_ed25519.pub` is the matching public key for the lab hosts' authorized keys.
 
-The bastion authorizes this identity for its `demo` user. Private targets will
-share it when added in Slice 5. Upload and key management work now; browser
-terminal connections are not implemented yet.
+The bastion and both private targets authorize this identity for their `demo`
+user. Browser terminals can connect directly to the bastion; application support
+for reaching private targets through a jump connection is still pending.
 
 ## Upload
 

@@ -1,6 +1,8 @@
 import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import queries from '~/api/queries'
 import { AccessError, AccessPending } from '~/components/access-status'
+import { useDemoGuide } from '~/components/demo-guide'
+import { DemoNetwork } from './-components/demo-network'
 
 export const Route = createFileRoute('/')({
   beforeLoad: async ({ context }) => {
@@ -15,58 +17,90 @@ export const Route = createFileRoute('/')({
 })
 
 function LandingPage() {
+  const openGuide = useDemoGuide()
   return (
-    <div className="mx-auto max-w-6xl px-6 py-16 sm:py-24">
-      <section className="max-w-3xl">
-        <span className="badge badge-outline mb-6">In development</span>
-        <h1 className="text-4xl leading-tight font-bold tracking-tight sm:text-6xl">
-          Your SSH workspace, in the browser.
-        </h1>
-        <p className="mt-6 max-w-2xl text-lg leading-relaxed text-base-content/75">
-          A local browser SSH gateway for exploring Go networking,
-          authentication, and connection management. The planned demo connects a
-          bastion and two private hosts through a single workspace.
-        </p>
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link to="/login" className="btn btn-primary">
-            Go to account access
-          </Link>
-          <Link to="/workspace" className="btn btn-outline">
-            Preview the workspace
-          </Link>
+    <div className="mx-auto max-w-6xl px-6 py-12 sm:py-16">
+      <section className="grid items-start gap-8 lg:grid-cols-[1.5fr_1fr]">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary">
+            A hands-on networking demo
+          </p>
+          <h1 className="mt-4 text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
+            Three hosts. One browser. Real SSH.
+          </h1>
+          <p className="mt-5 max-w-2xl text-lg leading-relaxed text-base-content/75">
+            Sign in with a passkey, bring the lab’s SSH key, and open a shell.
+            Start with the bastion, then reach two private hosts through a
+            verified SSH jump.
+          </p>
+          <div className="mt-7 flex flex-wrap gap-3">
+            <Link to="/login" className="btn btn-outline">
+              Sign in or register
+            </Link>
+            <button
+              type="button"
+              className="btn btn-outline"
+              onClick={openGuide}
+            >
+              Open demo guide
+            </button>
+          </div>
         </div>
-        <p className="mt-4 text-sm text-base-content/65">
-          Passkey registration and sign-in are available. SSH connections are
-          coming later.
-        </p>
+        <div className="rounded-box border border-base-300 bg-base-200 p-6">
+          <p className="text-sm font-semibold">Start from your checkout</p>
+          <pre className="mt-4 overflow-x-auto rounded-box border border-base-300 bg-base-100 p-4 font-mono text-primary">
+            <code>make demo</code>
+          </pre>
+          <p className="mt-4 text-sm leading-relaxed text-base-content/70">
+            Requires Docker Compose, Make, and a passkey-capable browser. Open
+            localhost:8080. No local Go or Bun installation needed.
+          </p>
+          <p className="mt-3 text-xs text-base-content/60">
+            Already running the app? Start with sign-in.
+          </p>
+        </div>
       </section>
-
-      <section aria-labelledby="demo-heading" className="mt-20">
-        <h2 id="demo-heading" className="text-2xl font-bold">
-          What the finished demo will let you try
+      <div className="mt-12">
+        <DemoNetwork />
+      </div>
+      <section className="mt-12" aria-labelledby="walkthrough-title">
+        <h2 id="walkthrough-title" className="text-2xl font-bold">
+          Try the full path
         </h2>
         <ol className="mt-6 grid gap-6 md:grid-cols-3">
-          <li className="border-t-2 border-primary pt-5">
-            <h3 className="text-lg font-semibold">1. Create an account</h3>
-            <p className="mt-2 leading-relaxed text-base-content/75">
-              Register and sign in with a passkey to access your own workspace.
+          <li className="border-t border-primary/50 pt-4">
+            <p className="font-mono text-xs text-primary">01 / PREPARE</p>
+            <h3 className="mt-2 font-semibold">Your account and key</h3>
+            <p className="mt-2 text-sm leading-relaxed text-base-content/70">
+              Register with a passkey. In SSH Keys, upload{' '}
+              <code className="break-all">demo/keys/demo_ed25519</code> from the
+              repository.
             </p>
           </li>
-          <li className="border-t-2 border-primary pt-5">
-            <h3 className="text-lg font-semibold">2. Set up the lab</h3>
-            <p className="mt-2 leading-relaxed text-base-content/75">
-              Upload the demo SSH key and import the supplied host
-              configurations.
+          <li className="border-t border-primary/50 pt-4">
+            <p className="font-mono text-xs text-primary">02 / CONFIGURE</p>
+            <h3 className="mt-2 font-semibold">Three saved destinations</h3>
+            <p className="mt-2 text-sm leading-relaxed text-base-content/70">
+              Import <code>demo/ssh_config</code> in Connections, map the demo
+              key, and confirm. The private targets are configured to jump
+              through the bastion.
             </p>
           </li>
-          <li className="border-t-2 border-primary pt-5">
-            <h3 className="text-lg font-semibold">3. Open a terminal</h3>
-            <p className="mt-2 leading-relaxed text-base-content/75">
-              Approve host fingerprints, connect through the bastion, and switch
-              between terminal tabs.
+          <li className="border-t border-primary/50 pt-4">
+            <p className="font-mono text-xs text-primary">03 / CONNECT</p>
+            <h3 className="mt-2 font-semibold">Verify, then explore</h3>
+            <p className="mt-2 text-sm leading-relaxed text-base-content/70">
+              In Workspace, compare host fingerprints and open a terminal. Run{' '}
+              <code>cat /host-info.txt</code> on each host to see where you
+              landed.
             </p>
           </li>
         </ol>
+        <p className="mt-8 text-sm text-base-content/65">
+          One terminal at a time for now. Close it before opening the next;
+          terminal tabs and automatic recovery are still planned. The supplied
+          SSH key is public and only for this disposable lab.
+        </p>
       </section>
     </div>
   )

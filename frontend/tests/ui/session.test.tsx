@@ -69,6 +69,7 @@ beforeEach(() => {
   globalThis.fetch = mockFetch(async (input) => {
     const url = String(input)
     if (url === '/api/connections') return Response.json({ connections: [] })
+    if (url === '/api/keys') return Response.json({ keys: [] })
     if (url === '/api/auth/me') {
       reads++
       if (status !== 200)
@@ -421,7 +422,7 @@ test('authenticated home redirects to Workspace and sign-out clears private data
   expect(router.state.location.pathname).toBe('/workspace')
   expect(
     screen.queryByRole('heading', {
-      name: 'Your SSH workspace, in the browser.',
+      name: 'Three hosts. One browser. Real SSH.',
     }),
   ).toBeNull()
   fireEvent.click(await screen.findByRole('button', { name: 'Cam' }))
@@ -436,7 +437,71 @@ test('anonymous home keeps the landing page', async () => {
   signedIn = false
   await open('/')
   await screen.findByRole('heading', {
-    name: 'Your SSH workspace, in the browser.',
+    name: 'Three hosts. One browser. Real SSH.',
   })
   expect(router.state.location.pathname).toBe('/')
+})
+
+test('landing diagram traces destinations and the development proxy', async () => {
+  signedIn = false
+  await open('/')
+  await screen.findByRole('heading', {
+    name: 'Three hosts. One browser. Real SSH.',
+  })
+  expect(screen.getByText('Browser → app → bastion → target-1')).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Trace target-2' }))
+  expect(screen.getByText('Browser → app → bastion → target-2')).toBeTruthy()
+  expect(
+    screen
+      .getByRole('button', { name: 'Inspect target-2' })
+      .getAttribute('aria-pressed'),
+  ).toBe('true')
+  fireEvent.click(screen.getByRole('button', { name: 'Development' }))
+  expect(
+    screen.getByText('Browser → frontend → app → bastion → target-2'),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Inspect frontend' }))
+  expect(screen.getByRole('heading', { name: 'frontend · Vite' })).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Demo' }))
+  expect(screen.queryByRole('button', { name: 'Inspect frontend' })).toBeNull()
+  expect(
+    screen.getByRole('heading', { name: 'app · SSH gateway' }),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Trace bastion' }))
+  expect(screen.getByText('Browser → app → bastion')).toBeTruthy()
+})
+
+test('demo guide is available anonymously and preserves its step across protected navigation', async () => {
+  signedIn = false
+  await open('/')
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Open demo guide' }),
+  )
+  await screen.findByRole('dialog', { name: 'Demo guide' })
+  fireEvent.click(screen.getByRole('button', { name: '3 Upload the demo key' }))
+  expect(
+    screen.getByRole('heading', { name: 'Upload the demo key' }),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Close guide' }))
+  expect(screen.queryByRole('dialog', { name: 'Demo guide' })).toBeNull()
+  signedIn = true
+  await act(async () => {
+    await router.navigate({ to: '/connections' })
+  })
+  await screen.findByRole('heading', { name: 'Connections', level: 1 })
+  fireEvent.click(screen.getByRole('button', { name: 'Demo guide' }))
+  expect(
+    screen.getByRole('heading', { name: 'Upload the demo key' }),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('link', { name: 'Open SSH Keys' }))
+  await screen.findByRole('heading', { name: 'SSH Keys', level: 1 })
+  expect(screen.queryByRole('dialog', { name: 'Demo guide' })).toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Demo guide' }))
+  expect(
+    screen.getByRole('heading', { name: 'Upload the demo key' }),
+  ).toBeTruthy()
+  fireEvent.click(screen.getByRole('button', { name: 'Next step' }))
+  expect(
+    screen.getByRole('heading', { name: 'Import the connections' }),
+  ).toBeTruthy()
 })

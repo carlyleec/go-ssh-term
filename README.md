@@ -56,6 +56,9 @@ Each step must succeed before the next runs; stored data is preserved.
 
 ## Try the SSH lab
 
+The landing page has an interactive network diagram. **Demo guide** in the navbar
+opens step-by-step instructions from any page.
+
 1. Register with a display name and a passkey, or sign in.
 2. Open **SSH Keys**, choose **Upload SSH key**, and upload
    [demo/keys/demo_ed25519](demo/keys/demo_ed25519). This intentionally public key

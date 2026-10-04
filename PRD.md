@@ -26,6 +26,8 @@ The public and private networks are local Docker lab networks, not a public depl
 
 Routes are `/` for the landing page, `/login` for sign-in and account creation, `/workspace` for protected terminal work, `/connections` for saved connection management, and `/keys` for SSH key management. Navbar links separate the three protected sections; sign-in opens Workspace, and authenticated visits to `/` redirect there. A separate connection detail route is not required for v1. Registration may share the login page rather than requiring another route.
 
+The landing page introduces the local demo, its startup command, and an interactive Compose network diagram with selectable hosts and traffic paths for demo and development modes. A navbar control on every page opens a left-side demo guide covering startup, passkeys, key upload, config import, host verification, and exploration. The guide retains its selected step across navigation until the page reloads.
+
 Workspace offers Connect and active terminals. Connections offers adding, editing, deleting, and importing saved configurations; its empty state explains the demo setup. SSH Keys lists uploaded key metadata and supports upload and deletion. Forms, import, connection selection, and host verification open in right-side drawers, full width on small screens. Only one drawer is open at a time. Switching between protected sections keeps live terminals mounted and receiving output; leaving the signed-in area ends them. Each successful connection opens a terminal tab; multiple tabs may use the same saved connection. Only one terminal is visible at a time, while other tabs stay connected.
 
 ## Slice 1 Landing page and runnable application

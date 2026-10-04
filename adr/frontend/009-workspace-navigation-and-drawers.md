@@ -17,6 +17,12 @@ verification without stacking panels. Keep native modal dialog semantics beneath
 the drawer styling for focus containment, Escape, and focus restoration. Retain
 explicit approval, confirmation, and pending-operation dismissal guards.
 
+The root layout owns a left-side demo guide, available before and after sign-in.
+It retains the selected instruction step across route changes without storing
+account data. It uses the same native dialog behavior as management drawers;
+guide links close it before navigating. The landing page shows an interactive,
+static representation of Compose topology, not live connection status.
+
 The authenticated layout owns a terminal workspace provider. It keeps the single
 terminal mounted but hidden while viewing management routes, so output continues
 and returning does not create a replacement shell. ResizeObserver refits the

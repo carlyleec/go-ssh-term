@@ -893,3 +893,25 @@ test('management and home navigation preserve a live terminal until page departu
   expect(socket.closed).toBe(1)
   expect(terminal.disposed).toBe(true)
 })
+
+test('opening the demo guide preserves terminal output and does not create another socket', async () => {
+  hostState = 'trusted'
+  await inspectHost()
+  fireEvent.click(await screen.findByRole('button', { name: 'Open terminal' }))
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
+  const socket = FakeSocket.instances[0]
+  const terminal = FakeTerminal.instances[0]
+  if (!socket || !terminal) throw new Error('Terminal was not initialized')
+  act(() => {
+    socket.open()
+    socket.status('connected')
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Demo guide' }))
+  await screen.findByRole('dialog', { name: 'Demo guide' })
+  act(() => socket.message(new Uint8Array([65]).buffer))
+  expect(terminal.writes).toHaveLength(1)
+  expect(socket.closed).toBe(0)
+  fireEvent.click(screen.getByRole('button', { name: 'Close guide' }))
+  expect(FakeSocket.instances).toHaveLength(1)
+  expect(terminal.disposed).toBe(false)
+})

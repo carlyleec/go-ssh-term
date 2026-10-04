@@ -422,7 +422,7 @@ test('authenticated home redirects to Workspace and sign-out clears private data
   expect(router.state.location.pathname).toBe('/workspace')
   expect(
     screen.queryByRole('heading', {
-      name: 'Three hosts. One browser. Real SSH.',
+      name: 'Your SSH workspace, in the browser.',
     }),
   ).toBeNull()
   fireEvent.click(await screen.findByRole('button', { name: 'Cam' }))
@@ -437,7 +437,7 @@ test('anonymous home keeps the landing page', async () => {
   signedIn = false
   await open('/')
   await screen.findByRole('heading', {
-    name: 'Three hosts. One browser. Real SSH.',
+    name: 'Your SSH workspace, in the browser.',
   })
   expect(router.state.location.pathname).toBe('/')
 })
@@ -446,7 +446,7 @@ test('landing diagram traces destinations and the development proxy', async () =
   signedIn = false
   await open('/')
   await screen.findByRole('heading', {
-    name: 'Three hosts. One browser. Real SSH.',
+    name: 'Your SSH workspace, in the browser.',
   })
   expect(screen.getByText('Browser → app → bastion → target-1')).toBeTruthy()
   fireEvent.click(screen.getByRole('button', { name: 'Trace target-2' }))

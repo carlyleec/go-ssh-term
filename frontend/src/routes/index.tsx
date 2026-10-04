@@ -26,7 +26,7 @@ function LandingPage() {
             A hands-on networking demo
           </p>
           <h1 className="mt-4 text-4xl leading-tight font-bold tracking-tight sm:text-5xl">
-            Three hosts. One browser. Real SSH.
+            Your SSH workspace, in the browser.
           </h1>
           <p className="mt-5 max-w-2xl text-lg leading-relaxed text-base-content/75">
             Sign in with a passkey, bring the lab’s SSH key, and open a shell.

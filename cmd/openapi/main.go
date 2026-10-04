@@ -9,6 +9,7 @@ import (
 
 	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/carlyleec/go-ssh-term/internal/auth"
+	"github.com/carlyleec/go-ssh-term/internal/connections"
 	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 )
 
@@ -22,6 +23,7 @@ func export(w io.Writer) error {
 	contract := api.New(http.NewServeMux())
 	var access auth.Access
 	sshkeys.NewHandler(nil, nil).Register(contract, &access)
+	connections.NewHandler(nil).Register(contract, &access)
 	access.RegisterCurrentUser(contract)
 	access.RegisterLogout(contract)
 	auth.NewRegistration(nil, nil, nil).Register(contract, "")

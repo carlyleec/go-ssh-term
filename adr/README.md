@@ -18,6 +18,7 @@ Number records independently within each area. Each record states its context, d
 - [010 Expose owner-scoped SSH key management with bounded multipart uploads](api/010-ssh-key-management-api.md)
 - [011 Use Huma typed handlers and generate frontend API contracts](api/011-huma-and-generated-contracts.md)
 - [012 Store connection configurations, endpoint trust, and audit snapshots separately](api/012-connection-storage.md)
+- [013 Expose owner-scoped saved connection operations](api/013-saved-connection-api.md)
 
 ## Auth
 

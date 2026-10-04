@@ -48,8 +48,9 @@ handlers and scoped queries enforce ownership.
 
 The frontend submits FormData and lets the browser set the multipart boundary.
 Single-row statements avoid read/delete races and shared-pool deadlocks.
-Reference-protected deletion and conflict responses are added with saved
-connections; those records do not exist yet.
+Saved connections now protect referenced keys at the database level. Deleting
+an owned referenced key returns a safe 409 conflict; unowned keys still return
+404. See [saved connection operations](013-saved-connection-api.md).
 
 Related: [access middleware](../auth/009-current-user-and-route-protection.md),
 [key policy](../auth/002-ssh-key-storage.md),

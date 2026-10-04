@@ -3,7 +3,16 @@
 A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/`, passkey account access at `/login`, and a protected placeholder
 workspace at `/connections`. SSH key management and the Docker bastion are
-implemented; browser SSH terminal connections are not implemented yet.
+implemented, along with the saved-connection API. Connection forms and browser
+SSH terminal connections are not implemented yet.
+
+Saved configurations support `GET`/`POST /api/connections` and
+`PUT`/`DELETE /api/connections/{id}`. Create/edit requests require JSON fields
+`name`, `host`, `port`, `username`, and `ssh_key_id`, an authenticated session,
+and the configured Origin. Referenced SSH keys cannot be deleted (409 conflict).
+See the [API decision](adr/api/013-saved-connection-api.md) for validation and
+response details. Apply pending migrations with `make migrate` before running
+the updated API against an existing database.
 
 ## SSH lab bastion
 

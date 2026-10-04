@@ -16,7 +16,7 @@ test('deterministic Zod output matches saved artifact', async () => {
 })
 test('unsupported constraints and references fail closed', () => {
   for (const change of [
-    { minLength: 1 },
+    { minLength: -1 },
     { pattern: 'x' },
     { format: 'uuid' },
     { anyOf: [] },
@@ -26,6 +26,37 @@ test('unsupported constraints and references fail closed', () => {
     Object.assign(changed.components.schemas.Account.properties.id, change)
     expect(() => generateZod(changed)).toThrow()
   }
+})
+test('connection wire constraints preserve Unicode lengths and numeric bounds', () => {
+  const schema = contracts.createConnection.request['application/json']
+  const value = {
+    name: '😀'.repeat(256),
+    host: 'bastion',
+    port: 22,
+    username: 'demo',
+    ssh_key_id: 'key',
+  }
+  expect(schema.safeParse(value).success).toBe(true)
+  for (const change of [
+    { name: '' },
+    { name: '😀'.repeat(257) },
+    { port: 0 },
+    { port: 65536 },
+    { port: 22.5 },
+    { account_id: 'other' },
+  ]) {
+    expect(schema.safeParse({ ...value, ...change }).success).toBe(false)
+  }
+  expect(
+    contracts.listConnections.responses['200']['application/json'].parse({
+      connections: [],
+    }),
+  ).toEqual({ connections: [] })
+  expect(
+    contracts.deleteKey.responses['409']['application/json'].parse({
+      error: 'referenced',
+    }),
+  ).toEqual({ error: 'referenced' })
 })
 test('schemas validate envelopes, errors, files and empty responses', () => {
   const account = contracts.currentUser.responses['200']['application/json']

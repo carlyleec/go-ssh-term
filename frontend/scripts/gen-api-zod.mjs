@@ -16,6 +16,10 @@ const supported = new Set([
   'items',
   'format',
   'contentMediaType',
+  'minLength',
+  'maxLength',
+  'minimum',
+  'maximum',
   ...annotations,
 ])
 const quote = JSON.stringify
@@ -67,9 +71,9 @@ export function generateZod(spec) {
     const allowedByType = {
       object: ['properties', 'required', 'additionalProperties'],
       array: ['items'],
-      string: ['format', 'contentMediaType'],
-      integer: ['format'],
-      number: [],
+      string: ['format', 'contentMediaType', 'minLength', 'maxLength'],
+      integer: ['format', 'minimum', 'maximum'],
+      number: ['minimum', 'maximum'],
       boolean: [],
       null: [],
     }
@@ -113,7 +117,7 @@ export function generateZod(spec) {
       case 'array':
         if (!Object.hasOwn(value, 'items')) fail(where, 'array items missing')
         return `z.array(${schema(value.items, `${where}[]`)})`
-      case 'string':
+      case 'string': {
         if (
           value.contentMediaType &&
           !(
@@ -122,17 +126,50 @@ export function generateZod(spec) {
           )
         )
           fail(where, 'unsupported contentMediaType')
-        if (value.format === 'binary') return 'z.file()'
-        if (value.format === 'date-time')
-          return 'z.iso.datetime({ offset: true })'
-        if (value.format) fail(where, `unsupported format ${value.format}`)
-        return 'z.string()'
+        if (value.format === 'binary') {
+          if (value.minLength !== undefined || value.maxLength !== undefined)
+            fail(where, 'binary string length constraints are unsupported')
+          return 'z.file()'
+        }
+        if (value.format && value.format !== 'date-time')
+          fail(where, `unsupported format ${value.format}`)
+        let code =
+          value.format === 'date-time'
+            ? 'z.iso.datetime({ offset: true })'
+            : 'z.string()'
+        for (const [keyword, operator] of [
+          ['minLength', '>='],
+          ['maxLength', '<='],
+        ]) {
+          if (value[keyword] === undefined) continue
+          if (!Number.isSafeInteger(value[keyword]) || value[keyword] < 0)
+            fail(where, `invalid ${keyword}`)
+          // JSON Schema counts Unicode code points, not UTF-16 code units.
+          code += `.refine((value) => [...value].length ${operator} ${value[keyword]}, ${quote(keyword)})`
+        }
+        return code
+      }
       case 'integer':
+      case 'number': {
         if (value.format && value.format !== 'int64')
           fail(where, `unsupported format ${value.format}`)
-        return 'z.number().refine(Number.isInteger, "Expected integer")'
-      case 'number':
-        return 'z.number()'
+        let code = 'z.number()'
+        for (const [keyword, method] of [
+          ['minimum', 'min'],
+          ['maximum', 'max'],
+        ]) {
+          if (value[keyword] === undefined) continue
+          if (
+            typeof value[keyword] !== 'number' ||
+            !Number.isFinite(value[keyword])
+          )
+            fail(where, `invalid ${keyword}`)
+          code += `.${method}(${value[keyword]})`
+        }
+        if (value.type === 'integer')
+          code += '.refine(Number.isInteger, "Expected integer")'
+        return code
+      }
       case 'boolean':
         return 'z.boolean()'
       case 'null':

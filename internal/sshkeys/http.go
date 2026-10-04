@@ -16,6 +16,8 @@ import (
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite"
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
 	"github.com/google/uuid"
+	modernsqlite "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const maxUploadRequestBytes = 32 * 1024
@@ -95,6 +97,10 @@ func (h *handler) delete(ctx context.Context, input *DeleteInput) (*struct{}, er
 	defer cancel()
 	deleted, err := h.queries.DeleteSSHKey(ctx, queries.DeleteSSHKeyParams{ID: id.String(), AccountID: account.ID})
 	if err != nil {
+		var constraint *modernsqlite.Error
+		if errors.As(err, &constraint) && constraint.Code() == sqlite3.SQLITE_CONSTRAINT_FOREIGNKEY {
+			return nil, &KeyErrorBody{Message: "SSH key is referenced by a saved connection", status: http.StatusConflict}
+		}
 		return nil, &KeyErrorBody{Message: "could not delete SSH key; try again", status: http.StatusServiceUnavailable}
 	}
 	if deleted == 0 {

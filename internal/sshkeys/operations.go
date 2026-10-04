@@ -82,6 +82,6 @@ func (h *handler) Register(api huma.API, access *auth.Access) {
 		OperationID: "deleteKey", Method: http.MethodDelete, Path: "/api/keys/{id}", DefaultStatus: http.StatusNoContent,
 		Summary: "Delete an owned SSH key", Security: security, Middlewares: middleware,
 		// The handler maps malformed IDs to the same 404 as missing or unowned keys.
-		Responses: responses(401, 403, 404, 503),
+		Responses: responses(401, 403, 404, 409, 503),
 	}, h.delete)
 }

@@ -14,6 +14,7 @@ import (
 	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/config"
+	"github.com/carlyleec/go-ssh-term/internal/connections"
 	"github.com/carlyleec/go-ssh-term/internal/database"
 	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 	"github.com/carlyleec/go-ssh-term/internal/web"
@@ -52,6 +53,7 @@ func run() error {
 	apiMux := http.NewServeMux()
 	contract := api.New(apiMux)
 	sshkeys.NewHandler(pool, encryption).Register(contract, access)
+	connections.NewHandler(pool).Register(contract, access)
 	access.RegisterCurrentUser(contract)
 	access.RegisterLogout(contract)
 	auth.NewRegistration(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)

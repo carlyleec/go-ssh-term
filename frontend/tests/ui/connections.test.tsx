@@ -578,3 +578,85 @@ test('closing during reconnect lookup ignores its late result and duplicate clic
   expect(screen.queryByRole('heading', { name: 'Verify SSH host' })).toBeNull()
   expect(FakeSocket.instances).toHaveLength(1)
 })
+
+test('repeated manual reconnects reset terminal state and ignore callbacks from older attempts', async () => {
+  await endedTerminal()
+  let previousMessage: FakeSocket['onmessage'] = null
+  for (let cycle = 0; cycle < 3; cycle++) {
+    const oldTerminal = FakeTerminal.instances.at(-1)
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open terminal' }),
+    )
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(cycle + 2))
+    const socket = FakeSocket.instances.at(-1)
+    const terminal = FakeTerminal.instances.at(-1)
+    if (!socket || !terminal) throw new Error('Missing replacement terminal')
+    expect(oldTerminal?.disposed).toBe(true)
+    act(() => {
+      previousMessage?.({
+        data: '{"type":"status","state":"connected"}',
+      } as MessageEvent)
+      previousMessage?.({
+        data: new TextEncoder().encode('stale output').buffer,
+      } as MessageEvent)
+    })
+    expect(screen.queryByText('Connected')).toBeNull()
+    expect(terminal.writes).toHaveLength(0)
+    expect(terminal.options.disableStdin).toBe(true)
+    const late = socket.onmessage
+    act(() => {
+      socket.open()
+      socket.status('connected')
+      socket.message(new TextEncoder().encode(`output ${cycle}`).buffer)
+      socket.status(cycle % 2 ? 'failed' : 'disconnected', 'Attempt ended.')
+    })
+    await screen.findByRole('button', { name: 'Reconnect' })
+    expect(terminal.writes).toHaveLength(1)
+    expect(socket.closed).toBe(1)
+    act(() =>
+      late?.({ data: '{"type":"status","state":"connected"}' } as MessageEvent),
+    )
+    expect(terminal.options.disableStdin).toBe(true)
+    expect(FakeSocket.instances).toHaveLength(cycle + 2)
+    previousMessage = late
+  }
+})
+
+test.each(['logout', 'expiry'])(
+  '%s during replacement setup disposes the new terminal and ignores late readiness',
+  async (reason) => {
+    await endedTerminal()
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Open terminal' }),
+    )
+    await waitFor(() => expect(FakeSocket.instances).toHaveLength(2))
+    const socket = FakeSocket.instances[1]
+    const late = socket?.onmessage
+    signedIn = false
+    if (reason === 'logout') {
+      const previous = globalThis.fetch
+      globalThis.fetch = mockFetch(async (input, init) => {
+        if (String(input) === '/api/auth/logout')
+          return new Response(null, { status: 204 })
+        return previous(input, init)
+      })
+      fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+    } else {
+      await act(async () => {
+        await client.invalidateQueries({ queryKey: ['current-user'] })
+      })
+    }
+    await screen.findByRole('heading', { name: 'Account access' })
+    act(() =>
+      late?.({ data: '{"type":"status","state":"connected"}' } as MessageEvent),
+    )
+    expect(socket?.closed).toBe(1)
+    expect(FakeTerminal.instances.every((terminal) => terminal.disposed)).toBe(
+      true,
+    )
+    expect(FakeSocket.instances).toHaveLength(2)
+    expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull()
+  },
+)

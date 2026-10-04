@@ -53,4 +53,7 @@ audit API, or audit-history screen is introduced.
 Controlled SSH/WebSocket tests cover normal/nonzero exit, trust rejection,
 destination retention after edit/deletion, logout, refusal to dial when start
 storage fails, and atomic rollback of final events. The existing race suite
-continues to exercise stalled I/O, expiry, shutdown, and cleanup.
+continues to exercise stalled I/O, expiry, shutdown, and cleanup. Repeated shell
+cycles verify distinct ordered attempt histories, while blocked replacement
+authentication and concurrent close/invalidation/shutdown verify cancellation
+without late publication or duplicate final events.

@@ -33,14 +33,14 @@ Do not add a second account store or auth provider.
 
 Keep the API layer to three files: `api/apiClient.ts` owns fetch calls and shared
 HTTP defaults, JSON/multipart handling, response parsing, and typed `ApiError`
-failures. Its get/post/delete methods return parsed response bodies and preserve
+failures. Its get/post/put/delete methods return parsed response bodies and preserve
 cancellation. `api/endpoints.ts` exports the `ENDPOINTS` URL constants, and
 `api/queries.ts` contains API types and query/mutation definitions, including the
 passkey begin/prompt/finish sequence. Define operations under their domain
 groups; keep routing, session lifecycle, and form validation out of this file.
 Export a default
-`queries` object from `api/queries.ts`, grouped by domain: currently `auth` and
-`keys`, with `connections` added when its API exists. Expose query hooks for
+`queries` object from `api/queries.ts`, grouped by domain: `auth`, `keys`, and
+`connections`. Expose query hooks for
 components and query options for route guards and cache operations. Expose
 mutation options directly on each operation without an extra options wrapper.
 Keep UI effects such as navigation, dialog feedback, and form resets with their

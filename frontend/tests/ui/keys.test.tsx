@@ -51,6 +51,7 @@ beforeEach(() => {
   uploadWait = undefined
   globalThis.fetch = mockFetch(async (input, init) => {
     const url = String(input)
+    if (url === '/api/connections') return Response.json({ connections: [] })
     if (url === '/api/auth/me' && !signedIn)
       return Response.json({ error: 'sign in' }, { status: 401 })
     if (url === '/api/auth/me')

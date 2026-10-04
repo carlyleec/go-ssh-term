@@ -80,6 +80,17 @@ export const apiClient = {
     })
   },
 
+  put<T>(url: string, body: unknown, options?: RequestOptions): Promise<T> {
+    const headers = new Headers(options?.headers)
+    headers.set('Content-Type', 'application/json')
+    return request<T>(url, {
+      ...options,
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(body),
+    })
+  },
+
   delete<T>(url: string, options?: RequestOptions): Promise<T> {
     return request<T>(url, { ...options, method: 'DELETE' })
   },

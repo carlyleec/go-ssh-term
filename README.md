@@ -1,10 +1,12 @@
 # Browser SSH Gateway
 
 A Go and React browser SSH gateway in development. The frontend has a landing
-page at `/`, passkey account access at `/login`, and a protected placeholder
+page at `/`, passkey account access at `/login`, and a protected
 workspace at `/connections`. SSH key management and the Docker bastion are
-implemented, along with the saved-connection API. Connection forms and browser
-SSH terminal connections are not implemented yet.
+implemented, along with saved-connection forms, editing, confirmed deletion,
+and a Connect picker. The empty workspace explains the local demo setup.
+The picker currently selects a destination only; browser SSH terminals are
+not implemented yet.
 
 Saved configurations support `GET`/`POST /api/connections` and
 `PUT`/`DELETE /api/connections/{id}`. Create/edit requests require JSON fields

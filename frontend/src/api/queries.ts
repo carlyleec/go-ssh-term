@@ -8,8 +8,15 @@ import { queryOptions, useQuery } from '@tanstack/react-query'
 import apiClient, { ApiError } from './apiClient'
 import { ENDPOINTS } from './endpoints'
 
-import type { SchemaAccount, SchemaKeyMetadata } from './generated/schema.gen'
+import type {
+  SchemaAccount,
+  SchemaConnection,
+  SchemaConnectionFields,
+  SchemaKeyMetadata,
+} from './generated/schema.gen'
 import {
+  ConnectionBodySchema,
+  ConnectionsBodySchema,
   CurrentUserOutputBodySchema,
   KeysBodySchema,
 } from './generated/zod.gen'
@@ -135,6 +142,54 @@ const keys = {
   },
 }
 
-const queries = { auth, keys }
+export type SavedConnection = SchemaConnection
+export type ConnectionFields = SchemaConnectionFields
+const connectionOptions = (accountID: string) =>
+  queryOptions({
+    queryKey: ['connections', accountID],
+    queryFn: async ({ signal }): Promise<SavedConnection[]> => {
+      const data = await apiClient.get(ENDPOINTS.connections, { signal })
+      return ConnectionsBodySchema.parse(data).connections
+    },
+    retry: false,
+    networkMode: 'always',
+  })
+const connections = {
+  options: connectionOptions,
+  useQuery: (accountID: string) => useQuery(connectionOptions(accountID)),
+  save: {
+    mutationFn: async ({
+      id,
+      fields,
+    }: {
+      id?: string
+      fields: ConnectionFields
+    }): Promise<SavedConnection> => {
+      const data = id
+        ? await apiClient.put(
+            `${ENDPOINTS.connections}/${encodeURIComponent(id)}`,
+            fields,
+            { expectedStatus: 200 },
+          )
+        : await apiClient.post(ENDPOINTS.connections, fields, {
+            expectedStatus: 201,
+          })
+      return ConnectionBodySchema.parse(data).connection
+    },
+    retry: false,
+    networkMode: 'always' as const,
+  },
+  remove: {
+    mutationFn: (id: string) =>
+      apiClient.delete<void>(
+        `${ENDPOINTS.connections}/${encodeURIComponent(id)}`,
+        { expectedStatus: 204 },
+      ),
+    retry: false,
+    networkMode: 'always' as const,
+  },
+}
+
+const queries = { auth, keys, connections }
 
 export default queries

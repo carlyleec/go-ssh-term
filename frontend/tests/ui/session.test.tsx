@@ -68,6 +68,7 @@ beforeEach(() => {
   onlineManager.setOnline(true)
   globalThis.fetch = mockFetch(async (input) => {
     const url = String(input)
+    if (url === '/api/connections') return Response.json({ connections: [] })
     if (url === '/api/auth/me') {
       reads++
       if (status !== 200)

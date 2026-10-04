@@ -6,4 +6,5 @@ export const ENDPOINTS = {
   loginFinish: '/api/auth/login/finish',
   logout: '/api/auth/logout',
   keys: '/api/keys',
+  connections: '/api/connections',
 } as const

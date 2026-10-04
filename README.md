@@ -22,8 +22,8 @@ Choose **Connect**, then a saved destination. Compare the displayed SHA-256
 fingerprint with a trusted source before choosing **Approve fingerprint**.
 **Reject and close** stores nothing. Inspection and approval stop before user
 authentication; approval is remembered for your account and that host/port.
-The reusable backend dialer supports key-based SSH login after approval, but
-terminal transport is still pending.
+The reusable backend dialer supports key-based SSH login after approval. The
+WebSocket transport is defined, but connecting it to an SSH shell is still pending.
 
 A changed host key blocks connection. Verify why the identity changed first
 (for example, the lab host-key volume was intentionally replaced). In the
@@ -37,6 +37,20 @@ normalized `host`, `port`, and previously trusted `fingerprint` in a JSON body,
 an authenticated cookie, and the configured Origin. Stale decisions return 409.
 If the original configuration was deleted, create another for the same endpoint
 to inspect/reset its retained trust. See [SSH trust decisions](adr/auth/013-ssh-dialing-and-trust-decisions.md).
+
+## Terminal WebSocket protocol
+
+`GET /api/connections/{id}/terminal` requires an authenticated session cookie,
+the exact configured Origin, an owned saved connection, and the WebSocket
+subprotocol `ssh-terminal.v1`. Terminal data uses binary messages up to 32 KiB;
+resize/status controls use JSON text up to 1 KiB. See the
+[protocol decision](adr/api/014-terminal-websocket-protocol.md) for message shapes,
+dimension limits, close codes, and write bounds.
+
+The endpoint currently sends `failed` with “Terminal sessions are not available
+yet.” and closes normally. It opens no SSH session. The picker remains a host
+verification flow; PTY forwarding, session lifetime management, and xterm.js
+integration are subsequent work.
 
 ## SSH lab bastion
 
@@ -137,9 +151,8 @@ update connection. Use relative `/api/...` URLs for HTTP and derive WebSocket
 URLs from the browser's current host and scheme.
 
 Keep `BROWSER_ORIGIN=http://localhost:5173` in development (the default).
-The proxy preserves origin headers for backend validation. Registration
-endpoints enforce the configured origin; protection for other account and
-terminal routes is added alongside those endpoints. No permissive CORS setting is needed.
+The proxy preserves origin headers for backend validation. Account mutations
+and terminal upgrades enforce the configured origin. No permissive CORS setting is needed.
 Go's port 8080 remains available for direct debugging and compiled-asset checks
 after `make build`; use port 5173 for the development workflow.
 

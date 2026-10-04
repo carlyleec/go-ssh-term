@@ -40,6 +40,7 @@ func setup(t *testing.T) fixture {
 	contract := api.New(mux)
 	access := auth.NewAccess(sessions, db, "localhost", origin)
 	NewHandler(db).Register(contract, access)
+	NewHandler(db).RegisterTerminal(mux, access, origin)
 	sshkeys.NewHandler(db, nil).Register(contract, access)
 	f := fixture{db: db, handler: mux, sessions: sessions}
 	for i := range f.owners {

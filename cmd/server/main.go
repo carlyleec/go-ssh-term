@@ -54,6 +54,7 @@ func run() error {
 	contract := api.New(apiMux)
 	sshkeys.NewHandler(pool, encryption).Register(contract, access)
 	connections.NewHandler(pool).Register(contract, access)
+	connections.NewHandler(pool).RegisterTerminal(apiMux, access, cfg.BrowserOrigin)
 	connections.NewDialer(pool, encryption).Register(contract, access)
 	access.RegisterCurrentUser(contract)
 	access.RegisterLogout(contract)

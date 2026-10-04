@@ -19,6 +19,7 @@ Number records independently within each area. Each record states its context, d
 - [011 Use Huma typed handlers and generate frontend API contracts](api/011-huma-and-generated-contracts.md)
 - [012 Store connection configurations, endpoint trust, and audit snapshots separately](api/012-connection-storage.md)
 - [013 Expose owner-scoped saved connection operations](api/013-saved-connection-api.md)
+- [014 Bound and authenticate the terminal WebSocket transport](api/014-terminal-websocket-protocol.md)
 
 ## Auth
 
@@ -60,4 +61,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats, the upload-size limit, and the parsing library are recorded in Auth 002. The SSH library, setup deadline, and host-trust reset interface are recorded in Auth 013. The WebSocket library, SSH config syntax, and remaining timeout and resource values remain implementation decisions. Coordination between multiple browser tabs is outside v1.
+The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats, the upload-size limit, and the parsing library are recorded in Auth 002. The SSH library, setup deadline, and host-trust reset interface are recorded in Auth 013. The WebSocket library and protocol limits are recorded in API 014. SSH config syntax and remaining timeout and resource values remain implementation decisions. Coordination between multiple browser tabs is outside v1.

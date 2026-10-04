@@ -37,7 +37,7 @@ services:
     networks:
       - lab-gateway
     healthcheck:
-      test: ["CMD-SHELL", "ssh-keyscan -T 2 127.0.0.1 > /dev/null 2>&1"]
+      test: ["CMD-SHELL", "ssh-keyscan -T 2 -t rsa,ecdsa,ed25519 127.0.0.1 > /dev/null 2>&1"]
       interval: 5s
       timeout: 3s
       retries: 3

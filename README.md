@@ -241,6 +241,19 @@ container and the shared build volume as described above. Package and frontend
 checks do not replace a browser walkthrough or verification of live reload,
 proxying, and persistence.
 
+## OpenAPI contract
+
+With the pinned host Go toolchain installed, run `make openapi` to regenerate
+`openapi/api.json`. The command uses the same Huma operation registration as the
+server without starting HTTP, opening SQLite, or reading encryption material.
+It replaces the artifact only after export succeeds. `go run ./cmd/openapi`
+writes the contract to stdout for inspection.
+
+The contract currently covers `GET /api/auth/me`. Remaining auth and SSH-key
+operations are still being migrated; frontend type/schema generation and the
+development watcher are not implemented yet. Go tests check deterministic export
+and reject a stale committed artifact.
+
 ## Destructive volume reset
 
 **This deletes the project's stored database data, migration history, and application encryption key, plus

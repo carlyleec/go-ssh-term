@@ -181,7 +181,7 @@ func TestLogoutPersistedSession(t *testing.T) {
 	r := httptest.NewRequest("GET", "/api/auth/me", nil)
 	r.AddCookie(cookie)
 	w := httptest.NewRecorder()
-	a.CurrentUser().ServeHTTP(w, r)
+	currentUserHandler(a).ServeHTTP(w, r)
 	if w.Code != 401 {
 		t.Fatalf("old cookie: %d", w.Code)
 	}

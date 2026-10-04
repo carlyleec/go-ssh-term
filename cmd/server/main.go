@@ -11,6 +11,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/carlyleec/go-ssh-term/internal/database"
@@ -51,7 +52,7 @@ func run() error {
 	keys := sshkeys.NewHandler(pool, encryption, access)
 	mux.Handle("/api/keys", keys)
 	mux.Handle("/api/keys/", keys)
-	mux.Handle("GET /api/auth/me", access.CurrentUser())
+	access.RegisterCurrentUser(api.New(mux))
 	mux.Handle("POST /api/auth/logout", access.Logout())
 	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, pool, cfg.BrowserOrigin))
 	mux.Handle("/api/auth/login/", auth.NewLogin(wa, sessions, pool, cfg.BrowserOrigin))

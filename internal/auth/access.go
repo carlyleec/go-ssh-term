@@ -81,10 +81,3 @@ func (a *Access) Require(next http.Handler) http.Handler {
 		authenticated.ServeHTTP(w, r)
 	})
 }
-
-func (a *Access) CurrentUser() http.Handler {
-	return a.Require(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		account, _ := AccountFromContext(r.Context())
-		writeAuthJSON(w, map[string]Account{"account": account})
-	}))
-}

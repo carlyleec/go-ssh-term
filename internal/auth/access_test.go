@@ -3,14 +3,17 @@ package auth
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/google/uuid"
 )
 
@@ -70,7 +73,7 @@ func TestAccessSessionAuthority(t *testing.T) {
 				h.sessions.Store = &failingSessionStore{Store: h.sessions.Store, failFind: true}
 			}
 			w := httptest.NewRecorder()
-			access.CurrentUser().ServeHTTP(w, r)
+			currentUserHandler(access).ServeHTTP(w, r)
 			want := 401
 			if kind == "valid" {
 				want = 200
@@ -86,6 +89,16 @@ func TestAccessSessionAuthority(t *testing.T) {
 			}
 			if strings.Contains(w.Body.String(), "secret") {
 				t.Fatal("private error leaked")
+			}
+			if want != http.StatusOK {
+				var body map[string]any
+				if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+					t.Fatal(err)
+				}
+				message, ok := body["error"].(string)
+				if len(body) != 1 || !ok || message == "" {
+					t.Fatalf("unexpected error envelope: %s", w.Body.String())
+				}
 			}
 			if kind == "valid" && !strings.Contains(w.Body.String(), id.String()) {
 				t.Fatal("missing account identity")
@@ -156,7 +169,7 @@ func TestCurrentUserPersistedAccount(t *testing.T) {
 		r := httptest.NewRequest("GET", "/api/auth/me", nil)
 		r.AddCookie(cookie)
 		w := httptest.NewRecorder()
-		NewAccess(h.sessions, pool, rp, testOrigin).CurrentUser().ServeHTTP(w, r)
+		currentUserHandler(NewAccess(h.sessions, pool, rp, testOrigin)).ServeHTTP(w, r)
 		want := 200
 		if rp != "localhost" {
 			want = 401
@@ -166,6 +179,90 @@ func TestCurrentUserPersistedAccount(t *testing.T) {
 		}
 		if want == 200 && !strings.Contains(w.Body.String(), "Alice") {
 			t.Fatal("missing saved display name")
+		}
+	}
+}
+
+func currentUserHandler(access *Access) http.Handler {
+	mux := http.NewServeMux()
+	access.RegisterCurrentUser(api.New(mux))
+	return mux
+}
+
+func TestCurrentUserTypedResponseAndSessionDeadline(t *testing.T) {
+	h, _ := registrationFixture(t)
+	id := uuid.New()
+	access := &Access{sessions: h.sessions, origin: testOrigin, lookup: func(context.Context, uuid.UUID) (Account, error) {
+		return Account{ID: id.String(), DisplayName: "Alice"}, nil
+	}}
+	cookie := accessCookie(t, h.sessions, id.String(), false)
+	before, err := h.sessions.Load(t.Context(), cookie.Value)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline := h.sessions.Deadline(before)
+	mux := currentUserHandler(access)
+	r := httptest.NewRequest(http.MethodGet, "/api/auth/me", nil)
+	r.AddCookie(cookie)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, r)
+	var body map[string]any
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	want := map[string]any{"account": map[string]any{"id": id.String(), "display_name": "Alice"}}
+	if !reflect.DeepEqual(body, want) {
+		t.Fatalf("response envelope changed: %s", w.Body.String())
+	}
+	if w.Header().Get("Content-Type") != "application/json" || w.Header().Get("Link") != "" {
+		t.Fatalf("response headers changed: %v", w.Header())
+	}
+	after, err := h.sessions.Load(t.Context(), cookie.Value)
+	if err != nil || !h.sessions.Deadline(after).Equal(deadline) {
+		t.Fatalf("current-user changed session deadline: %v", err)
+	}
+	for _, method := range []string{http.MethodHead, http.MethodPost} {
+		r := httptest.NewRequest(method, "/api/auth/me", nil)
+		r.AddCookie(cookie)
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, r)
+		want := http.StatusOK
+		if method == http.MethodPost {
+			want = http.StatusMethodNotAllowed
+		}
+		if w.Code != want {
+			t.Fatalf("%s: status %d, want %d", method, w.Code, want)
+		}
+	}
+}
+
+func TestCurrentUserContractMatchesRegistration(t *testing.T) {
+	mux := http.NewServeMux()
+	contract := api.New(mux)
+	var access Access
+	access.RegisterCurrentUser(contract)
+	op := contract.OpenAPI().Paths["/api/auth/me"].Get
+	if op == nil || op.OperationID != "currentUser" {
+		t.Fatal("missing current-user operation")
+	}
+	for _, status := range []string{"200", "401", "403", "503"} {
+		response := op.Responses[status]
+		if response == nil || response.Content["application/json"] == nil {
+			t.Fatalf("missing JSON response for %s", status)
+		}
+	}
+	if len(op.Security) != 1 || op.Security[0]["session"] == nil {
+		t.Fatal("missing session-cookie security requirement")
+	}
+	h, _ := registrationFixture(t)
+	if contract.OpenAPI().Components.SecuritySchemes["session"].Name != h.sessions.Cookie.Name {
+		t.Fatal("documented session cookie differs from runtime")
+	}
+	for _, path := range []string{"/docs", "/schemas/Account.json", "/openapi.json"} {
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("unexpected documentation route: %s", path)
 		}
 	}
 }

@@ -55,7 +55,7 @@ func TestAccountSessionsSurviveDatabaseReopen(t *testing.T) {
 		cookie.Value = tc.token
 		r.AddCookie(&cookie)
 		w := httptest.NewRecorder()
-		access.CurrentUser().ServeHTTP(w, r)
+		currentUserHandler(access).ServeHTTP(w, r)
 		if w.Code != tc.status {
 			t.Fatalf("session after reopen/logout: %d, want %d", w.Code, tc.status)
 		}

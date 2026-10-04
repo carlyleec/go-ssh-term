@@ -1,7 +1,7 @@
 COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down logs ps test frontend-test format fix lint typecheck check build frontend-restart migrate migrate-status generate
+.PHONY: help setup up down logs ps test frontend-test format fix lint typecheck check build frontend-restart migrate migrate-status generate openapi
 
 help:
 	@printf '%s\n' \
@@ -9,6 +9,7 @@ help:
 	  'make migrate           Stop app and apply pending SQLite migrations' \
 	  'make migrate-status    Show applied and pending migrations' \
 	  'make generate          Generate Go queries with sqlc' \
+	  'make openapi           Export OpenAPI with host Go; no running services needed' \
 	  'make up                Start development servers (Ctrl-C stops them)' \
 	  'make down              Remove development containers; preserve volumes' \
 	  'make logs              Follow Go and frontend logs' \
@@ -81,3 +82,8 @@ migrate-status:
 
 generate:
 	$(COMPOSE) run --rm --no-deps -T sqlc generate
+
+openapi:
+	@tmp=$$(mktemp openapi/api.json.XXXXXX) || exit 1; \
+	trap 'rm -f "$$tmp"' EXIT; \
+	env -u GOROOT asdf exec go run ./cmd/openapi > "$$tmp" && mv "$$tmp" openapi/api.json

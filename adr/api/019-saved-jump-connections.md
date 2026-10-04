@@ -34,14 +34,28 @@ Use the existing explicit migration workflow before restarting the application.
 
 Until SSH forwarding is implemented, the transport rejects any attempt to dial
 or probe a configuration carrying a jump. It must never silently connect directly
-to the target. The selector, forwarding, per-hop trust flow, and audit snapshots
+to the target. Forwarding, per-hop trust flow, and audit snapshots
 for both hops remain subsequent work; the wire terminal protocol is unchanged.
+
+## Connection forms
+
+The route-owned create/edit form uses the account-scoped connection query for
+Jump through choices. Offer only other direct destinations; a referenced bastion
+can only remain direct. Initialize existing values and send null for explicit
+direct selection. Keep unavailable selected IDs visible with an error instead
+of silently dropping them. Block submission when the list is unavailable or the
+selected jump is invalid; preserve values across retries and server validation
+errors. The server remains authoritative if the configuration changes during save.
+
+Saved rows display the selected jump name. A deletion conflict retains the row
+and its error so the user can cancel, change dependent references, and retry.
 
 ## Verification
 
 HTTP and file-backed SQLite tests cover round trips, replacement/removal, foreign
 and missing references, self/cyclic/chained references, edits to referenced
 bastions, concurrent edits, deletion protection, account cascades, rollback and
-reapplication, and rejection of direct fallback. A rendered frontend test checks
-that editing other fields preserves the existing jump. Pinned dbmate verifies
+reapplication, and rejection of direct fallback. Rendered frontend tests cover creating/removing/preserving jumps, filtered
+choices, stale selections, list/save errors, pending saves, and deletion-conflict
+recovery. Pinned dbmate verifies
 up/down/up on a disposable database.

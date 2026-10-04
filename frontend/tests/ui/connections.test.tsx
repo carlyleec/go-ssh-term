@@ -135,9 +135,12 @@ beforeEach(() => {
       const fields = JSON.parse(String(init.body))
       expect(fields.ssh_key_id).toBe(keyID)
       expect(typeof fields.port).toBe('number')
-      records = [{ ...record, ...fields }]
+      if (fields.jump_connection_id === null) delete fields.jump_connection_id
+      const id = init.method === 'PUT' ? url.split('/').at(-1) : record.id
+      const updated = { ...record, ...fields, id }
+      records = [...records.filter((item) => item.id !== id), updated]
       return Response.json(
-        { connection: records[0] },
+        { connection: updated },
         { status: init.method === 'POST' ? 201 : 200 },
       )
     }
@@ -147,10 +150,15 @@ beforeEach(() => {
       if (deleteStatus === 401) signedIn = false
       if (deleteStatus !== 204)
         return Response.json(
-          { error: 'Could not delete connection.' },
+          {
+            error:
+              deleteStatus === 409
+                ? 'Connection is used as a jump; update or delete dependent connections first.'
+                : 'Could not delete connection.',
+          },
           { status: deleteStatus },
         )
-      records = []
+      records = records.filter((item) => item.id !== url.split('/').at(-1))
       return new Response(null, { status: 204 })
     }
     throw new Error(`Unexpected request ${url}`)
@@ -663,7 +671,10 @@ test.each(['logout', 'expiry'])(
 
 test('editing connection details preserves an existing jump reference', async () => {
   const jumpID = '33333333-3333-4333-8333-333333333333'
-  records = [{ ...record, jump_connection_id: jumpID }]
+  records = [
+    { ...record, id: jumpID, name: 'Jump host' },
+    { ...record, jump_connection_id: jumpID },
+  ]
   await open()
   fireEvent.click(
     await screen.findByRole('button', { name: 'Edit Local bastion' }),
@@ -674,5 +685,157 @@ test('editing connection details preserves an existing jump reference', async ()
   })
   save()
   await screen.findByRole('button', { name: 'Edit Renamed target' })
-  expect(records[0]?.jump_connection_id).toBe(jumpID)
+  expect(
+    records.find((item) => item.id === record.id)?.jump_connection_id,
+  ).toBe(jumpID)
+})
+
+const jumpRecord: SavedConnection = {
+  ...record,
+  id: '33333333-3333-4333-8333-333333333333',
+  name: 'Jump host',
+}
+const chainedRecord: SavedConnection = {
+  ...record,
+  id: '44444444-4444-4444-8444-444444444444',
+  name: 'Private target',
+  jump_connection_id: jumpRecord.id,
+}
+
+test('jump selector creates a routed target and excludes multi-hop choices', async () => {
+  records = [jumpRecord, chainedRecord]
+  await open()
+  await add()
+  fill()
+  const selector = screen.getByLabelText('Jump through')
+  expect(
+    within(selector).queryByRole('option', { name: /Private target/ }),
+  ).toBeNull()
+  fireEvent.change(selector, { target: { value: jumpRecord.id } })
+  save()
+  await screen.findByRole('button', { name: 'Edit Local bastion' })
+  expect(
+    records.find((item) => item.id === record.id)?.jump_connection_id,
+  ).toBe(jumpRecord.id)
+  expect(screen.getAllByText('Jump through: Jump host')).toHaveLength(2)
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Local bastion' }))
+  await screen.findByRole('dialog', { name: 'Edit connection' })
+  const edit = screen.getByLabelText('Jump through') as HTMLSelectElement
+  expect(edit.value).toBe(jumpRecord.id)
+  expect(
+    within(edit).queryByRole('option', { name: /Local bastion/ }),
+  ).toBeNull()
+  fireEvent.change(edit, { target: { value: '' } })
+  save()
+  await waitFor(() => expect(screen.queryByRole('dialog') === null).toBe(true))
+  expect(
+    records.find((item) => item.id === record.id)?.jump_connection_id,
+  ).toBeUndefined()
+})
+
+test('a referenced jump must stay direct and deletion conflicts preserve the configuration', async () => {
+  records = [jumpRecord, chainedRecord, record]
+  await open()
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit Jump host' }))
+  await screen.findByRole('dialog', { name: 'Edit connection' })
+  await screen.findByText(/must remain direct/)
+  expect(
+    within(screen.getByLabelText('Jump through')).getAllByRole('option'),
+  ).toHaveLength(1)
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  deleteStatus = 409
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Jump host' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm deletion' }))
+  await screen.findByText(/Connection is used as a jump/)
+  expect(records).toHaveLength(3)
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel deletion' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Edit Private target' }))
+  await screen.findByRole('dialog', { name: 'Edit connection' })
+  fireEvent.change(screen.getByLabelText('Jump through'), {
+    target: { value: '' },
+  })
+  save()
+  await waitFor(() => expect(screen.queryByRole('dialog') === null).toBe(true))
+  deleteStatus = 204
+  fireEvent.click(screen.getByRole('button', { name: 'Delete Jump host' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Confirm deletion' }))
+  await screen.findByText('Connection deleted.')
+  expect(records.some((item) => item.id === jumpRecord.id)).toBe(false)
+  expect(records.some((item) => item.id === chainedRecord.id)).toBe(true)
+})
+
+test('stale jump choices cannot silently become direct connections', async () => {
+  records = [jumpRecord, { ...record, jump_connection_id: jumpRecord.id }]
+  await open()
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Edit Local bastion' }),
+  )
+  await screen.findByRole('dialog', { name: 'Edit connection' })
+  records = [{ ...record, jump_connection_id: jumpRecord.id }]
+  await act(async () => {
+    await client.invalidateQueries({ queryKey: ['connections', 'account-id'] })
+  })
+  await screen.findByText(/This jump is no longer available/)
+  save()
+  expect(saved).toBe(0)
+  expect(
+    (screen.getByLabelText('Jump through') as HTMLSelectElement).value,
+  ).toBe(jumpRecord.id)
+  fireEvent.change(screen.getByLabelText('Jump through'), {
+    target: { value: '' },
+  })
+  save()
+  await waitFor(() => expect(saved).toBe(1))
+})
+
+test('jump list errors retry without discarding inputs and pending saves freeze the choice', async () => {
+  records = [jumpRecord]
+  await open()
+  listStatus = 503
+  await add()
+  fill()
+  await screen.findByRole('button', { name: 'Retry jump connections' })
+  expect(
+    (
+      screen.getByRole('button', {
+        name: 'Save connection',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true)
+  listStatus = 200
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Retry jump connections' }),
+  )
+  await waitFor(() =>
+    expect(
+      (screen.getByLabelText('Jump through') as HTMLSelectElement).disabled,
+    ).toBe(false),
+  )
+  fireEvent.change(screen.getByLabelText('Jump through'), {
+    target: { value: jumpRecord.id },
+  })
+  saveStatus = 400
+  save()
+  await screen.findByText('Could not save connection.')
+  expect(
+    (screen.getByLabelText('Jump through') as HTMLSelectElement).value,
+  ).toBe(jumpRecord.id)
+  saveStatus = 200
+  let release: (() => void) | undefined
+  pending = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  save()
+  await screen.findByRole('button', { name: 'Saving…' })
+  expect(
+    (screen.getByLabelText('Jump through') as HTMLSelectElement).disabled,
+  ).toBe(true)
+  await act(async () => {
+    release?.()
+    await pending
+  })
+  await screen.findByRole('button', { name: 'Edit Local bastion' })
+  expect(
+    records.find((item) => item.id === record.id)?.jump_connection_id,
+  ).toBe(jumpRecord.id)
 })

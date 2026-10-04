@@ -47,6 +47,7 @@ export const connectionSchema = z.object({
       'Use 1–64 letters, digits, underscores, dots, or hyphens; start with a letter, digit, or underscore.',
     ),
   ssh_key_id: z.string().min(1, 'Choose an SSH key.'),
+  jump_connection_id: z.string(),
 })
 
 export function ConnectionModal({
@@ -65,6 +66,19 @@ export function ConnectionModal({
   const mounted = useRef(false)
   const active = useRef(false)
   const keys = queries.keys.useQuery(accountID)
+  const connections = queries.connections.useQuery(accountID)
+  const isReferenced =
+    connections.data?.some(
+      (item) =>
+        item.jump_connection_id === connection?.id && connection !== undefined,
+    ) ?? false
+  const jumps =
+    connections.isSuccess && !isReferenced
+      ? connections.data.filter(
+          (item) => item.id !== connection?.id && !item.jump_connection_id,
+        )
+      : []
+  const validJump = (id: string) => !id || jumps.some((item) => item.id === id)
   useEffect(() => {
     mounted.current = true
     dialog.current?.showModal()
@@ -76,6 +90,13 @@ export function ConnectionModal({
     if (keys.error instanceof ApiError && keys.error.status === 401)
       client.setQueryData(queries.auth.currentUser.queryKey, null)
   }, [keys.error, client])
+  useEffect(() => {
+    if (
+      connections.error instanceof ApiError &&
+      connections.error.status === 401
+    )
+      client.setQueryData(queries.auth.currentUser.queryKey, null)
+  }, [connections.error, client])
   const save = useMutation({
     ...queries.connections.save,
     onSuccess: async () => {
@@ -97,12 +118,15 @@ export function ConnectionModal({
       port: String(connection?.port ?? 22),
       username: connection?.username ?? '',
       ssh_key_id: connection?.ssh_key_id ?? '',
+      jump_connection_id: connection?.jump_connection_id ?? '',
     },
     validators: { onChange: connectionSchema },
     onSubmit: async ({ value }) => {
       if (
         active.current ||
         !keys.isSuccess ||
+        !connections.isSuccess ||
+        !validJump(value.jump_connection_id) ||
         !keys.data.some((key) => key.id === value.ssh_key_id)
       )
         return
@@ -112,7 +136,7 @@ export function ConnectionModal({
           id: connection?.id,
           fields: {
             ...value,
-            jump_connection_id: connection?.jump_connection_id,
+            jump_connection_id: value.jump_connection_id || null,
             name: value.name.trim(),
             host: value.host.trim(),
             username: value.username.trim(),
@@ -248,6 +272,77 @@ export function ConnectionModal({
               </div>
             )}
           </form.Field>
+          <form.Field name="jump_connection_id">
+            {(field) => (
+              <div>
+                <label
+                  htmlFor="connection-jump"
+                  className="mb-2 block font-medium"
+                >
+                  Jump through
+                </label>
+                <select
+                  id="connection-jump"
+                  className="select w-full"
+                  value={field.state.value}
+                  disabled={busy || !connections.isSuccess}
+                  onBlur={field.handleBlur}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  aria-invalid={
+                    connections.isSuccess && !validJump(field.state.value)
+                  }
+                  aria-describedby="connection-jump-help connection-jump-error"
+                >
+                  <option value="">None — connect directly</option>
+                  {field.state.value &&
+                    !jumps.some((item) => item.id === field.state.value) && (
+                      <option value={field.state.value} disabled>
+                        Unavailable jump connection
+                      </option>
+                    )}
+                  {jumps.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.name} — {item.username}@{item.host}:{item.port}
+                    </option>
+                  ))}
+                </select>
+                <p
+                  id="connection-jump-help"
+                  className="mt-1 text-sm text-base-content/75"
+                >
+                  {isReferenced
+                    ? 'This connection is used as a jump by another saved connection and must remain direct.'
+                    : 'Choose a saved direct connection to reach this host through one bastion, or connect directly.'}
+                </p>
+                <p
+                  id="connection-jump-error"
+                  role="alert"
+                  className="mt-1 text-sm text-error"
+                >
+                  {connections.isSuccess && !validJump(field.state.value)
+                    ? 'This jump is no longer available. Choose another connection or connect directly.'
+                    : ''}
+                </p>
+              </div>
+            )}
+          </form.Field>
+          {connections.isPending && (
+            <p role="status">Loading jump connections…</p>
+          )}
+          {connections.isError && (
+            <div>
+              <p role="alert" className="text-error">
+                {connections.error.message}
+              </p>
+              <Button
+                type="button"
+                disabled={connections.isFetching || busy}
+                onClick={() => void connections.refetch()}
+              >
+                Retry jump connections
+              </Button>
+            </div>
+          )}
           {keys.isPending && <p role="status">Loading keys…</p>}
           {keys.isError && (
             <div>
@@ -279,7 +374,12 @@ export function ConnectionModal({
           <Button
             type="submit"
             className="btn-primary"
-            disabled={busy || !keys.isSuccess || keys.data.length === 0}
+            disabled={
+              busy ||
+              !keys.isSuccess ||
+              keys.data.length === 0 ||
+              !connections.isSuccess
+            }
           >
             {busy ? 'Saving…' : 'Save connection'}
           </Button>

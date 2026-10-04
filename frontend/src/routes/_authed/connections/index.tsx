@@ -231,6 +231,14 @@ function ConnectionsPage() {
                     <p className="mt-1 break-all font-mono text-sm text-base-content/75">
                       {connection.username}@{connection.host}:{connection.port}
                     </p>
+                    {connection.jump_connection_id && (
+                      <p className="mt-1 text-sm">
+                        Jump through:{' '}
+                        {connections.data.find(
+                          (item) => item.id === connection.jump_connection_id,
+                        )?.name ?? 'Unavailable connection'}
+                      </p>
+                    )}
                   </div>
                   <div className="flex gap-2">
                     <Button

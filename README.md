@@ -91,9 +91,13 @@ Saved connections also accept an optional `jump_connection_id` through the API.
 It must identify a direct connection owned by the same account. Self references,
 cycles, and multiple jumps are rejected; a referenced bastion cannot be deleted
 until its dependents are updated or removed (409 response). Omit the field or send
-`null` to save a direct connection. The form preserves an existing reference, but
-the Jump through selector and SSH forwarding are not implemented yet. Attempts
-to inspect or dial jump-configured targets are blocked rather than dialed directly.
+`null` to save a direct connection. In Add/Edit connection, **Jump through** offers
+owned direct destinations, excluding the connection being edited. Choose
+**None — connect directly** to remove a jump. Referenced bastions must stay direct;
+change or remove their dependent references before deleting them. Saved rows show
+the selected jump name. Unavailable choices require an explicit new selection.
+SSH forwarding is not implemented yet: attempts to inspect or dial jump-configured
+targets are blocked rather than dialed directly.
 See [saved jump connections](adr/api/019-saved-jump-connections.md).
 
 After updating to migration `20261004000200`, run `make migrate`, then `make up`.
@@ -128,8 +132,8 @@ docker compose up --build -d --wait bastion target-1 target-2
 ```
 
 `make up` includes all three hosts. Browser connections currently support direct
-SSH to the bastion; the Jump through form and application forwarding are still
-pending. The private targets cannot be reached directly by the application.
+SSH to the bastion; the Jump through form saves routing preferences, but
+application forwarding is still pending. The private targets cannot be reached directly by the application.
 Each target keeps its host keys in its own named volume (`target-1-host-keys`
 and `target-2-host-keys`), shared by development and demo modes. Ordinary
 recreation preserves these identities, just as it does for the bastion.

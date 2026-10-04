@@ -173,6 +173,10 @@
           "id": {
             "type": "string"
           },
+          "jump_connection_id": {
+            "description": "Owned direct connection UUID, when configured",
+            "type": "string"
+          },
           "name": {
             "type": "string"
           },
@@ -235,6 +239,13 @@
             "maxLength": 256,
             "minLength": 1,
             "type": "string"
+          },
+          "jump_connection_id": {
+            "description": "Optional owned direct connection UUID; omit or null for no jump",
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "name": {
             "description": "Trimmed label, 1–64 Unicode characters without controls",
@@ -1502,6 +1513,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "413": {
             "content": {
               "application/json": {
@@ -1603,6 +1624,16 @@
             },
             "description": "Not Found"
           },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
           "413": {
             "content": {
               "application/json": {
@@ -1698,6 +1729,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "413": {
             "content": {
@@ -1809,6 +1850,16 @@
               }
             },
             "description": "Not Found"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
           },
           "413": {
             "content": {

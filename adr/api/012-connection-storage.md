@@ -33,7 +33,8 @@ Use three strict SQLite tables with application-supplied UTC Unix nanoseconds:
 
 All three tables cascade on account deletion. Audit events survive configuration
 edits/deletion, not account deletion. Live handles remain in memory, as already
-decided. Jump references remain a later extension.
+decided. [Saved jump connections](019-saved-jump-connections.md) extend this schema
+with one optional owned direct bastion and database-enforced graph constraints.
 
 ## Consequences
 

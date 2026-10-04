@@ -112,6 +112,7 @@ export function ConnectionModal({
           id: connection?.id,
           fields: {
             ...value,
+            jump_connection_id: connection?.jump_connection_id,
             name: value.name.trim(),
             host: value.host.trim(),
             username: value.username.trim(),

@@ -57,7 +57,7 @@ func (q *Queries) GetHostTrust(ctx context.Context, arg GetHostTrustParams) (Hos
 }
 
 const getOwnedConnection = `-- name: GetOwnedConnection :one
-SELECT id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at FROM saved_connections WHERE id = ? AND account_id = ?
+SELECT id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at, jump_connection_id FROM saved_connections WHERE id = ? AND account_id = ?
 `
 
 type GetOwnedConnectionParams struct {
@@ -78,6 +78,7 @@ func (q *Queries) GetOwnedConnection(ctx context.Context, arg GetOwnedConnection
 		&i.SshKeyID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.JumpConnectionID,
 	)
 	return i, err
 }

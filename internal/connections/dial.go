@@ -92,6 +92,9 @@ func hostAlgorithms(trusted []byte) []string {
 // closes the socket even while the peer is silent. Successful clients have their
 // setup deadline removed before ownership is transferred to the caller.
 func (d *Dialer) exchange(ctx context.Context, row queries.SavedConnection, config *ssh.ClientConfig) (*ssh.Client, error) {
+	if row.JumpConnectionID.Valid {
+		return nil, failure(409, "SSH jump forwarding is not available yet")
+	}
 	address := net.JoinHostPort(row.Host, strconv.FormatInt(row.Port, 10))
 	conn, err := (&net.Dialer{}).DialContext(ctx, "tcp", address)
 	if err != nil {

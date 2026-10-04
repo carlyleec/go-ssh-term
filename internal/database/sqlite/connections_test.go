@@ -25,7 +25,7 @@ func TestConnectionSchema(t *testing.T) {
 	for n := 1; n <= 2; n++ {
 		exec(`INSERT INTO accounts VALUES (?, 'Owner', 'localhost', ?, ?)`, id(n), []byte{byte(n)}, timestamp)
 		exec(`INSERT INTO ssh_keys VALUES (?, ?, 'Key', 'SHA256:demo', X'01ff', ?)`, id(n+2), id(n), timestamp)
-		exec(`INSERT INTO saved_connections VALUES (?, ?, 'Lab', 'bastion', 22, 'demo', ?, ?, ?)`, id(n+4), id(n), id(n+2), timestamp, timestamp)
+		exec(`INSERT INTO saved_connections (id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at) VALUES (?, ?, 'Lab', 'bastion', 22, 'demo', ?, ?, ?)`, id(n+4), id(n), id(n+2), timestamp, timestamp)
 		exec(`INSERT INTO host_trust VALUES (?, 'bastion', 22, ?, ?)`, id(n), []byte{0, 255, 128}, timestamp)
 		exec(`INSERT INTO connection_audit_events VALUES (?, ?, ?, ?, 'Lab', 'bastion', 22, 'demo', 'start', NULL, ?)`, id(n+6), id(n), id(n+4), id(n+8), timestamp)
 	}

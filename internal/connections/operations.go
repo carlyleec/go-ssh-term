@@ -12,21 +12,23 @@ import (
 )
 
 type ConnectionFields struct {
-	Name     string `json:"name" minLength:"1" maxLength:"256" doc:"Trimmed label, 1–64 Unicode characters without controls"`
-	Host     string `json:"host" minLength:"1" maxLength:"256" doc:"ASCII DNS hostname or unbracketed IPv4/IPv6 address; no port, zone, or URL"`
-	Port     int64  `json:"port" minimum:"1" maximum:"65535"`
-	Username string `json:"username" minLength:"1" maxLength:"128" doc:"Trimmed, 1–64 ASCII letters, digits, underscores, dots or hyphens; starts with a letter, digit or underscore"`
-	SSHKeyID string `json:"ssh_key_id" doc:"Canonical UUID of an owned SSH key"`
+	JumpConnectionID *string `json:"jump_connection_id,omitempty" nullable:"true" doc:"Optional owned direct connection UUID; omit or null for no jump"`
+	Name             string  `json:"name" minLength:"1" maxLength:"256" doc:"Trimmed label, 1–64 Unicode characters without controls"`
+	Host             string  `json:"host" minLength:"1" maxLength:"256" doc:"ASCII DNS hostname or unbracketed IPv4/IPv6 address; no port, zone, or URL"`
+	Port             int64   `json:"port" minimum:"1" maximum:"65535"`
+	Username         string  `json:"username" minLength:"1" maxLength:"128" doc:"Trimmed, 1–64 ASCII letters, digits, underscores, dots or hyphens; starts with a letter, digit or underscore"`
+	SSHKeyID         string  `json:"ssh_key_id" doc:"Canonical UUID of an owned SSH key"`
 }
 type Connection struct {
-	ID        string    `json:"id"`
-	Name      string    `json:"name"`
-	Host      string    `json:"host"`
-	Port      int64     `json:"port"`
-	Username  string    `json:"username"`
-	SSHKeyID  string    `json:"ssh_key_id"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	JumpConnectionID *string   `json:"jump_connection_id,omitempty" doc:"Owned direct connection UUID, when configured"`
+	ID               string    `json:"id"`
+	Name             string    `json:"name"`
+	Host             string    `json:"host"`
+	Port             int64     `json:"port"`
+	Username         string    `json:"username"`
+	SSHKeyID         string    `json:"ssh_key_id"`
+	CreatedAt        time.Time `json:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at"`
 }
 type ConnectionBody struct {
 	Connection Connection `json:"connection"`
@@ -82,7 +84,7 @@ func (h *handler) Register(api huma.API, access *auth.Access) {
 	operation := func(id, method, path, summary string, status int) huma.Operation {
 		return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, DefaultStatus: status,
 			Security: []map[string][]string{{"session": {}}}, Middlewares: huma.Middlewares{access.RequireHuma},
-			Metadata: map[string]any{"connectionErrors": true}, Responses: responses(400, 401, 403, 404, 413, 415, 503), MaxBodyBytes: 4096}
+			Metadata: map[string]any{"connectionErrors": true}, Responses: responses(400, 401, 403, 404, 409, 413, 415, 503), MaxBodyBytes: 4096}
 	}
 	jsonOnly := func(ctx huma.Context, next func(huma.Context)) {
 		media, _, err := mime.ParseMediaType(ctx.Header("Content-Type"))

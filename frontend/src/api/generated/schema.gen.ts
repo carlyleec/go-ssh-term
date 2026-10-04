@@ -280,6 +280,8 @@ export interface components {
             created_at: string;
             host: string;
             id: string;
+            /** @description Owned direct connection UUID, when configured */
+            jump_connection_id?: string;
             name: string;
             /** Format: int64 */
             port: number;
@@ -297,6 +299,8 @@ export interface components {
         ConnectionFields: {
             /** @description ASCII DNS hostname or unbracketed IPv4/IPv6 address; no port, zone, or URL */
             host: string;
+            /** @description Optional owned direct connection UUID; omit or null for no jump */
+            jump_connection_id?: string | null;
             /** @description Trimmed label, 1–64 Unicode characters without controls */
             name: string;
             /** Format: int64 */
@@ -994,6 +998,15 @@ export interface operations {
                     "application/json": components["schemas"]["ConnectionErrorBody"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
             /** @description Request Entity Too Large */
             413: {
                 headers: {
@@ -1074,6 +1087,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -1170,6 +1192,15 @@ export interface operations {
                     "application/json": components["schemas"]["ConnectionErrorBody"];
                 };
             };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
             /** @description Request Entity Too Large */
             413: {
                 headers: {
@@ -1246,6 +1277,15 @@ export interface operations {
             };
             /** @description Not Found */
             404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionErrorBody"];
+                };
+            };
+            /** @description Conflict */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -58,15 +58,16 @@ type PasskeyCredential struct {
 }
 
 type SavedConnection struct {
-	ID        string
-	AccountID string
-	Name      string
-	Host      string
-	Port      int64
-	Username  string
-	SshKeyID  string
-	CreatedAt int64
-	UpdatedAt int64
+	ID               string
+	AccountID        string
+	Name             string
+	Host             string
+	Port             int64
+	Username         string
+	SshKeyID         string
+	CreatedAt        int64
+	UpdatedAt        int64
+	JumpConnectionID sql.NullString
 }
 
 type Session struct {

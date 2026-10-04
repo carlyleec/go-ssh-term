@@ -7,23 +7,25 @@ package queries
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createSavedConnection = `-- name: CreateSavedConnection :one
-INSERT INTO saved_connections (id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at
+INSERT INTO saved_connections (id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at, jump_connection_id)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at, jump_connection_id
 `
 
 type CreateSavedConnectionParams struct {
-	ID        string
-	AccountID string
-	Name      string
-	Host      string
-	Port      int64
-	Username  string
-	SshKeyID  string
-	CreatedAt int64
-	UpdatedAt int64
+	ID               string
+	AccountID        string
+	Name             string
+	Host             string
+	Port             int64
+	Username         string
+	SshKeyID         string
+	CreatedAt        int64
+	UpdatedAt        int64
+	JumpConnectionID sql.NullString
 }
 
 func (q *Queries) CreateSavedConnection(ctx context.Context, arg CreateSavedConnectionParams) (SavedConnection, error) {
@@ -37,6 +39,7 @@ func (q *Queries) CreateSavedConnection(ctx context.Context, arg CreateSavedConn
 		arg.SshKeyID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
+		arg.JumpConnectionID,
 	)
 	var i SavedConnection
 	err := row.Scan(
@@ -49,6 +52,7 @@ func (q *Queries) CreateSavedConnection(ctx context.Context, arg CreateSavedConn
 		&i.SshKeyID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.JumpConnectionID,
 	)
 	return i, err
 }
@@ -71,7 +75,7 @@ func (q *Queries) DeleteSavedConnection(ctx context.Context, arg DeleteSavedConn
 }
 
 const listSavedConnections = `-- name: ListSavedConnections :many
-SELECT id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at FROM saved_connections WHERE account_id = ? ORDER BY created_at DESC, id ASC
+SELECT id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at, jump_connection_id FROM saved_connections WHERE account_id = ? ORDER BY created_at DESC, id ASC
 `
 
 func (q *Queries) ListSavedConnections(ctx context.Context, accountID string) ([]SavedConnection, error) {
@@ -93,6 +97,7 @@ func (q *Queries) ListSavedConnections(ctx context.Context, accountID string) ([
 			&i.SshKeyID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.JumpConnectionID,
 		); err != nil {
 			return nil, err
 		}
@@ -108,19 +113,20 @@ func (q *Queries) ListSavedConnections(ctx context.Context, accountID string) ([
 }
 
 const updateSavedConnection = `-- name: UpdateSavedConnection :one
-UPDATE saved_connections SET name = ?1, host = ?2, port = ?3, username = ?4, ssh_key_id = ?5, updated_at = max(updated_at, CAST(?6 AS INTEGER))
-WHERE id = ?7 AND account_id = ?8 RETURNING id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at
+UPDATE saved_connections SET name = ?1, host = ?2, port = ?3, username = ?4, ssh_key_id = ?5, jump_connection_id = ?6, updated_at = max(updated_at, CAST(?7 AS INTEGER))
+WHERE id = ?8 AND account_id = ?9 RETURNING id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at, jump_connection_id
 `
 
 type UpdateSavedConnectionParams struct {
-	Name      string
-	Host      string
-	Port      int64
-	Username  string
-	SshKeyID  string
-	UpdatedAt int64
-	ID        string
-	AccountID string
+	Name             string
+	Host             string
+	Port             int64
+	Username         string
+	SshKeyID         string
+	JumpConnectionID sql.NullString
+	UpdatedAt        int64
+	ID               string
+	AccountID        string
 }
 
 func (q *Queries) UpdateSavedConnection(ctx context.Context, arg UpdateSavedConnectionParams) (SavedConnection, error) {
@@ -130,6 +136,7 @@ func (q *Queries) UpdateSavedConnection(ctx context.Context, arg UpdateSavedConn
 		arg.Port,
 		arg.Username,
 		arg.SshKeyID,
+		arg.JumpConnectionID,
 		arg.UpdatedAt,
 		arg.ID,
 		arg.AccountID,
@@ -145,6 +152,7 @@ func (q *Queries) UpdateSavedConnection(ctx context.Context, arg UpdateSavedConn
 		&i.SshKeyID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.JumpConnectionID,
 	)
 	return i, err
 }

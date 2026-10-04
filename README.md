@@ -87,6 +87,19 @@ completion persistence leaves incomplete history and a diagnostic containing onl
 the attempt ID. See [audit behavior](adr/api/018-terminal-audit-events.md).
 Multiple terminal tabs remain subsequent work.
 
+Saved connections also accept an optional `jump_connection_id` through the API.
+It must identify a direct connection owned by the same account. Self references,
+cycles, and multiple jumps are rejected; a referenced bastion cannot be deleted
+until its dependents are updated or removed (409 response). Omit the field or send
+`null` to save a direct connection. The form preserves an existing reference, but
+the Jump through selector and SSH forwarding are not implemented yet. Attempts
+to inspect or dial jump-configured targets are blocked rather than dialed directly.
+See [saved jump connections](adr/api/019-saved-jump-connections.md).
+
+After updating to migration `20261004000200`, run `make migrate`, then `make up`.
+The server refuses to start with a pending migration; the browser otherwise shows
+“Could not check your session.” Migration preserves existing direct connections.
+
 ## SSH lab bastion
 
 Both Compose modes include an Ubuntu OpenSSH bastion. The gateway reaches it at

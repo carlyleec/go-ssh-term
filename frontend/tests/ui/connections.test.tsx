@@ -660,3 +660,19 @@ test.each(['logout', 'expiry'])(
     expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull()
   },
 )
+
+test('editing connection details preserves an existing jump reference', async () => {
+  const jumpID = '33333333-3333-4333-8333-333333333333'
+  records = [{ ...record, jump_connection_id: jumpID }]
+  await open()
+  fireEvent.click(
+    await screen.findByRole('button', { name: 'Edit Local bastion' }),
+  )
+  await screen.findByRole('dialog', { name: 'Edit connection' })
+  fireEvent.change(screen.getByLabelText('Connection name'), {
+    target: { value: 'Renamed target' },
+  })
+  save()
+  await screen.findByRole('button', { name: 'Edit Renamed target' })
+  expect(records[0]?.jump_connection_id).toBe(jumpID)
+})

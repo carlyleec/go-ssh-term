@@ -49,6 +49,9 @@ func NormalizeHost(value string) (string, bool) {
 }
 
 func (v *ConnectionFields) normalize() error {
+	if v.JumpConnectionID != nil && !canonicalID(*v.JumpConnectionID) {
+		return failure(400, "select an owned direct jump connection")
+	}
 	v.Name = strings.TrimSpace(v.Name)
 	if !utf8.ValidString(v.Name) || v.Name == "" || utf8.RuneCountInString(v.Name) > 64 || strings.ContainsFunc(v.Name, unicode.IsControl) {
 		return failure(400, "name must contain 1 to 64 characters without control characters")

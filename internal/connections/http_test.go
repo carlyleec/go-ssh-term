@@ -95,8 +95,12 @@ func result(t *testing.T, w *httptest.ResponseRecorder, status int) Connection {
 	if w.Header().Get("Cache-Control") != "no-store" || len(w.Result().Cookies()) != 0 {
 		t.Fatal("cache/session headers changed")
 	}
+	fieldCount := 8
+	if body.Connection.JumpConnectionID != nil {
+		fieldCount++
+	}
 	var fields map[string]map[string]any
-	if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil || len(fields) != 1 || len(fields["connection"]) != 8 {
+	if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil || len(fields) != 1 || len(fields["connection"]) != fieldCount {
 		t.Fatal("unexpected response fields")
 	}
 	return body.Connection

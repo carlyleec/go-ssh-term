@@ -148,7 +148,7 @@ func TestRegistrationSQLite(t *testing.T) {
 				t.Fatal(err)
 			}
 			h, _ := persistedRegistrationFixture(t, pool)
-			handler := NewRegistration(h.webauthn, h.sessions, pool, testOrigin)
+			handler := NewRegistration(h.webauthn, h.sessions, pool).routes(testOrigin)
 			options, cookie := beginTest(t, handler, nil)
 			body := credentialResponse(t, options, testOrigin, "localhost", 0x45)
 			switch scenario {

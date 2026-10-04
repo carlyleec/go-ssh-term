@@ -22,6 +22,8 @@ func export(w io.Writer) error {
 	var access auth.Access
 	access.RegisterCurrentUser(contract)
 	access.RegisterLogout(contract)
+	auth.NewRegistration(nil, nil, nil).Register(contract, "")
+	auth.NewLogin(nil, nil, nil).Register(contract, "")
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(contract.OpenAPI())

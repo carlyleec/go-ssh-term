@@ -5,15 +5,14 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"sync"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 )
@@ -31,61 +30,37 @@ type login struct {
 	pending  map[string]webauthn.SessionData
 }
 
-func NewLogin(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB, origin string) http.Handler {
+func NewLogin(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB) *login {
 	h := &login{webauthn: wa, sessions: sessions, pending: make(map[string]webauthn.SessionData)}
 	h.verify = func(ctx context.Context, session webauthn.SessionData, assertion *protocol.ParsedCredentialAssertionData) (queries.Account, error) {
 		return verifyLogin(ctx, pool, wa, session, assertion)
 	}
-	return h.routes(origin)
+	return h
 }
 
-func (h *login) routes(origin string) http.Handler {
-	mux := http.NewServeMux()
-	mux.Handle("POST /api/auth/login/begin", authRequest(origin, loadSession(h.sessions, http.HandlerFunc(h.begin))))
-	mux.Handle("POST /api/auth/login/finish", authRequest(origin, loadSession(h.sessions, http.HandlerFunc(h.finish))))
-	return mux
-}
+func (h *login) begin(ctx context.Context, input *LoginBeginInput) (*LoginBeginOutput, error) {
+	r, w := input.request, input.writer
 
-func (h *login) begin(w http.ResponseWriter, r *http.Request) {
-	if h.sessions.GetString(r.Context(), accountIDKey) != "" {
-		authError(w, http.StatusConflict, "already signed in; log out before signing in again")
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, 4096)
-	var input map[string]json.RawMessage
-	decoder := json.NewDecoder(r.Body)
-	if err := decoder.Decode(&input); err != nil || input == nil || len(input) != 0 {
-		authError(w, http.StatusBadRequest, "login begin expects an empty JSON object")
-		return
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		authError(w, http.StatusBadRequest, "request must contain one JSON object")
-		return
-	}
 	options, session, err := h.webauthn.BeginDiscoverableLogin()
 	if err != nil {
-		authError(w, http.StatusInternalServerError, "could not begin login")
-		return
+		return nil, &AuthErrorBody{Message: "could not begin login", status: http.StatusInternalServerError}
 	}
 	binding := h.sessions.GetString(r.Context(), loginBinding)
 	if binding == "" {
 		token := make([]byte, 32)
 		if _, err := rand.Read(token); err != nil {
-			authError(w, http.StatusInternalServerError, "could not begin login")
-			return
+			return nil, &AuthErrorBody{Message: "could not begin login", status: http.StatusInternalServerError}
 		}
 		binding = base64.RawURLEncoding.EncodeToString(token)
 	}
 	if !h.put(binding, *session) {
-		authError(w, http.StatusServiceUnavailable, "login is busy; try again shortly")
-		return
+		return nil, &AuthErrorBody{Message: "login is busy; try again shortly", status: http.StatusServiceUnavailable}
 	}
 	h.sessions.Put(r.Context(), loginBinding, binding)
 	if err := commitSession(w, r, h.sessions); err != nil {
-		authError(w, http.StatusServiceUnavailable, "could not save browser session; begin again")
-		return
+		return nil, &AuthErrorBody{Message: "could not save browser session; begin again", status: http.StatusServiceUnavailable}
 	}
-	writeAuthJSON(w, options)
+	return &LoginBeginOutput{Body: *options}, nil
 }
 
 func (h *login) put(binding string, session webauthn.SessionData) bool {
@@ -111,35 +86,76 @@ func (h *login) take(binding string) (webauthn.SessionData, bool) {
 	return session, ok && time.Now().Before(session.Expires)
 }
 
-func (h *login) finish(w http.ResponseWriter, r *http.Request) {
-	if h.sessions.GetString(r.Context(), accountIDKey) != "" {
-		authError(w, http.StatusConflict, "already signed in; log out before signing in again")
-		return
-	}
-	session, ok := h.take(h.sessions.GetString(r.Context(), loginBinding))
-	if !ok {
-		authError(w, http.StatusBadRequest, "login is missing or expired; begin again")
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
-	assertion, err := protocol.ParseCredentialRequestResponse(r)
+func (h *login) finish(ctx context.Context, input *LoginFinishInput) (*AccountOutput, error) {
+	r, w := input.request, input.writer
+	session := ctx.Value(loginCeremonyKey{}).(webauthn.SessionData)
+	assertion, err := input.Body.Parse()
 	if err != nil {
-		authError(w, http.StatusBadRequest, "invalid passkey response; begin again")
-		return
+		return nil, &AuthErrorBody{Message: "invalid passkey response; begin again", status: http.StatusBadRequest}
 	}
+
 	account, err := h.verify(r.Context(), session, assertion)
 	if err != nil {
 		if errors.Is(err, errInvalidLogin) {
-			authError(w, http.StatusUnauthorized, "passkey verification failed; begin again")
+			return nil, &AuthErrorBody{Message: "passkey verification failed; begin again", status: http.StatusUnauthorized}
 		} else {
-			authError(w, http.StatusServiceUnavailable, "could not complete login; begin again")
+			return nil, &AuthErrorBody{Message: "could not complete login; begin again", status: http.StatusServiceUnavailable}
 		}
-		return
 	}
 	id := account.ID
 	if err := establishSession(w, r, h.sessions, id); err != nil {
-		authError(w, http.StatusServiceUnavailable, "could not start authenticated session; begin login again")
-		return
+		return nil, &AuthErrorBody{Message: "could not start authenticated session; begin login again", status: http.StatusServiceUnavailable}
 	}
-	writeAuthJSON(w, map[string]any{"account": map[string]string{"id": id, "display_name": account.DisplayName}})
+	return &AccountOutput{Body: AccountBody{Account: Account{ID: id, DisplayName: account.DisplayName}}}, nil
+}
+
+type LoginBeginInput struct {
+	SessionRequest
+	Body struct{}
+}
+type LoginBeginOutput struct{ Body protocol.CredentialAssertion }
+type LoginFinishInput struct {
+	SessionRequest
+	Body protocol.CredentialAssertionResponse
+}
+type loginCeremonyKey struct{}
+
+func (h *login) Register(api huma.API, origin string) {
+	registerPasskeySchemas(api)
+	huma.Register(api, huma.Operation{
+		OperationID: "beginLogin", Method: http.MethodPost, Path: "/api/auth/login/begin",
+		MaxBodyBytes: 4096,
+		Responses:    authResponses(api, 400, 403, 409, 415, 500, 503),
+		Middlewares:  huma.Middlewares{h.guard(origin, false)},
+		Metadata:     map[string]any{"authBodyError": "login begin expects an empty JSON object"},
+	}, h.begin)
+	huma.Register(api, huma.Operation{
+		OperationID: "finishLogin", Method: http.MethodPost, Path: "/api/auth/login/finish",
+		DefaultStatus: http.StatusOK, MaxBodyBytes: 64 * 1024,
+		// The WebAuthn parser owns credential validation, including extension data.
+		SkipValidateBody: true,
+		Responses:        authResponses(api, 400, 401, 403, 409, 415, 503),
+		Middlewares:      huma.Middlewares{h.guard(origin, true)},
+		Metadata:         map[string]any{"authBodyError": "invalid passkey response; begin again"},
+	}, h.finish)
+}
+
+func (h *login) guard(origin string, finish bool) func(huma.Context, func(huma.Context)) {
+	return humaMiddleware(func(next http.Handler) http.Handler {
+		return authRequest(origin, loadSession(h.sessions, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if h.sessions.GetString(r.Context(), accountIDKey) != "" {
+				authError(w, 409, "already signed in; log out before signing in again")
+				return
+			}
+			if finish {
+				session, ok := h.take(h.sessions.GetString(r.Context(), loginBinding))
+				if !ok {
+					authError(w, 400, "login is missing or expired; begin again")
+					return
+				}
+				r = r.WithContext(context.WithValue(r.Context(), loginCeremonyKey{}, session))
+			}
+			next.ServeHTTP(w, r)
+		})))
+	})
 }

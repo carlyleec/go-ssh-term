@@ -5,9 +5,7 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"encoding/base64"
-	"encoding/json"
 	"errors"
-	"io"
 	"net/http"
 	"strings"
 	"sync"
@@ -16,6 +14,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/danielgtaylor/huma/v2"
+	"github.com/go-webauthn/webauthn/protocol"
 	"github.com/go-webauthn/webauthn/webauthn"
 	"github.com/google/uuid"
 	driver "modernc.org/sqlite"
@@ -51,77 +51,50 @@ type registration struct {
 
 // NewRegistration keeps one pending ceremony per browser session. Restarting
 // the process invalidates pending ceremonies, while login sessions remain stored.
-func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB, origin string) http.Handler {
+func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB) *registration {
 	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration)}
 	h.save = func(ctx context.Context, user registrationUser, credential *webauthn.Credential) error {
 		return saveRegistration(ctx, pool, wa.Config.RPID, user, credential)
 	}
-	return h.routes(origin)
+	return h
 }
 
-func (h *registration) routes(origin string) http.Handler {
-	mux := http.NewServeMux()
-	mux.Handle("POST /api/auth/register/begin", authRequest(origin, h.sessions.LoadAndSave(http.HandlerFunc(h.begin))))
-	mux.Handle("POST /api/auth/register/finish", authRequest(origin, loadSession(h.sessions, http.HandlerFunc(h.finish))))
-	return mux
-}
+func (h *registration) begin(ctx context.Context, input *RegistrationBeginInput) (*RegistrationBeginOutput, error) {
+	r, w := input.request, input.writer
 
-func (h *registration) begin(w http.ResponseWriter, r *http.Request) {
-	if h.sessions.GetString(r.Context(), accountIDKey) != "" {
-		authError(w, http.StatusConflict, "already signed in; log out before creating another account")
-		return
-	}
-
-	r.Body = http.MaxBytesReader(w, r.Body, 4096)
-	var input struct {
-		DisplayName string `json:"display_name"`
-	}
-	decoder := json.NewDecoder(r.Body)
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&input); err != nil {
-		authError(w, http.StatusBadRequest, "invalid registration request")
-		return
-	}
-	if err := decoder.Decode(new(any)); err != io.EOF {
-		authError(w, http.StatusBadRequest, "request must contain one JSON object")
-		return
-	}
-	name := strings.TrimSpace(input.DisplayName)
+	name := strings.TrimSpace(input.Body.DisplayName)
 	if name == "" || utf8.RuneCountInString(name) > 64 || strings.ContainsFunc(name, unicode.IsControl) {
-		authError(w, http.StatusBadRequest, "display name must contain 1 to 64 characters without control characters")
-		return
+		return nil, &AuthErrorBody{Message: "display name must contain 1 to 64 characters without control characters", status: http.StatusBadRequest}
 	}
 	id, err := uuid.NewRandom()
 	if err != nil {
-		authError(w, http.StatusInternalServerError, "could not begin registration")
-		return
+		return nil, &AuthErrorBody{Message: "could not begin registration", status: http.StatusInternalServerError}
 	}
 	handle := make([]byte, 32)
 	if _, err := rand.Read(handle); err != nil {
-		authError(w, http.StatusInternalServerError, "could not begin registration")
-		return
+		return nil, &AuthErrorBody{Message: "could not begin registration", status: http.StatusInternalServerError}
 	}
 	user := registrationUser{ID: id, Handle: handle, DisplayName: name}
 	options, session, err := h.webauthn.BeginRegistration(user)
 	if err != nil {
-		authError(w, http.StatusInternalServerError, "could not begin registration")
-		return
+		return nil, &AuthErrorBody{Message: "could not begin registration", status: http.StatusInternalServerError}
 	}
 	binding := h.sessions.GetString(r.Context(), registrationBinding)
 	if binding == "" {
 		token := make([]byte, 32)
 		if _, err := rand.Read(token); err != nil {
-			authError(w, http.StatusInternalServerError, "could not begin registration")
-			return
+			return nil, &AuthErrorBody{Message: "could not begin registration", status: http.StatusInternalServerError}
 		}
 		binding = base64.RawURLEncoding.EncodeToString(token)
 	}
 	if !h.put(binding, pendingRegistration{user: user, session: *session}) {
-		authError(w, http.StatusServiceUnavailable, "registration is busy; try again shortly")
-		return
+		return nil, &AuthErrorBody{Message: "registration is busy; try again shortly", status: http.StatusServiceUnavailable}
 	}
 	h.sessions.Put(r.Context(), registrationBinding, binding)
-	writeAuthJSON(w, options)
+	if err := commitSession(w, r, h.sessions); err != nil {
+		return nil, &AuthErrorBody{Message: "could not save browser session; begin again", status: http.StatusServiceUnavailable}
+	}
+	return &RegistrationBeginOutput{Body: *options}, nil
 }
 
 func (h *registration) put(binding string, pending pendingRegistration) bool {
@@ -149,40 +122,82 @@ func (h *registration) take(binding string) (pendingRegistration, bool) {
 	return pending, ok && time.Now().Before(pending.session.Expires)
 }
 
-func (h *registration) finish(w http.ResponseWriter, r *http.Request) {
-	if h.sessions.GetString(r.Context(), accountIDKey) != "" {
-		authError(w, http.StatusConflict, "already signed in; log out before creating another account")
-		return
+func (h *registration) finish(ctx context.Context, input *RegistrationFinishInput) (*AccountOutput, error) {
+	r, w := input.request, input.writer
+	pending := ctx.Value(registrationCeremonyKey{}).(pendingRegistration)
+	parsed, err := input.Body.Parse()
+	if err != nil {
+		return nil, &AuthErrorBody{Message: "passkey verification failed; begin again", status: http.StatusBadRequest}
+	}
+	credential, err := h.webauthn.CreateCredential(pending.user, pending.session, parsed)
+	if err != nil {
+		return nil, &AuthErrorBody{Message: "passkey verification failed; begin again", status: http.StatusBadRequest}
 	}
 
-	binding := h.sessions.GetString(r.Context(), registrationBinding)
-	pending, ok := h.take(binding)
-	if !ok {
-		authError(w, http.StatusBadRequest, "registration is missing or expired; begin again")
-		return
-	}
-	r.Body = http.MaxBytesReader(w, r.Body, 64*1024)
-	credential, err := h.webauthn.FinishRegistration(pending.user, pending.session, r)
-	if err != nil {
-		authError(w, http.StatusBadRequest, "passkey verification failed; begin again")
-		return
-	}
 	if err := h.save(r.Context(), pending.user, credential); err != nil {
 		var sqliteErr *driver.Error
 		if errors.As(err, &sqliteErr) && (sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_UNIQUE || sqliteErr.Code() == sqlite3.SQLITE_CONSTRAINT_PRIMARYKEY) {
-			authError(w, http.StatusConflict, "account or passkey is already registered; sign in instead")
+			return nil, &AuthErrorBody{Message: "account or passkey is already registered; sign in instead", status: http.StatusConflict}
 		} else {
-			authError(w, http.StatusServiceUnavailable, "could not save registration; try signing in or begin again")
+			return nil, &AuthErrorBody{Message: "could not save registration; try signing in or begin again", status: http.StatusServiceUnavailable}
 		}
-		return
 	}
 	if err := establishSession(w, r, h.sessions, pending.user.ID.String()); err != nil {
-		authError(w, http.StatusServiceUnavailable, "account saved but session could not be started; sign in with your passkey")
-		return
+		return nil, &AuthErrorBody{Message: "account saved but session could not be started; sign in with your passkey", status: http.StatusServiceUnavailable}
 	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusCreated)
-	writeAuthJSON(w, map[string]any{"account": map[string]string{
-		"id": pending.user.ID.String(), "display_name": pending.user.DisplayName,
-	}})
+	return &AccountOutput{Body: AccountBody{Account: Account{ID: pending.user.ID.String(), DisplayName: pending.user.DisplayName}}}, nil
+}
+
+type RegistrationBeginInput struct {
+	SessionRequest
+	Body struct {
+		DisplayName string `json:"display_name"`
+	}
+}
+type RegistrationBeginOutput struct{ Body protocol.CredentialCreation }
+type RegistrationFinishInput struct {
+	SessionRequest
+	Body protocol.CredentialCreationResponse
+}
+type registrationCeremonyKey struct{}
+
+func (h *registration) Register(api huma.API, origin string) {
+	registerPasskeySchemas(api)
+	huma.Register(api, huma.Operation{
+		OperationID: "beginRegistration", Method: http.MethodPost, Path: "/api/auth/register/begin",
+		MaxBodyBytes: 4096,
+		Responses:    authResponses(api, 400, 403, 409, 415, 500, 503),
+		Middlewares:  huma.Middlewares{h.guard(origin, false)},
+		Metadata:     map[string]any{"authBodyError": "invalid registration request"},
+	}, h.begin)
+	huma.Register(api, huma.Operation{
+		OperationID: "finishRegistration", Method: http.MethodPost, Path: "/api/auth/register/finish",
+		DefaultStatus: http.StatusCreated, MaxBodyBytes: 64 * 1024,
+		// The WebAuthn parser owns credential validation, including extension data.
+		SkipValidateBody: true,
+		Responses:        authResponses(api, 400, 403, 409, 415, 503),
+		Middlewares:      huma.Middlewares{h.guard(origin, true)},
+		Metadata:         map[string]any{"authBodyError": "passkey verification failed; begin again"},
+	}, h.finish)
+}
+
+func (h *registration) guard(origin string, finish bool) func(huma.Context, func(huma.Context)) {
+	return humaMiddleware(func(next http.Handler) http.Handler {
+		return authRequest(origin, loadSession(h.sessions, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if h.sessions.GetString(r.Context(), accountIDKey) != "" {
+				authError(w, 409, "already signed in; log out before creating another account")
+				return
+			}
+			if finish {
+				// Consume before Huma parses the body, including malformed requests.
+				pending, ok := h.take(h.sessions.GetString(r.Context(), registrationBinding))
+				if !ok {
+					authError(w, 400, "registration is missing or expired; begin again")
+					return
+				}
+				r = r.WithContext(context.WithValue(r.Context(), registrationCeremonyKey{}, pending))
+			}
+			next.ServeHTTP(w, r)
+		})))
+	})
 }

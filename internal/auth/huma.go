@@ -40,3 +40,18 @@ func humaMiddleware(wrap func(http.Handler) http.Handler) func(huma.Context, fun
 		})).ServeHTTP(w, r)
 	}
 }
+
+// Huma's decoding failures must use the same safe envelope and 400 status as
+// the existing ceremony handlers. Never serialize raw passkey data in errors.
+func init() {
+	previous := huma.NewErrorWithContext
+	huma.NewErrorWithContext = func(ctx huma.Context, status int, message string, details ...error) huma.StatusError {
+		if safe, ok := ctx.Operation().Metadata["authBodyError"].(string); ok {
+			if status == http.StatusUnprocessableEntity || status == http.StatusRequestEntityTooLarge {
+				status = http.StatusBadRequest
+			}
+			return &AuthErrorBody{Message: safe, status: status}
+		}
+		return previous(ctx, status, message, details...)
+	}
+}

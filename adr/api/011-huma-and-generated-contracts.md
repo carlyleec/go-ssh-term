@@ -23,6 +23,14 @@ error handling to match these contracts instead of silently adopting different
 defaults. Preserve the bounded streaming multipart policy in [010](010-ssh-key-management-api.md);
 use custom body handling where required by that policy.
 
+Passkey finish middleware consumes the challenge before Huma reads or decodes
+its typed body. go-webauthn remains responsible for credential verification.
+Scope Huma's error customization to ceremony operations so decoding and body-limit
+failures retain safe 400 envelopes without reflecting credential data. Commit
+all ceremony sessions explicitly before success, including registration begin;
+store failures return 503 without a success body or new cookie. Schema aliases
+account for upstream base64url types and optional browser attestation fields.
+
 Separate operation registration from runtime dependency initialization. A Go
 export command builds the same operation definitions and writes OpenAPI JSON
 without starting the server, opening SQLite, or loading encryption material.

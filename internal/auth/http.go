@@ -57,11 +57,6 @@ func authError(w http.ResponseWriter, status int, message string) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]string{"error": message})
 }
-func writeAuthJSON(w http.ResponseWriter, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(value)
-}
-
 func commitSession(w http.ResponseWriter, r *http.Request, sessions *scs.SessionManager) error {
 	token, expiry, err := sessions.Commit(r.Context())
 	if err != nil {

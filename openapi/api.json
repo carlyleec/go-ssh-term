@@ -17,6 +17,18 @@
         ],
         "type": "object"
       },
+      "AccountBody": {
+        "additionalProperties": false,
+        "properties": {
+          "account": {
+            "$ref": "#/components/schemas/Account"
+          }
+        },
+        "required": [
+          "account"
+        ],
+        "type": "object"
+      },
       "AuthErrorBody": {
         "additionalProperties": false,
         "properties": {
@@ -29,6 +41,266 @@
         ],
         "type": "object"
       },
+      "AuthenticationExtensions": {
+        "additionalProperties": false,
+        "properties": {
+          "appid": {
+            "type": "string"
+          },
+          "appidExclude": {
+            "type": "string"
+          },
+          "credBlob": {
+            "type": "string"
+          },
+          "credProps": {
+            "type": "boolean"
+          },
+          "credentialProtectionPolicy": {
+            "type": "string"
+          },
+          "enforceCredentialProtectionPolicy": {
+            "type": "boolean"
+          },
+          "getCredBlob": {
+            "type": "boolean"
+          },
+          "hmacCreateSecret": {
+            "type": "boolean"
+          },
+          "hmacGetSecret": {
+            "$ref": "#/components/schemas/HMACGetSecretInputs"
+          },
+          "largeBlob": {
+            "$ref": "#/components/schemas/LargeBlobInputs"
+          },
+          "minPinLength": {
+            "type": "boolean"
+          },
+          "prf": {
+            "$ref": "#/components/schemas/PRFInputs"
+          },
+          "remoteClientDataJSON": {
+            "type": "string"
+          },
+          "uvm": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "AuthenticationExtensionsClientOutputs": {
+        "additionalProperties": false,
+        "properties": {
+          "appid": {
+            "type": "boolean"
+          },
+          "appidExclude": {
+            "type": "boolean"
+          },
+          "credProps": {
+            "$ref": "#/components/schemas/CredentialPropertiesOutput"
+          },
+          "hmacCreateSecret": {
+            "type": "boolean"
+          },
+          "hmacGetSecret": {
+            "$ref": "#/components/schemas/HMACGetSecretOutputs"
+          },
+          "largeBlob": {
+            "$ref": "#/components/schemas/LargeBlobOutputs"
+          },
+          "prf": {
+            "$ref": "#/components/schemas/PRFOutputs"
+          },
+          "remoteClientDataJSON": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "AuthenticatorAssertionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "authenticatorData": {
+            "type": "string"
+          },
+          "clientDataJSON": {
+            "type": "string"
+          },
+          "signature": {
+            "type": "string"
+          },
+          "userHandle": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "authenticatorData",
+          "signature",
+          "clientDataJSON"
+        ],
+        "type": "object"
+      },
+      "AuthenticatorSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "authenticatorAttachment": {
+            "type": "string"
+          },
+          "requireResidentKey": {
+            "type": "boolean"
+          },
+          "residentKey": {
+            "type": "string"
+          },
+          "userVerification": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CredentialAssertion": {
+        "additionalProperties": false,
+        "properties": {
+          "mediation": {
+            "type": "string"
+          },
+          "publicKey": {
+            "$ref": "#/components/schemas/PublicKeyCredentialRequestOptions"
+          }
+        },
+        "required": [
+          "publicKey"
+        ],
+        "type": "object"
+      },
+      "CredentialAssertionResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "authenticatorAttachment": {
+            "type": "string"
+          },
+          "clientExtensionResults": {
+            "$ref": "#/components/schemas/AuthenticationExtensionsClientOutputs"
+          },
+          "id": {
+            "type": "string"
+          },
+          "rawId": {
+            "type": "string"
+          },
+          "response": {
+            "$ref": "#/components/schemas/AuthenticatorAssertionResponse"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "response",
+          "rawId",
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "CredentialCreation": {
+        "additionalProperties": false,
+        "properties": {
+          "mediation": {
+            "type": "string"
+          },
+          "publicKey": {
+            "$ref": "#/components/schemas/PublicKeyCredentialCreationOptions"
+          }
+        },
+        "required": [
+          "publicKey"
+        ],
+        "type": "object"
+      },
+      "CredentialCreationResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "authenticatorAttachment": {
+            "type": "string"
+          },
+          "clientExtensionResults": {
+            "$ref": "#/components/schemas/AuthenticationExtensionsClientOutputs"
+          },
+          "id": {
+            "type": "string"
+          },
+          "rawId": {
+            "type": "string"
+          },
+          "response": {
+            "$ref": "#/components/schemas/PasskeyAttestation"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "response",
+          "rawId",
+          "id",
+          "type"
+        ],
+        "type": "object"
+      },
+      "CredentialDescriptor": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "transports": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "id"
+        ],
+        "type": "object"
+      },
+      "CredentialParameter": {
+        "additionalProperties": false,
+        "properties": {
+          "alg": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "alg"
+        ],
+        "type": "object"
+      },
+      "CredentialPropertiesOutput": {
+        "additionalProperties": false,
+        "properties": {
+          "rk": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "CurrentUserOutputBody": {
         "additionalProperties": false,
         "properties": {
@@ -38,6 +310,304 @@
         },
         "required": [
           "account"
+        ],
+        "type": "object"
+      },
+      "HMACGetSecretInputs": {
+        "additionalProperties": false,
+        "properties": {
+          "salt1": {
+            "type": "string"
+          },
+          "salt2": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "salt1"
+        ],
+        "type": "object"
+      },
+      "HMACGetSecretOutputs": {
+        "additionalProperties": false,
+        "properties": {
+          "output1": {
+            "type": "string"
+          },
+          "output2": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LargeBlobInputs": {
+        "additionalProperties": false,
+        "properties": {
+          "read": {
+            "type": "boolean"
+          },
+          "support": {
+            "type": "string"
+          },
+          "write": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "LargeBlobOutputs": {
+        "additionalProperties": false,
+        "properties": {
+          "blob": {
+            "type": "string"
+          },
+          "supported": {
+            "type": "boolean"
+          },
+          "written": {
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "LoginBeginInputBody": {
+        "additionalProperties": false,
+        "type": "object"
+      },
+      "PRFInputs": {
+        "additionalProperties": false,
+        "properties": {
+          "eval": {
+            "$ref": "#/components/schemas/PRFValues"
+          },
+          "evalByCredential": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/PRFValues"
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "PRFOutputs": {
+        "additionalProperties": false,
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "results": {
+            "$ref": "#/components/schemas/PRFValues"
+          }
+        },
+        "type": "object"
+      },
+      "PRFValues": {
+        "additionalProperties": false,
+        "properties": {
+          "first": {
+            "type": "string"
+          },
+          "second": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "first"
+        ],
+        "type": "object"
+      },
+      "PasskeyAttestation": {
+        "additionalProperties": false,
+        "properties": {
+          "attestationObject": {
+            "type": "string"
+          },
+          "authenticatorData": {
+            "type": "string"
+          },
+          "clientDataJSON": {
+            "type": "string"
+          },
+          "publicKey": {
+            "type": "string"
+          },
+          "publicKeyAlgorithm": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "transports": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "clientDataJSON",
+          "attestationObject"
+        ],
+        "type": "object"
+      },
+      "PasskeyUser": {
+        "additionalProperties": false,
+        "properties": {
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "displayName",
+          "id"
+        ],
+        "type": "object"
+      },
+      "PublicKeyCredentialCreationOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "attestation": {
+            "type": "string"
+          },
+          "attestationFormats": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "authenticatorSelection": {
+            "$ref": "#/components/schemas/AuthenticatorSelection"
+          },
+          "challenge": {
+            "type": "string"
+          },
+          "excludeCredentials": {
+            "items": {
+              "$ref": "#/components/schemas/CredentialDescriptor"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "extensions": {
+            "$ref": "#/components/schemas/AuthenticationExtensions"
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "pubKeyCredParams": {
+            "items": {
+              "$ref": "#/components/schemas/CredentialParameter"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "rp": {
+            "$ref": "#/components/schemas/RelyingPartyEntity"
+          },
+          "timeout": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PasskeyUser"
+          }
+        },
+        "required": [
+          "rp",
+          "user",
+          "challenge"
+        ],
+        "type": "object"
+      },
+      "PublicKeyCredentialRequestOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "allowCredentials": {
+            "items": {
+              "$ref": "#/components/schemas/CredentialDescriptor"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "challenge": {
+            "type": "string"
+          },
+          "extensions": {
+            "$ref": "#/components/schemas/AuthenticationExtensions"
+          },
+          "hints": {
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "rpId": {
+            "type": "string"
+          },
+          "timeout": {
+            "format": "int64",
+            "type": "integer"
+          },
+          "userVerification": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge"
+        ],
+        "type": "object"
+      },
+      "RegistrationBeginInputBody": {
+        "additionalProperties": false,
+        "properties": {
+          "display_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "display_name"
+        ],
+        "type": "object"
+      },
+      "RelyingPartyEntity": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
         ],
         "type": "object"
       }
@@ -56,6 +626,224 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auth/login/begin": {
+      "post": {
+        "operationId": "beginLogin",
+        "parameters": [
+          {
+            "description": "Configured browser origin",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "description": "Configured browser origin",
+              "type": "string"
+            }
+          },
+          {
+            "description": "application/json, optionally with media-type parameters",
+            "in": "header",
+            "name": "Content-Type",
+            "required": true,
+            "schema": {
+              "description": "application/json, optionally with media-type parameters",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginBeginInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialAssertion"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/auth/login/finish": {
+      "post": {
+        "operationId": "finishLogin",
+        "parameters": [
+          {
+            "description": "Configured browser origin",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "description": "Configured browser origin",
+              "type": "string"
+            }
+          },
+          {
+            "description": "application/json, optionally with media-type parameters",
+            "in": "header",
+            "name": "Content-Type",
+            "required": true,
+            "schema": {
+              "description": "application/json, optionally with media-type parameters",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialAssertionResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBody"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
     "/api/auth/logout": {
       "post": {
         "operationId": "logout",
@@ -182,6 +970,214 @@
           }
         ],
         "summary": "Get the current account"
+      }
+    },
+    "/api/auth/register/begin": {
+      "post": {
+        "operationId": "beginRegistration",
+        "parameters": [
+          {
+            "description": "Configured browser origin",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "description": "Configured browser origin",
+              "type": "string"
+            }
+          },
+          {
+            "description": "application/json, optionally with media-type parameters",
+            "in": "header",
+            "name": "Content-Type",
+            "required": true,
+            "schema": {
+              "description": "application/json, optionally with media-type parameters",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegistrationBeginInputBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CredentialCreation"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Internal Server Error"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
+      }
+    },
+    "/api/auth/register/finish": {
+      "post": {
+        "operationId": "finishRegistration",
+        "parameters": [
+          {
+            "description": "Configured browser origin",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "description": "Configured browser origin",
+              "type": "string"
+            }
+          },
+          {
+            "description": "application/json, optionally with media-type parameters",
+            "in": "header",
+            "name": "Content-Type",
+            "required": true,
+            "schema": {
+              "description": "application/json, optionally with media-type parameters",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CredentialCreationResponse"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AccountBody"
+                }
+              }
+            },
+            "description": "Created"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Bad Request"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "409": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Conflict"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        }
       }
     }
   }

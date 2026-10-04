@@ -20,7 +20,7 @@ func loginDatabaseFixture(t *testing.T, pool *sql.DB) (*login, http.Handler, log
 	if err := saveRegistration(context.Background(), pool, "localhost", registrationUser{ID: uuid.MustParse(user.account.ID), Handle: user.account.WebauthnUserHandle, DisplayName: user.account.DisplayName}, &user.credential); err != nil {
 		t.Fatal(err)
 	}
-	return h, NewLogin(h.webauthn, h.sessions, pool, testOrigin), user, key
+	return h, NewLogin(h.webauthn, h.sessions, pool).routes(testOrigin), user, key
 }
 
 func TestLoginSQLite(t *testing.T) {

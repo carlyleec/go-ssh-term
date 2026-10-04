@@ -55,8 +55,8 @@ func run() error {
 	contract := api.New(mux)
 	access.RegisterCurrentUser(contract)
 	access.RegisterLogout(contract)
-	mux.Handle("/api/auth/register/", auth.NewRegistration(wa, sessions, pool, cfg.BrowserOrigin))
-	mux.Handle("/api/auth/login/", auth.NewLogin(wa, sessions, pool, cfg.BrowserOrigin))
+	auth.NewRegistration(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)
+	auth.NewLogin(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)
 	mux.Handle("GET /api/readyz", readiness(func(ctx context.Context) error { return database.Check(ctx, pool) }, os.DirFS("frontend/dist")))
 	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}

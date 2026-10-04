@@ -56,6 +56,81 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/auth/logout": {
+      "post": {
+        "operationId": "logout",
+        "parameters": [
+          {
+            "description": "Configured browser origin",
+            "in": "header",
+            "name": "Origin",
+            "required": true,
+            "schema": {
+              "description": "Configured browser origin",
+              "type": "string"
+            }
+          },
+          {
+            "description": "application/json, optionally with media-type parameters",
+            "in": "header",
+            "name": "Content-Type",
+            "required": true,
+            "schema": {
+              "description": "application/json, optionally with media-type parameters",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content",
+            "headers": {
+              "Cache-Control": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "Set-Cookie": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Forbidden"
+          },
+          "415": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Unsupported Media Type"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthErrorBody"
+                }
+              }
+            },
+            "description": "Service Unavailable"
+          }
+        },
+        "summary": "End the current browser session"
+      }
+    },
     "/api/auth/me": {
       "get": {
         "operationId": "currentUser",

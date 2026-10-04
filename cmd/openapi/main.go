@@ -21,6 +21,7 @@ func export(w io.Writer) error {
 	contract := api.New(http.NewServeMux())
 	var access auth.Access
 	access.RegisterCurrentUser(contract)
+	access.RegisterLogout(contract)
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(contract.OpenAPI())

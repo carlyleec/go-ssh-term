@@ -43,7 +43,7 @@ func TestAccountSessionsSurviveDatabaseReopen(t *testing.T) {
 	if err != nil || !sessions.Deadline(ctx).Equal(deadline) {
 		t.Fatalf("deadline changed after reopening: %v", err)
 	}
-	if w := logoutRequest(access.Logout(), first, testOrigin); w.Code != 204 {
+	if w := logoutRequest(logoutHandler(access), first, testOrigin); w.Code != 204 {
 		t.Fatalf("logout after reopening: %d", w.Code)
 	}
 	for _, tc := range []struct {

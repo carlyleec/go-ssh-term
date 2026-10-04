@@ -249,7 +249,7 @@ server without starting HTTP, opening SQLite, or reading encryption material.
 It replaces the artifact only after export succeeds. `go run ./cmd/openapi`
 writes the contract to stdout for inspection.
 
-The contract currently covers `GET /api/auth/me`. Remaining auth and SSH-key
+The contract currently covers `GET /api/auth/me` and `POST /api/auth/logout`. Passkey and SSH-key
 operations are still being migrated; frontend type/schema generation and the
 development watcher are not implemented yet. Go tests check deterministic export
 and reject a stale committed artifact.

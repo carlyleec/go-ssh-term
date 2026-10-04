@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -28,7 +29,11 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	ctx, cancel := live.ctx, live.cancel
 	var client *ssh.Client
 	var workers sync.WaitGroup
+	var audit *terminalAudit
+	auditStarted := false
+	var finishing atomic.Bool
 	defer func() {
+		finishing.Store(true)
 		d.terminals.release(live)
 		cancel()
 		_ = socket.conn.Close()
@@ -36,6 +41,12 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 			_ = client.Close()
 		}
 		workers.Wait()
+		if auditStarted {
+			if live.ioTimedOut.Load() {
+				audit.fail("terminal_io_timeout")
+			}
+			audit.finish()
+		}
 		d.terminals.complete(live)
 	}()
 	stopSocket := context.AfterFunc(ctx, func() { _ = socket.conn.Close() })
@@ -44,6 +55,26 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	socket.writeTimeout = d.terminals.ioTimeout
 	socket.messageTimeout = d.terminals.ioTimeout
 	socket.conn.SetPongHandler(func(string) error { return socket.readDeadline() })
+	setupCtx, cancelSetup := context.WithTimeout(ctx, d.timeout)
+	defer cancelSetup()
+	row, err := d.owned(setupCtx, owner.accountID, id)
+	if err != nil {
+		terminalSetupFailure(ctx, socket, err)
+		return
+	}
+	audit = &terminalAudit{d: d, row: row, attempt: live.id}
+	if err := audit.insert(setupCtx, d.q, "start", ""); err != nil {
+		terminalSetupFailure(ctx, socket, failure(503, "could not record connection attempt; try again"))
+		return
+	}
+	auditStarted = true
+	setupFailure := func(err error) {
+		finishing.Store(true)
+		if ctx.Err() == nil {
+			audit.fail(auditSetupCode(err))
+		}
+		terminalSetupFailure(ctx, socket, err)
+	}
 	workers.Go(func() {
 		ticker := time.NewTicker(d.pingInterval)
 		defer ticker.Stop()
@@ -53,6 +84,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 				return
 			case <-ticker.C:
 				if socket.conn.WriteControl(websocket.PingMessage, nil, time.Now().Add(d.terminals.ioTimeout)) != nil {
+					if ctx.Err() == nil {
+						audit.fail("browser_transport_failed")
+					}
 					cancel()
 					return
 				}
@@ -65,6 +99,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		for {
 			data, resize, err := socket.read()
 			if err != nil {
+				if !finishing.Load() && ctx.Err() == nil && !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+					audit.fail("browser_transport_failed")
+				}
 				return
 			}
 			select {
@@ -75,13 +112,14 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		}
 	})
 	if socket.writeStatus("connecting", "") != nil {
+		if ctx.Err() == nil {
+			audit.fail("browser_transport_failed")
+		}
 		return
 	}
-	setupCtx, cancelSetup := context.WithTimeout(ctx, d.timeout)
-	defer cancelSetup()
-	client, _, err = d.Dial(setupCtx, owner.accountID, id)
+	client, _, err = d.dialConnection(setupCtx, row)
 	if err != nil {
-		terminalSetupFailure(ctx, socket, err)
+		setupFailure(err)
 		return
 	}
 	if err := d.terminals.attach(owner, live.id, client); err != nil {
@@ -93,7 +131,7 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	defer stopSetup()
 	session, err := client.NewSession()
 	if err != nil {
-		terminalSetupFailure(ctx, socket, setupError(setupCtx, failure(502, "could not open SSH terminal")))
+		setupFailure(setupError(setupCtx, failure(502, "could not open SSH terminal")))
 		return
 	}
 	stdin, _ := session.StdinPipe()
@@ -103,11 +141,11 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		err = session.Shell()
 	}
 	if err != nil {
-		terminalSetupFailure(ctx, socket, setupError(setupCtx, failure(502, "could not start SSH terminal")))
+		setupFailure(setupError(setupCtx, failure(502, "could not start SSH terminal")))
 		return
 	}
 	if !stopSetup() || setupCtx.Err() != nil {
-		terminalSetupFailure(ctx, socket, failure(504, "SSH terminal setup timed out or was canceled"))
+		setupFailure(failure(504, "SSH terminal setup timed out or was canceled"))
 		return
 	}
 	cancelSetup()
@@ -116,6 +154,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		return
 	}
 	if socket.writeStatus("connected", "") != nil {
+		if ctx.Err() == nil {
+			audit.fail("browser_transport_failed")
+		}
 		return
 	}
 	workers.Go(func() {
@@ -126,9 +167,17 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				timer := time.AfterFunc(d.terminals.ioTimeout, cancel)
+				timer := time.AfterFunc(d.terminals.ioTimeout, func() {
+					if ctx.Err() == nil {
+						audit.fail("ssh_unresponsive")
+					}
+					cancel()
+				})
 				_, _, err := client.SendRequest("keepalive@openssh.com", true, nil)
 				if !timer.Stop() || err != nil {
+					if ctx.Err() == nil {
+						audit.fail("ssh_transport_failed")
+					}
 					cancel()
 					return
 				}
@@ -138,6 +187,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 
 	ioFailed := make(chan struct{}, 1)
 	reportFailure := func() {
+		if ctx.Err() == nil {
+			audit.fail("terminal_io_failed")
+		}
 		select {
 		case ioFailed <- struct{}{}:
 		default:
@@ -148,7 +200,7 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		output.Add(1)
 		workers.Go(func() {
 			defer output.Done()
-			if _, err := io.Copy(terminalOutput{socket: socket, cancel: cancel}, stream); err != nil {
+			if _, err := io.Copy(terminalOutput{socket: socket, cancel: func() { reportFailure(); cancel() }}, stream); err != nil {
 				reportFailure()
 			}
 		})
@@ -176,7 +228,12 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	workers.Go(func() {
 		err := session.Wait()
 		// Drain both SSH streams before publishing the final status.
-		timer := time.AfterFunc(d.terminals.ioTimeout, cancel)
+		timer := time.AfterFunc(d.terminals.ioTimeout, func() {
+			if ctx.Err() == nil {
+				audit.fail("output_drain_timeout")
+			}
+			cancel()
+		})
 		output.Wait()
 		timer.Stop()
 		wait <- err
@@ -192,8 +249,11 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	case err := <-wait:
 		if err == nil {
 			message = "Shell exited."
+		} else {
+			audit.fail("ssh_session_failed")
 		}
 	}
+	finishing.Store(true)
 	_ = socket.writeStatus("disconnected", message)
 	socket.close(websocket.CloseNormalClosure, "terminal ended")
 }

@@ -27,6 +27,10 @@ function ConnectionsPage() {
   const [hostTarget, setHostTarget] = useState<SavedConnection | null>(null)
   const [terminal, setTerminal] = useState<SavedConnection | null>(null)
   const [notice, setNotice] = useState('')
+  const [terminalAttempt, setTerminalAttempt] = useState(0)
+  const [reconnectPending, setReconnectPending] = useState(false)
+  const reconnectRequest = useRef(0)
+  const reconnectActive = useRef(false)
   const mounted = useRef(false)
   const active = useRef(false)
   useEffect(() => {
@@ -57,6 +61,38 @@ function ConnectionsPage() {
         client.setQueryData(queries.auth.currentUser.queryKey, null)
     },
   })
+  async function reconnect() {
+    if (!terminal || reconnectActive.current || signOut.isPending) return
+    reconnectActive.current = true
+    const request = ++reconnectRequest.current
+    setReconnectPending(true)
+    setNotice('')
+    try {
+      const latest = await client.fetchQuery({
+        ...queries.connections.options(accountID),
+        staleTime: 0,
+      })
+      if (!mounted.current || request !== reconnectRequest.current) return
+      const target = latest.find((item) => item.id === terminal.id)
+      if (!target) {
+        setNotice(
+          'This saved connection was deleted. Close the terminal and choose another connection.',
+        )
+        return
+      }
+      setHostTarget(target)
+    } catch (error) {
+      if (!mounted.current || request !== reconnectRequest.current) return
+      if (error instanceof ApiError && error.status === 401)
+        client.setQueryData(queries.auth.currentUser.queryKey, null)
+      else setNotice('Could not prepare reconnect. Try again.')
+    } finally {
+      if (mounted.current && request === reconnectRequest.current) {
+        reconnectActive.current = false
+        setReconnectPending(false)
+      }
+    }
+  }
   if (!account) return null
   const busy = remove.isPending || signOut.isPending
   return (
@@ -116,8 +152,17 @@ function ConnectionsPage() {
       </p>
       {terminal && (
         <TerminalPanel
+          key={terminalAttempt}
           connection={terminal}
-          onClose={() => setTerminal(null)}
+          onReconnect={() => void reconnect()}
+          reconnectPending={reconnectPending || busy || hostTarget !== null}
+          onClose={() => {
+            reconnectRequest.current++
+            reconnectActive.current = false
+            setReconnectPending(false)
+            setHostTarget(null)
+            setTerminal(null)
+          }}
         />
       )}
       {connections.isPending && (
@@ -289,7 +334,8 @@ function ConnectionsPage() {
           connection={hostTarget}
           onClose={() => setHostTarget(null)}
           onConnect={() => {
-            if (terminal || !mounted.current) return
+            if (!mounted.current || signOut.isPending) return
+            setTerminalAttempt((attempt) => attempt + 1)
             setTerminal(hostTarget)
             setHostTarget(null)
           }}

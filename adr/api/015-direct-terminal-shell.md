@@ -49,6 +49,6 @@ browser/xterm.js and Docker-bastion walkthroughs remain separate verification.
 
 The [login-owned registry](016-login-owned-terminal-registry.md) tracks pending
 and live handles and enforces absolute expiry. [Lifecycle bounds](017-terminal-lifetime-and-io-bounds.md)
-cover logout, shutdown, heartbeats, and stalled I/O. Audit events remain pending. The
+cover logout, shutdown, heartbeats, and stalled I/O. [Terminal audit events](018-terminal-audit-events.md) record attempt outcomes. The
 [browser terminal](../frontend/008-first-browser-terminal.md) is wired separately;
 no restoration or automatic reconnect is introduced.

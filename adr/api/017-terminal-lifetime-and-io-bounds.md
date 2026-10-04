@@ -48,7 +48,8 @@ and bounded by closing the client on timeout. Ordinary idle shells remain open
 when both peers answer; heartbeats never extend login expiry.
 
 Cancellation closes registered transports immediately; handlers join workers
-before reporting cleanup complete. SQLite's existing five-second external lock
+and attempt [bounded audit completion](018-terminal-audit-events.md) before
+reporting cleanup complete. SQLite's existing five-second external lock
 wait can still delay a canceled setup's return. Transport loss and forced cleanup
 may prevent final status delivery. No automatic reconnect is introduced.
 
@@ -59,6 +60,6 @@ late admission/publication, healthy/silent peers, incomplete messages, blocked
 SSH input, slow browser output, and hijacked-connection shutdown. Native browser,
 proxy, and real-bastion walkthroughs remain explicit verification work.
 
-Audit events, reconnect/restoration behavior, multi-terminal UI, and aggregate
+Automatic restoration, multi-terminal UI, and aggregate
 resource limits remain separate tasks. Revocation storage lives only in the
 process; restarting destroys all live handles and pending attempts as well.

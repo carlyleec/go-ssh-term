@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/carlyleec/go-ssh-term/internal/auth"
@@ -21,12 +22,13 @@ type terminalOwner struct {
 }
 
 type liveTerminal struct {
-	id        string
-	owner     terminalOwner
-	ctx       context.Context
-	cancel    context.CancelFunc
-	done      chan struct{}
-	transport io.Closer
+	id         string
+	owner      terminalOwner
+	ctx        context.Context
+	cancel     context.CancelFunc
+	done       chan struct{}
+	transport  io.Closer
+	ioTimedOut atomic.Bool
 	// Attach the client before PTY setup; publish shell/stdin together once ready.
 	client *ssh.Client
 	shell  *ssh.Session
@@ -119,7 +121,7 @@ func (r *terminalRegistry) input(owner terminalOwner, id string, data []byte) er
 	if err != nil || stdin == nil {
 		return errLiveTerminal
 	}
-	timer := time.AfterFunc(r.ioTimeout, func() { r.release(entry) })
+	timer := time.AfterFunc(r.ioTimeout, func() { entry.ioTimedOut.Store(true); r.release(entry) })
 	defer timer.Stop()
 	// Network I/O never holds the registry lock; closing the client interrupts
 	// an operation admitted just before expiry or removal.
@@ -141,7 +143,7 @@ func (r *terminalRegistry) resize(owner terminalOwner, id string, rows, cols int
 	if err != nil || shell == nil {
 		return errLiveTerminal
 	}
-	timer := time.AfterFunc(r.ioTimeout, func() { r.release(entry) })
+	timer := time.AfterFunc(r.ioTimeout, func() { entry.ioTimedOut.Store(true); r.release(entry) })
 	defer timer.Stop()
 	return shell.WindowChange(rows, cols)
 }

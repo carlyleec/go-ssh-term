@@ -17,7 +17,17 @@ Show one terminal panel with its destination snapshot and connecting, connected,
 failed, or disconnected state. Disable another Connect until the panel is closed;
 multi-terminal tabs remain the later workspace task. Editing/deleting a saved
 configuration does not replace the active panel. A failed/ended shell retains
-its output until the user closes the panel. Never reconnect automatically.
+its output until the user closes the panel or explicitly opens a replacement.
+Never reconnect automatically.
+
+Offer **Reconnect** for failed/disconnected terminals. Reload the account-owned
+connection list and reopen host inspection for the current configuration; require
+explicit approval/reset when needed and **Open terminal** before replacement.
+A deleted configuration or lookup failure preserves the old output and offers
+guidance or retry. Dispose the old panel and mount a fresh terminal even for the
+same configuration ID. Explain that previous output, commands, and working
+directory are not restored. Guard duplicate clicks, late lookup completion after
+close/unmount, and logout while preparing reconnect.
 
 Derive the WebSocket URL from the browser origin and negotiate `ssh-terminal.v1`.
 Only the server's `connected` status enables input. Encode keyboard/paste data as
@@ -40,8 +50,8 @@ cleanup; no additional auth store or polling loop is introduced.
 
 ## Consequences
 
-The first browser shell is wired without introducing tabs, restoration, audit
-events, or a dedicated Reconnect action. [Server lifecycle bounds](../api/017-terminal-lifetime-and-io-bounds.md)
+The browser shell supports explicit reconnect without tabs or automatic restoration.
+[Audit events](../api/018-terminal-audit-events.md) are recorded by the server. [Server lifecycle bounds](../api/017-terminal-lifetime-and-io-bounds.md)
 define Go registry cleanup on logout/shutdown and stalled-I/O handling.
 Rendered tests use xterm/WebSocket fakes; native rendering, keyboard behavior,
 and the development-proxy/bastion walkthrough remain explicit verification work.

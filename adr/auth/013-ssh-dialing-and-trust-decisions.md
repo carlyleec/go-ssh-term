@@ -57,5 +57,5 @@ The picker verifies the host before offering **Open terminal**. The backend
 [terminal path](../api/015-direct-terminal-shell.md) attaches a PTY and shell
 after dialing, with [login-owned handles and expiry](../api/016-login-owned-terminal-registry.md).
 [Lifetime management](../api/017-terminal-lifetime-and-io-bounds.md) handles
-logout, shutdown, and stalled peers. Auditing remains pending; trust decisions
+logout, shutdown, and stalled peers. [Terminal audit events](../api/018-terminal-audit-events.md) record connection attempts; trust decisions
 are not themselves terminal connection events.

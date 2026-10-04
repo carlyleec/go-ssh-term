@@ -6,9 +6,13 @@ import type { TerminalState } from './terminal-runtime'
 export function TerminalPanel({
   connection,
   onClose,
+  onReconnect,
+  reconnectPending = false,
 }: {
   connection: SavedConnection
   onClose: () => void
+  onReconnect?: () => void
+  reconnectPending?: boolean
 }) {
   const container = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<TerminalState>({
@@ -57,16 +61,34 @@ export function TerminalPanel({
             {status.message ? ` — ${status.message}` : ''}
           </p>
         </div>
-        <Button type="button" className="btn-outline btn-sm" onClick={onClose}>
-          Close terminal
-        </Button>
+        <div className="flex gap-2">
+          {(status.state === 'failed' || status.state === 'disconnected') &&
+            onReconnect && (
+              <Button
+                type="button"
+                className="btn-primary btn-sm"
+                disabled={reconnectPending}
+                onClick={onReconnect}
+              >
+                {reconnectPending ? 'Preparing reconnect…' : 'Reconnect'}
+              </Button>
+            )}
+          <Button
+            type="button"
+            className="btn-outline btn-sm"
+            onClick={onClose}
+          >
+            Close terminal
+          </Button>
+        </div>
       </div>
       <div className="bg-[#101418] p-3">
         <div ref={container} className="h-[55vh] min-h-64" />
       </div>
       <p className="px-4 py-3 text-sm text-base-content/75">
         Close this terminal before opening another. Leaving this page ends the
-        shell.
+        shell. Reconnect starts a fresh shell without previous output, commands,
+        or working directory.
       </p>
     </section>
   )

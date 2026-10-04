@@ -151,6 +151,10 @@ func (d *Dialer) Dial(ctx context.Context, accountID, id string) (*ssh.Client, C
 	if err != nil {
 		return nil, Connection{}, err
 	}
+	return d.dialConnection(ctx, row)
+}
+
+func (d *Dialer) dialConnection(ctx context.Context, row queries.SavedConnection) (*ssh.Client, Connection, error) {
 	trusted, err := d.trusted(ctx, row)
 	if err != nil {
 		return nil, Connection{}, err
@@ -172,7 +176,7 @@ func (d *Dialer) Dial(ctx context.Context, accountID, id string) (*ssh.Client, C
 		}
 		return nil
 	}, Auth: []ssh.AuthMethod{ssh.PublicKeysCallback(func() ([]ssh.Signer, error) {
-		signer, err := d.encryption.Signer(ctx, d.db, accountID, row.SshKeyID)
+		signer, err := d.encryption.Signer(ctx, d.db, row.AccountID, row.SshKeyID)
 		if err != nil {
 			return nil, failure(503, "could not load SSH authentication key")
 		}

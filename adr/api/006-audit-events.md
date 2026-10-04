@@ -12,4 +12,4 @@ Persist connection start, end, and failure events with user, destination, timest
 
 ## Consequences
 
-Audit data supports connection-level inspection through SQLite but cannot reconstruct commands or terminal activity. Event writing is part of connection lifecycle handling, starting with the first terminal slice. [Connection storage](012-connection-storage.md) defines destination snapshots and retention after configuration deletion.
+Audit data supports connection-level inspection through SQLite but cannot reconstruct commands or terminal activity. [Terminal audit handling](018-terminal-audit-events.md) defines event ordering, safe failure codes, and bounded storage failure behavior. [Connection storage](012-connection-storage.md) defines destination snapshots and retention after configuration deletion.

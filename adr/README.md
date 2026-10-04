@@ -23,6 +23,7 @@ Number records independently within each area. Each record states its context, d
 - [015 Attach one direct SSH shell to each terminal socket](api/015-direct-terminal-shell.md)
 - [016 Bind live terminal handles to verified login sessions](api/016-login-owned-terminal-registry.md)
 - [017 Cancel terminal work on invalidation and bound stalled I/O](api/017-terminal-lifetime-and-io-bounds.md)
+- [018 Persist an audit trail for each terminal attempt](api/018-terminal-audit-events.md)
 
 ## Auth
 

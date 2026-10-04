@@ -500,3 +500,81 @@ test('closing a terminal allows another explicit connection', async () => {
       .disabled,
   ).toBe(false)
 })
+
+async function endedTerminal() {
+  hostState = 'trusted'
+  await inspectHost()
+  fireEvent.click(await screen.findByRole('button', { name: 'Open terminal' }))
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
+  act(() => FakeSocket.instances[0]?.status('disconnected', 'Shell exited.'))
+  await screen.findByRole('button', { name: 'Reconnect' })
+}
+
+test('manual reconnect rechecks current configuration and trust before replacing the shell', async () => {
+  await endedTerminal()
+  expect(FakeSocket.instances).toHaveLength(1)
+  records = [{ ...record, name: 'Updated destination', host: 'new-host' }]
+  hostState = 'changed'
+  fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+  await screen.findByText(/host key changed/i)
+  expect(screen.queryByRole('button', { name: 'Open terminal' })).toBeNull()
+  expect(FakeSocket.instances).toHaveLength(1)
+  expect(FakeTerminal.instances[0]?.disposed).toBe(false)
+  fireEvent.click(screen.getByRole('button', { name: 'Close' }))
+  hostState = 'trusted'
+  fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Open terminal' }))
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(2))
+  expect(FakeTerminal.instances[0]?.disposed).toBe(true)
+  await screen.findByRole('region', {
+    name: 'Terminal for Updated destination',
+  })
+  expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull()
+  act(() => FakeSocket.instances[1]?.status('failed', 'Could not connect.'))
+  await screen.findByRole('button', { name: 'Reconnect' })
+  expect(FakeSocket.instances).toHaveLength(2)
+})
+
+test('manual reconnect handles deleted configurations, storage failures, and expiry', async () => {
+  await endedTerminal()
+  records = []
+  fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+  await screen.findByText(/This saved connection was deleted/)
+  expect(FakeSocket.instances).toHaveLength(1)
+  listStatus = 503
+  fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+  await screen.findByText('Could not prepare reconnect. Try again.')
+  listStatus = 401
+  fireEvent.click(screen.getByRole('button', { name: 'Reconnect' }))
+  await screen.findByRole('heading', { name: 'Account access' })
+  expect(FakeSocket.instances).toHaveLength(1)
+  expect(FakeTerminal.instances[0]?.disposed).toBe(true)
+})
+
+test('closing during reconnect lookup ignores its late result and duplicate clicks', async () => {
+  await endedTerminal()
+  const fetchBefore = globalThis.fetch
+  let release: (() => void) | undefined
+  const blocked = new Promise<void>((resolve) => {
+    release = resolve
+  })
+  let lookups = 0
+  globalThis.fetch = mockFetch(async (input, init) => {
+    if (String(input) === '/api/connections') {
+      lookups++
+      await blocked
+    }
+    return fetchBefore(input, init)
+  })
+  const reconnect = screen.getByRole('button', { name: 'Reconnect' })
+  fireEvent.click(reconnect)
+  fireEvent.click(reconnect)
+  fireEvent.click(screen.getByRole('button', { name: 'Close terminal' }))
+  await act(async () => {
+    release?.()
+    await blocked
+  })
+  expect(lookups).toBe(1)
+  expect(screen.queryByRole('heading', { name: 'Verify SSH host' })).toBeNull()
+  expect(FakeSocket.instances).toHaveLength(1)
+})

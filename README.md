@@ -65,8 +65,11 @@ configuration does not affect a running shell. See the
 [registry decision](adr/api/016-login-owned-terminal-registry.md).
 
 The browser shows connection status and preserves terminal output after the
-shell ends. **Close terminal** releases the browser resources; closing and
-using Connect again opens a fresh shell. Leaving the workspace or confirmed
+shell ends. **Reconnect** reloads the current saved configuration and opens host
+verification again; **Open terminal** replaces the ended terminal with a fresh
+shell. Previous output, commands, and working directory are not restored. A
+deleted configuration cannot be reconnected. **Close terminal** releases the
+browser resources. Leaving the workspace or confirmed
 session cleanup closes its socket. There is no automatic reconnect or shell
 restoration. The terminal retains 1,000 scrollback lines and disconnects if its
 pending input/output queue exceeds 1 MiB.
@@ -76,7 +79,13 @@ returning success. Other logins remain connected. Server shutdown closes and
 waits for terminal work alongside HTTP requests. Heartbeats detect silent peers,
 and five-second I/O deadlines release stalled connections; see the
 [lifetime and I/O bounds](adr/api/017-terminal-lifetime-and-io-bounds.md).
-Auditing and multiple terminal tabs are subsequent work.
+Each admitted terminal attempt records a `start` event in SQLite before dialing,
+then an optional safe-coded `failure` and an `end` after cleanup. Records retain
+the destination used even after configuration edits/deletion; they exclude
+terminal contents and secrets. Failed start persistence prevents dialing. Failed
+completion persistence leaves incomplete history and a diagnostic containing only
+the attempt ID. See [audit behavior](adr/api/018-terminal-audit-events.md).
+Multiple terminal tabs remain subsequent work.
 
 ## SSH lab bastion
 

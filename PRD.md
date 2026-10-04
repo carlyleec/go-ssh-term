@@ -106,6 +106,18 @@ Provide a key-management modal for uploading, naming, listing, and deleting SSH 
 - Documentation explains that losing the encryption-key volume requires re-uploading SSH keys, and that access to both volumes defeats this protection.
 - The repository includes one clearly labeled, intentionally public demo-only Ed25519 key pair, shared by the local lab hosts. Users can upload its private key; its public key is authorized on the lab hosts.
 
+## Slice 3.5 UI and API improvements
+
+**Outcome:** A clearer, more consistent UI and API foundation before adding saved connections and terminals.
+
+Improve the existing interface and API integration while preserving account access, session protection, and SSH key-management guarantees. This slice introduces Zod form validation, an OpenAPI contract generated from the Go API with frontend TypeScript/Zod generation, and clearer auth-module boundaries. This slice introduces no new SSH capabilities.
+
+**Acceptance criteria**
+
+- Existing forms use handwritten Zod schemas while preserving their validation behavior and useful feedback; generated API schemas describe request/response contracts separately.
+- Go API shape changes automatically update the OpenAPI specification and generated frontend types and request/response Zod schemas during development. Generation works without a running app or database, rejects unsupported schema constructs, and produces committed artifacts whose freshness is checked in CI.
+- Auth helpers have a coherent home while protected routing, logout cleanup, and session-expiry behavior remain intact.
+
 ## Slice 4 Saved connections and a first terminal
 
 **Outcome:** A user can save a direct connection and use a real shell on the bastion.

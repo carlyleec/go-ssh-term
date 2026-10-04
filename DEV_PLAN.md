@@ -1,6 +1,6 @@
 # Browser SSH Gateway Development Plan
 
-Implement the slices in order, using [PRD.md](PRD.md) for scope and acceptance criteria. Each slice should produce usable behavior across the frontend, API, and persistence before moving on. Keep feature code together and share only the infrastructure that multiple slices actually need.
+Implement the slices in order, using [PRD.md](PRD.md) for scope and acceptance criteria. Feature slices should produce usable behavior across the frontend, API, and persistence; improvement slices preserve that behavior while improving the implementation. Keep Go feature code together; organize the frontend by routes, shared components, and API modules as recorded in Frontend ADR 007.
 
 Slices 1 and 2 record the completed Postgres implementation. Slice 2.5 replaces that storage before Slice 3; its task IDs use `S2.5.N` and do not change the existing `S2.5` login task.
 
@@ -109,6 +109,28 @@ Slices 1 and 2 record the completed Postgres implementation. Slice 2.5 replaces 
 - [x] **S3.8** Verify the SSH key API's upload policy, encrypted persistence, and cross-user isolation. Completed with S3.5's endpoint tests, alongside the startup tamper/missing-material coverage in S3.3 and encryption round trips in S3.4.
 - [x] **S3.9** Verify key metadata and decryptability survive container recreation. Reference-protected deletion is covered by S4.4/S4.13.
   - Verified in an isolated Compose project with fresh volumes and a disposable account/session fixture: uploaded the demo key through the authenticated API, recreated demo and Air development containers, and switched demo → development → demo. Metadata matched byte-for-byte; startup decryption checks passed with one stored record, and application-key/ciphertext hashes stayed unchanged. Added a manual persistence procedure to the README. The user skipped repeating container recreation manually; isolated verification covers persistence. SSH connection verification belongs to Slice 4.
+
+## Slice 3.5 UI and API improvements
+
+**Deliverable:** A clearer UI and API foundation before saved connections and terminals.
+
+**Prerequisite:** Complete Slice 3.
+
+**Related ADRs:** [Huma and generated contracts](adr/api/011-huma-and-generated-contracts.md), [Frontend organization](adr/frontend/007-frontend-organization.md), [Forms and server state](adr/frontend/005-forms-and-server-state.md), [Session lifecycle](adr/auth/010-logout-and-session-expiry.md).
+
+This slice covers frontend organization, Zod form validation, generated API contracts, and auth-module boundaries. Huma typed handlers and the contract-generation pipeline are chosen in API ADR 011.
+
+Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The refactor is `S3.5.1`; its former `S3.10` ID is retired.
+
+- [x] **S3.5.1** Reorganize the frontend into directory-based routes with route-specific `-components`, shared controls in `components`, and an `api` layer with fetches in `apiClient.ts`, URL constants in `endpoints.ts`, and grouped query/mutation definitions in `queries.ts`. Preserve account access, session cleanup, and key-management behavior. Contract generation is tracked in S3.5.3.
+  - Shared controls, colocated route components/validation, and the three-file API layer follow Frontend ADR 007. The pathless `_authed` layout owns access checks, session monitoring, and private-cache cleanup; `useAuth` exposes account/logout state and cancels in-flight account checks before marking logout. Mutation definitions have no redundant options wrapper.
+  - All 38 frontend tests, Biome, TypeScript, and the production build pass, including late account responses after logout. Checks used installed Bun 1.3.6 (project pins 1.4.2); no new native-browser verification was performed.
+
+- [ ] **S3.5.2** Introduce Zod and use schemas with the existing TanStack forms for account registration and SSH key upload. Keep form-specific schemas in their consuming files and preserve current validation rules, messages, and submission behavior. Verify Unicode display-name limits, key-name constraints, required files, and upload-size limits. Keep form schemas handwritten and local; generated API schemas in S3.5.3 describe wire contracts, not form state.
+- [ ] **S3.5.3** Migrate the HTTP API to Huma v2 typed handlers with the humago ServeMux adapter and add the two-stage contract pipeline: typed operations → committed OpenAPI JSON → committed frontend TypeScript types and Zod schemas. Export without starting the HTTP server, opening the database, or loading encryption material. Use the same operation registration for runtime and export, following API ADR 011. Establish the pattern with current-user, then migrate remaining auth and key endpoints. Preserve URLs, response envelopes/statuses, session/origin protections, and bounded streaming uploads; verify Huma defaults do not change these contracts.
+  - Use `openapi-typescript` with `rootTypes` for top-level schema aliases. Generate Zod schemas for request bodies and responses only, including referenced components; hard-fail on unsupported constructs rather than weakening validation. Preserve actual response envelopes, errors, multipart uploads, and empty responses. Keep form validation handwritten. Generated files belong under `frontend/src/api/generated/`, carry do-not-edit banners and `.gen.ts` suffixes, and are excluded from Biome.
+  - Chain both stages with `contract:gen`; provide `api:gen` for frontend-only generation. Add a debounced, serialized watcher covering Go API-shape changes in local and Compose development, without generated-output rebuild loops. Keep failures visible and preserve the last valid artifacts. CI regenerates both stages and rejects changed or missing committed artifacts. Verify deterministic output, operation coverage, unsupported-schema rejection, and automatic propagation of a Go API-shape edit.
+- [ ] **S3.5.4** Consolidate `redirectSignedIn`, `requireAccount`, and `clearSessionData` in a focused auth module. Keep API requests in `api`, route rendering and lifecycle calls in `_authed`/login, and React account/logout access in `useAuth`. Agree the module boundary before moving code; preserve the single Query cache, server-verified access, layout-owned cleanup, and protection against late responses. Verify redirects, failed checks, logout, and expiry through the real routes.
 
 ## Slice 4 Saved connections and a first terminal
 

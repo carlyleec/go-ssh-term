@@ -77,8 +77,10 @@ func parseImport(source string) ImportPreview {
 			report(line, "line exceeds 4096 bytes")
 			continue
 		}
-		if strings.ContainsFunc(raw, func(c rune) bool { return unicode.IsControl(c) && c != '\t' }) {
-			report(line, "control characters are unsupported")
+		if strings.ContainsFunc(raw, func(c rune) bool {
+			return (unicode.IsControl(c) && c != '\t') || (unicode.IsSpace(c) && c != ' ' && c != '\t')
+		}) {
+			report(line, "only spaces and tabs are supported within a line")
 			continue
 		}
 		raw = strings.Trim(raw, " \t")

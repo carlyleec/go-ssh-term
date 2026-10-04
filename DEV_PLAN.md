@@ -232,7 +232,8 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
   - Added modal with bounded file loading, host selection/settings, explicit per-host key and existing-jump mappings, conflicts, server review, and confirmation. Eight rendered tests cover cancellation, mappings, invalidation, errors, limits, and pending states; all 93 frontend tests, Biome, typechecking, and production build pass (existing bundle-size advisory remains).
 - [x] **S6.6** Revalidate the complete import on confirmation and save it transactionally. Reject stale, unauthorized, or unresolved references without partial writes or silent overwrites.
   - Confirmation reparses/revalidates under an immediate SQLite transaction and saves direct entries before dependents. Race-enabled tests cover rollback after partial insertion, concurrent confirmation, stale keys/names, cross-user references, invalid graphs, and retry conflicts.
-- [ ] **S6.7** Test the sample config, malformed input, unsupported directives, missing keys, deselected jump dependencies, duplicate names, and cross-user references.
+- [x] **S6.7** Test the sample config, malformed input, unsupported directives, missing keys, deselected jump dependencies, duplicate names, and cross-user references.
+  - Added stale/foreign/chained existing-jump confirmation, origin/content-type/authentication guards, selection/UTF-8 byte limits, strict whitespace, and parser fuzz coverage. Full Go race suite passes after serializing concurrent output in the existing SSH test peer; frontend scenarios are verified in S6.5.
 - [ ] **S6.8** Verify cancellation writes nothing and a confirmed import can launch terminals on all three hosts. Add the import walkthrough to the README.
 
 ## Slice 7 Multiple terminals and connection lifecycle

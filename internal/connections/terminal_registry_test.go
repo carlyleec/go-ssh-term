@@ -104,6 +104,19 @@ type discardInput struct{}
 func (discardInput) Write(p []byte) (int, error) { return len(p), nil }
 func (discardInput) Close() error                { return nil }
 
+// The peer echoes input and reports resizes from separate goroutines. SSH
+// channels require serialization of concurrent writes to the same stream.
+type serializedTestWriter struct {
+	mu     sync.Mutex
+	writer io.Writer
+}
+
+func (w *serializedTestWriter) Write(p []byte) (int, error) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.writer.Write(p)
+}
+
 func startRegistryPeer(t *testing.T, host, user ssh.Signer) *peer {
 	t.Helper()
 	return startPeerChannels(t, host, user, func(newChannel ssh.NewChannel) {
@@ -112,14 +125,15 @@ func startRegistryPeer(t *testing.T, host, user ssh.Signer) *peer {
 			return
 		}
 		copied := make(chan struct{})
-		go func() { defer close(copied); _, _ = io.Copy(channel, channel) }()
+		output := &serializedTestWriter{writer: channel}
+		go func() { defer close(copied); _, _ = io.Copy(output, channel) }()
 		defer func() { _ = channel.Close(); <-copied }()
 		for request := range requests {
 			_ = request.Reply(true, nil)
 			if request.Type == "window-change" {
 				var size struct{ Cols, Rows, Width, Height uint32 }
 				if ssh.Unmarshal(request.Payload, &size) == nil {
-					_, _ = fmt.Fprintf(channel, "resize %d %d", size.Cols, size.Rows)
+					_, _ = fmt.Fprintf(output, "resize %d %d", size.Cols, size.Rows)
 				}
 			}
 		}

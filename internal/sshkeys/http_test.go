@@ -9,19 +9,25 @@ import (
 	"database/sql"
 	"encoding/json"
 	"encoding/pem"
+	"errors"
 	"io"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/alexedwards/scs/v2"
+	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/carlyleec/go-ssh-term/internal/database/sqlite/queries"
 	"github.com/carlyleec/go-ssh-term/internal/database/testdb"
+	"github.com/carlyleec/go-ssh-term/internal/web"
+	"github.com/danielgtaylor/huma/v2"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/ssh"
 )
@@ -45,7 +51,7 @@ func newKeyHTTPFixture(t *testing.T) keyHTTPFixture {
 	t.Cleanup(stop)
 	f := keyHTTPFixture{db: db, encryption: testEncryption(t), sessions: sessions}
 	f.access = auth.NewAccess(sessions, db, "localhost", keyTestOrigin)
-	f.http = NewHandler(db, f.encryption, f.access)
+	f.http = keyTestHandler(db, f.encryption, f.access)
 	for i := range f.owners {
 		f.owners[i] = uuid.NewString()
 		if err := queries.New(db).CreateAccount(t.Context(), queries.CreateAccountParams{
@@ -363,7 +369,7 @@ func TestKeyEndpointStorageFailures(t *testing.T) {
 			case "insert", "encryption":
 				r = keyUploadRequest(t, uploadPart{"name", []byte("Demo")}, uploadPart{"private_key", plain})
 				if kind == "encryption" {
-					f.http = NewHandler(f.db, nil, f.access)
+					f.http = keyTestHandler(f.db, nil, f.access)
 				} else if _, err := f.db.ExecContext(t.Context(), "CREATE TRIGGER fail_insert BEFORE INSERT ON ssh_keys BEGIN SELECT RAISE(ABORT, 'secret storage details'); END"); err != nil {
 					t.Fatal(err)
 				}
@@ -394,5 +400,113 @@ func TestKeyEndpointStorageFailures(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func keyTestHandler(db *sql.DB, encryption *Encryption, access *auth.Access) http.Handler {
+	mux := http.NewServeMux()
+	NewHandler(db, encryption).Register(api.New(mux), access)
+	root := http.NewServeMux()
+	root.Handle("/api/", mux)
+	root.Handle("/", web.Handler(fstest.MapFS{}))
+	return root
+}
+
+// These rejected requests must never be buffered or decoded by Huma.
+type unreadUploadBody struct{ reads int }
+
+func (b *unreadUploadBody) Read([]byte) (int, error) {
+	b.reads++
+	return 0, errors.New("body must not be read")
+}
+func (*unreadUploadBody) Close() error { return nil }
+
+func TestUploadRejectsBeforeReadingBody(t *testing.T) {
+	for _, kind := range []string{"anonymous", "origin", "oversized", "media-type"} {
+		t.Run(kind, func(t *testing.T) {
+			f := newKeyHTTPFixture(t)
+			body := &unreadUploadBody{}
+			request := httptest.NewRequest("POST", "/api/keys", nil)
+			request.Body = body
+			request.ContentLength = -1
+			request.Header.Set("Content-Type", "multipart/form-data; boundary=example")
+			cookie, origin, want := f.cookies[0], keyTestOrigin, 415
+			switch kind {
+			case "anonymous":
+				cookie = nil
+				want = 401
+			case "origin":
+				origin = "https://evil.example"
+				want = 403
+			case "oversized":
+				request.ContentLength = maxUploadRequestBytes + 1
+				want = 413
+			case "media-type":
+				request.Header.Set("Content-Type", "text/plain")
+			}
+			response := keyRequest(f.http, request, cookie, origin)
+			if response.Code != want || body.reads != 0 {
+				t.Fatalf("status=%d reads=%d: %s", response.Code, body.reads, response.Body.String())
+			}
+			var envelope map[string]string
+			if err := json.Unmarshal(response.Body.Bytes(), &envelope); err != nil || len(envelope) != 1 || envelope["error"] == "" {
+				t.Fatalf("unsafe error envelope: %s", response.Body.String())
+			}
+		})
+	}
+}
+
+func TestKeyTrafficMatchesContract(t *testing.T) {
+	f := newKeyHTTPFixture(t)
+	mux := http.NewServeMux()
+	contract := api.New(mux)
+	NewHandler(f.db, f.encryption).Register(contract, f.access)
+	check := func(operation *huma.Operation, response *httptest.ResponseRecorder, want int) {
+		t.Helper()
+		if response.Code != want {
+			t.Fatalf("status=%d: %s", response.Code, response.Body.String())
+		}
+		documented := operation.Responses[strconv.Itoa(want)]
+		if documented == nil {
+			t.Fatalf("undocumented status %d", want)
+		}
+		if want == 204 {
+			if response.Body.Len() != 0 || len(documented.Content) != 0 {
+				t.Fatal("delete must have no content")
+			}
+			return
+		}
+		var value any
+		if err := json.Unmarshal(response.Body.Bytes(), &value); err != nil {
+			t.Fatal(err)
+		}
+		result := &huma.ValidateResult{}
+		huma.Validate(contract.OpenAPI().Components.Schemas, documented.Content["application/json"].Schema, &huma.PathBuffer{}, huma.ModeReadFromServer, value, result)
+		if len(result.Errors) != 0 {
+			t.Fatalf("response does not match contract: %v", result.Errors)
+		}
+	}
+	paths := contract.OpenAPI().Paths
+	check(paths["/api/keys"].Get, keyRequest(mux, httptest.NewRequest("GET", "/api/keys", nil), f.cookies[0], keyTestOrigin), 200)
+	upload := keyRequest(mux, keyUploadRequest(t, uploadPart{"name", []byte("Demo")}, uploadPart{"private_key", testUpload(t)}), f.cookies[0], keyTestOrigin)
+	check(paths["/api/keys"].Post, upload, 201)
+	var saved KeyBody
+	if err := json.Unmarshal(upload.Body.Bytes(), &saved); err != nil {
+		t.Fatal(err)
+	}
+	check(paths["/api/keys"].Get, keyRequest(mux, httptest.NewRequest("GET", "/api/keys", nil), f.cookies[0], keyTestOrigin), 200)
+	for _, id := range []string{"not-a-uuid", "AAAAAAAA-AAAA-AAAA-AAAA-AAAAAAAAAAAA"} {
+		check(paths["/api/keys/{id}"].Delete, keyRequest(mux, httptest.NewRequest("DELETE", "/api/keys/"+id, nil), f.cookies[0], keyTestOrigin), 404)
+	}
+	check(paths["/api/keys/{id}"].Delete, keyRequest(mux, httptest.NewRequest("DELETE", "/api/keys/"+saved.Key.ID, nil), f.cookies[0], keyTestOrigin), 204)
+	schema := paths["/api/keys"].Post.RequestBody.Content["multipart/form-data"].Schema
+	schema = contract.OpenAPI().Components.Schemas.SchemaFromRef(schema.Ref)
+	if len(schema.Properties) != 2 || len(schema.Required) != 2 || schema.Properties["private_key"].Format != "binary" {
+		t.Fatal("incorrect multipart contract")
+	}
+	for _, operation := range []*huma.Operation{paths["/api/keys"].Get, paths["/api/keys"].Post, paths["/api/keys/{id}"].Delete} {
+		if len(operation.Security) != 1 || operation.Security[0]["session"] == nil {
+			t.Fatal("missing session security contract")
+		}
 	}
 }

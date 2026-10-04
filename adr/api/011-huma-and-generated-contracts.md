@@ -45,8 +45,8 @@ Chain two stages with contract:gen:
 
 Generated artifacts carry do-not-edit banners and are excluded from Biome.
 Form schemas stay handwritten in their consuming files. A debounced, serialized
-development watcher runs the pipeline when Go contract inputs change. CI
-regenerates all artifacts and rejects drift. Generation failures are visible
+development watcher runs the pipeline when Go contract inputs change. Generation
+and verification run locally; this demo has no CI. Generation failures are visible
 and leave the last valid outputs intact.
 
 ## Consequences

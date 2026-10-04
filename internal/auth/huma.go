@@ -55,3 +55,8 @@ func init() {
 		return previous(ctx, status, message, details...)
 	}
 }
+
+// RequireHuma applies the same verified-account and origin checks to typed operations.
+func (a *Access) RequireHuma(ctx huma.Context, next func(huma.Context)) {
+	humaMiddleware(a.Require)(ctx, next)
+}

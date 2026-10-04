@@ -115,7 +115,7 @@ Improve the existing interface and API integration while preserving account acce
 **Acceptance criteria**
 
 - Existing forms use handwritten Zod schemas while preserving their validation behavior and useful feedback; generated API schemas describe request/response contracts separately.
-- Go API shape changes automatically update the OpenAPI specification and generated frontend types and request/response Zod schemas during development. Generation works without a running app or database, rejects unsupported schema constructs, and produces committed artifacts whose freshness is checked in CI.
+- Go API shape changes automatically update the OpenAPI specification and generated frontend types and request/response Zod schemas during development. Generation works without a running app or database, rejects unsupported schema constructs, and produces committed artifacts verified locally. CI is outside the scope of this demo.
 - Auth helpers have a coherent home while protected routing, logout cleanup, and session-expiry behavior remain intact.
 
 ## Slice 4 Saved connections and a first terminal

@@ -10,7 +10,7 @@ hold database transactions open while the browser sends their contents.
 
 ## Decision
 
-Protect `/api/keys` and its subpaths with `Access.Require`. Take ownership only
+Protect the `/api/keys` operations with `Access.Require` through its Huma adapter. Take ownership only
 from the verified account in request context; mutations require the configured
 Origin. Do not refresh sessions or issue cookies from key-management requests.
 
@@ -32,6 +32,11 @@ Origin. Do not refresh sessions or issue cookies from key-management requests.
 - Invalid fields or keys return 400, oversized requests/files 413, and unsupported
   media types 415. Storage/encryption failures return safe 503 errors. Responses
   inherit no-store and session/origin protections from the access middleware.
+
+Huma owns typed operation registration and responses. Attach the multipart
+request schema after registering the upload handler: supplying it during
+registration enables Huma body decoding. Only the streaming parser may read
+upload bodies; regression tests enforce rejection before reads where possible.
 
 List queries select only public metadata. There is no private-key download
 endpoint, and neither plaintext nor encrypted material is serialized into API

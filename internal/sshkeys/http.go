@@ -1,8 +1,8 @@
 package sshkeys
 
 import (
+	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"io"
 	"mime"
@@ -33,87 +33,74 @@ type handler struct {
 	encryption *Encryption
 }
 
-func NewHandler(db *sql.DB, encryption *Encryption, access *auth.Access) http.Handler {
-	h := &handler{queries: queries.New(db), encryption: encryption}
-	mux := http.NewServeMux()
-	mux.HandleFunc("POST /api/keys", h.upload)
-	mux.HandleFunc("GET /api/keys", h.list)
-	mux.HandleFunc("DELETE /api/keys/{id}", h.delete)
-	return access.Require(mux)
+func NewHandler(db *sql.DB, encryption *Encryption) *handler {
+	return &handler{queries: queries.New(db), encryption: encryption}
 }
 
-func (h *handler) upload(w http.ResponseWriter, r *http.Request) {
+func (h *handler) upload(ctx context.Context, input *UploadInput) (*UploadOutput, error) {
+	r, w := input.request, input.writer
 	name, plain, status, err := readUpload(w, r)
 	defer clear(plain)
 	if err != nil {
-		writeJSON(w, status, map[string]string{"error": err.Error()})
-		return
+		return nil, &KeyErrorBody{Message: err.Error(), status: status}
 	}
 	fingerprint, err := Validate(plain)
 	if err != nil {
-		writeJSON(w, http.StatusBadRequest, map[string]string{"error": err.Error()})
-		return
+		return nil, &KeyErrorBody{Message: err.Error(), status: http.StatusBadRequest}
 	}
-	account, _ := auth.AccountFromContext(r.Context())
+	account, _ := auth.AccountFromContext(ctx)
 	id, err := uuid.NewRandom()
 	if err != nil {
-		keyError(w, "could not create SSH key; try again")
-		return
+		return nil, &KeyErrorBody{Message: "could not create SSH key; try again", status: http.StatusServiceUnavailable}
 	}
 	encrypted, err := h.encryption.encrypt(id.String(), account.ID, plain)
 	if err != nil {
-		keyError(w, "could not encrypt SSH key; try again")
-		return
+		return nil, &KeyErrorBody{Message: "could not encrypt SSH key; try again", status: http.StatusServiceUnavailable}
 	}
 	clear(plain)
 	metadata := keyMetadata{ID: id.String(), Name: name, PublicFingerprint: fingerprint, CreatedAt: time.Now().UTC()}
-	ctx, cancel := sqlite.WorkContext(r.Context())
+	ctx, cancel := sqlite.WorkContext(ctx)
 	defer cancel()
 	if err := h.queries.CreateSSHKey(ctx, queries.CreateSSHKeyParams{
 		ID: metadata.ID, AccountID: account.ID, Name: metadata.Name,
 		PublicFingerprint: fingerprint, EncryptedPrivateKey: encrypted, CreatedAt: metadata.CreatedAt.UnixNano(),
 	}); err != nil {
-		keyError(w, "could not save SSH key; try again")
-		return
+		return nil, &KeyErrorBody{Message: "could not save SSH key; try again", status: http.StatusServiceUnavailable}
 	}
-	writeJSON(w, http.StatusCreated, map[string]keyMetadata{"key": metadata})
+	return &UploadOutput{Body: KeyBody{Key: metadata}}, nil
 }
 
-func (h *handler) list(w http.ResponseWriter, r *http.Request) {
-	account, _ := auth.AccountFromContext(r.Context())
-	ctx, cancel := sqlite.WorkContext(r.Context())
+func (h *handler) list(ctx context.Context, _ *struct{}) (*ListOutput, error) {
+	account, _ := auth.AccountFromContext(ctx)
+	ctx, cancel := sqlite.WorkContext(ctx)
 	defer cancel()
 	rows, err := h.queries.ListSSHKeyMetadata(ctx, account.ID)
 	if err != nil {
-		keyError(w, "could not list SSH keys; try again")
-		return
+		return nil, &KeyErrorBody{Message: "could not list SSH keys; try again", status: http.StatusServiceUnavailable}
 	}
 	keys := make([]keyMetadata, 0, len(rows))
 	for _, row := range rows {
 		keys = append(keys, keyMetadata{ID: row.ID, Name: row.Name, PublicFingerprint: row.PublicFingerprint, CreatedAt: time.Unix(0, row.CreatedAt).UTC()})
 	}
-	writeJSON(w, http.StatusOK, map[string][]keyMetadata{"keys": keys})
+	return &ListOutput{Body: KeysBody{Keys: keys}}, nil
 }
 
-func (h *handler) delete(w http.ResponseWriter, r *http.Request) {
-	account, _ := auth.AccountFromContext(r.Context())
-	id, err := uuid.Parse(r.PathValue("id"))
-	if err != nil || id.String() != r.PathValue("id") {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "SSH key not found"})
-		return
+func (h *handler) delete(ctx context.Context, input *DeleteInput) (*struct{}, error) {
+	account, _ := auth.AccountFromContext(ctx)
+	id, err := uuid.Parse(input.ID)
+	if err != nil || id.String() != input.ID {
+		return nil, &KeyErrorBody{Message: "SSH key not found", status: http.StatusNotFound}
 	}
-	ctx, cancel := sqlite.WorkContext(r.Context())
+	ctx, cancel := sqlite.WorkContext(ctx)
 	defer cancel()
 	deleted, err := h.queries.DeleteSSHKey(ctx, queries.DeleteSSHKeyParams{ID: id.String(), AccountID: account.ID})
 	if err != nil {
-		keyError(w, "could not delete SSH key; try again")
-		return
+		return nil, &KeyErrorBody{Message: "could not delete SSH key; try again", status: http.StatusServiceUnavailable}
 	}
 	if deleted == 0 {
-		writeJSON(w, http.StatusNotFound, map[string]string{"error": "SSH key not found"})
-		return
+		return nil, &KeyErrorBody{Message: "SSH key not found", status: http.StatusNotFound}
 	}
-	w.WriteHeader(http.StatusNoContent)
+	return &struct{}{}, nil
 }
 
 // Stream parts rather than using ParseMultipartForm, which may spool private
@@ -199,14 +186,4 @@ func readUpload(w http.ResponseWriter, r *http.Request) (name string, plain []by
 		return fail(http.StatusBadRequest, "name and private_key are required")
 	}
 	return name, plain, 0, nil
-}
-
-func keyError(w http.ResponseWriter, message string) {
-	writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": message})
-}
-
-func writeJSON(w http.ResponseWriter, status int, value any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(value)
 }

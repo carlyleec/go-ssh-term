@@ -82,7 +82,7 @@ export function TerminalPanel({
           </Button>
         </div>
       </div>
-      <div className="bg-[#101418] p-3">
+      <div className="bg-base-100 p-3">
         <div ref={container} className="h-[55vh] min-h-64" />
       </div>
       <p className="px-4 py-3 text-sm text-base-content/75">

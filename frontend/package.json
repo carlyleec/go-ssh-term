@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.5.15",
+    "@catppuccin/daisyui": "2.1.1",
     "@happy-dom/global-registrator": "20.14.5",
     "@sinonjs/fake-timers": "15.4.0",
     "@tailwindcss/vite": "4.3.3",

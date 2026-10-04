@@ -1,0 +1,5 @@
+*
+!ssh/
+!ssh/**
+!keys/
+!keys/demo_ed25519.pub

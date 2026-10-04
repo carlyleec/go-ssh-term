@@ -2,8 +2,27 @@
 
 A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/`, passkey account access at `/login`, and a protected placeholder
-workspace at `/connections`. The SSH key-management API is implemented; its modal
-and SSH terminal connections are not implemented yet.
+workspace at `/connections`. SSH key management and the Docker bastion are
+implemented; browser SSH terminal connections are not implemented yet.
+
+## SSH lab bastion
+
+Both Compose modes include an Ubuntu OpenSSH bastion. The gateway reaches it at
+`bastion:22` on the `lab-gateway` network. SSH has no published host port. The
+normal shell user is `demo`, authenticated with the supplied
+[demo key](demo/keys/README.md); root and password logins are disabled.
+Running `cat /host-info.txt` in its shell prints `Bastion host: bastion`.
+
+To build and start just the bastion:
+
+```sh
+docker compose up --build -d --wait bastion
+docker compose logs bastion
+```
+
+Host keys currently live in the container and change when it is recreated.
+Persistent host keys are the next lab task. Private targets and browser terminal
+access are still pending.
 
 ## Demo with Docker
 

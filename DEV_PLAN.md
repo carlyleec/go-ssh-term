@@ -144,8 +144,9 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 
 **Related ADRs:** [WebSocket transport](adr/api/003-websocket-terminal-transport.md), [Connection lifecycle](adr/api/004-connection-lifecycle.md), [Host verification](adr/auth/003-host-verification.md), [Audit events](adr/api/006-audit-events.md), [Terminal workspace](adr/frontend/002-terminal-workspace.md).
 
-- [ ] **S4.1** Add the Ubuntu OpenSSH bastion service on the gateway-facing lab network. Authorize the demo public key, provide a normal shell user, and create a readable `/host-info.txt` identifying the bastion.
-- [ ] **S4.2** Persist bastion host keys across ordinary container recreation so trusted fingerprints remain stable. Keep lab SSH ports off the host unless explicitly needed for debugging.
+- [x] **S4.1** Add the Ubuntu OpenSSH bastion service on the gateway-facing lab network. Authorize the demo public key, provide a normal shell user, and create a readable `/host-info.txt` identifying the bastion. Keep lab SSH ports off the host.
+  - Added Ubuntu OpenSSH with public-key-only `demo` access, foreground startup, and an SSH health check. The app shares `lab-gateway` with the bastion and retains its default network for the development proxy. Both Compose configurations validate. An isolated Docker lab verified demo-key authentication with strict host verification, PTY allocation, a non-root user with a writable home, readable host information, rejected root/keyless login, and no published SSH port. Host-key persistence remains in S4.2.
+- [ ] **S4.2** Persist bastion host keys across ordinary container recreation so trusted fingerprints remain stable; verify recreation preserves fingerprints.
 - [ ] **S4.3** Add schemas for saved connections, per-user host trust, and connection audit events. Keep audit destination details meaningful after a saved connection is deleted.
 - [ ] **S4.4** Implement user-scoped connection create, list, edit, and delete endpoints with host, port, username, name, and owned-key validation. Prevent deleting keys referenced by saved connections.
 - [ ] **S4.5** Build Add connection and Edit connection modals, deletion controls, the Connect picker, and the empty-workspace demo instructions.

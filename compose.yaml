@@ -18,8 +18,24 @@ services:
       - encryption-key:/key-material
     ports:
       - "127.0.0.1:8080:8080"
+    networks:
+      - default
+      - lab-gateway
     healthcheck:
       test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/readyz"]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+
+  bastion:
+    build:
+      context: ./demo
+      dockerfile: ssh/Dockerfile
+    networks:
+      - lab-gateway
+    healthcheck:
+      test: ["CMD-SHELL", "ssh-keyscan -T 2 127.0.0.1 > /dev/null 2>&1"]
       interval: 5s
       timeout: 3s
       retries: 3
@@ -44,6 +60,9 @@ services:
       - ./db/migrations:/db/migrations:ro
       - sqlite-data:/data
     command: ["--no-dump-schema", "migrate", "--strict"]
+
+networks:
+  lab-gateway:
 
 volumes:
   sqlite-data:

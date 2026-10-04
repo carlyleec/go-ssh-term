@@ -1,0 +1,11 @@
+Port 22
+PermitRootLogin no
+AllowUsers demo
+PubkeyAuthentication yes
+AuthenticationMethods publickey
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitEmptyPasswords no
+UsePAM no
+AuthorizedKeysFile .ssh/authorized_keys
+Subsystem sftp internal-sftp

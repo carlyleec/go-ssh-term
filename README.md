@@ -4,7 +4,7 @@ A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/`, passkey account access at `/login`, and a protected
 workspace at `/connections`. SSH key management and the Docker bastion are
 implemented, along with saved-connection forms, editing, confirmed deletion,
-and a Connect picker. The empty workspace explains the local demo setup.
+a reviewed SSH config importer, and a Connect picker. The empty workspace explains the local demo setup.
 The picker inspects SSH host fingerprints and asks for approval before trusting
 an unfamiliar host. Once verified, **Open terminal** opens an interactive shell
 in the workspace. One terminal is supported at a time; close it before opening
@@ -17,6 +17,57 @@ and the configured Origin. Referenced SSH keys cannot be deleted (409 conflict).
 See the [API decision](adr/api/013-saved-connection-api.md) for validation and
 response details. Apply pending migrations with `make migrate` before running
 the updated API against an existing database.
+
+## Import the lab SSH config
+
+1. Start the app with `make up` (development), or follow [Demo with Docker](#demo-with-docker). All three SSH hosts must be running: `docker compose up --build -d --wait bastion target-1 target-2` starts them separately if needed.
+2. Register or sign in with your passkey. In **Manage SSH keys**, upload [demo/keys/demo_ed25519](demo/keys/demo_ed25519). This intentionally public key is only for the disposable lab.
+3. Choose **Import SSH config** and select [demo/ssh_config](demo/ssh_config). Preview lists `bastion`, `target-1`, and `target-2`, with their endpoints and identity hints. Keep all three selected and choose your uploaded demo key for each host. The targets use the selected `bastion` entry as their jump.
+4. Choose **Check selection**, review the settings, then **Confirm import**. Closing with **Cancel** before confirmation saves nothing. Changing a selection or mapping requires another check. Confirmation revalidates current ownership, names, keys, and jumps and saves all selected entries together.
+5. Choose **Connect**, select `bastion`, compare and approve its fingerprint, and choose **Open terminal**. Run `cat /host-info.txt`; expect `Bastion host: bastion`. Close the terminal and repeat with each target; expect `Private target: target-1` and `Private target: target-2`. Each target has its own fingerprint approval. The UI currently supports one terminal at a time.
+
+To obtain fingerprints from the lab's host-key volumes for comparison:
+
+```sh
+for host in bastion target-1 target-2; do
+  docker compose exec "$host" sh -c 'for key in /var/lib/ssh-host-keys/*_key.pub; do ssh-keygen -lf "$key"; done'
+done
+```
+
+Existing saved names are conflicts and are never overwritten. If you already
+have a direct saved connection named `bastion`, deselect the file's `bastion`
+entry and explicitly choose that existing connection in each target's jump
+selector. Other conflicting entries must be deselected or renamed in the file
+(and their `ProxyJump` references updated). A changed/deleted key or jump, or a
+new name conflict, can invalidate confirmation; reload the relevant metadata,
+update the mapping, and check the selection again.
+
+The strict subset accepts UTF-8 up to 64 KiB, 100 Host blocks, and 4096 bytes per
+line. Use one literal alias per `Host`, required `HostName`, `User`, and
+`IdentityFile`, optional decimal `Port` (default 22), and optional `ProxyJump`
+naming one alias. Identity paths are hints only: they are never read or expanded.
+Unsupported directives and syntax produce line-numbered errors that block import,
+including wildcards, inheritance, `Include`, `Match`, `ProxyCommand`, quoting,
+inline comments, and multiple jumps. See the [complete syntax and API decision](adr/api/022-ssh-config-import.md).
+
+The API uses authenticated, same-origin JSON POSTs to
+`/api/connections/import/preview` and `/api/connections/import/confirm`. Both
+accept the original `config` text and explicit `selections`; preview is read-only.
+Confirmation returns the created connections (201), or rejects an invalid/stale
+selection (409) without partial writes. See [OpenAPI](openapi/api.json) for fields.
+
+The repeatable integration check uses a temporary database and encryption file,
+imports the actual sample, and reads all three identifying files through real
+terminal WebSockets. Run it with the development app and lab running:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml exec -T -e SSH_IMPORT_LAB=1 app \
+  go test -race ./internal/connections -run '^TestImportOpenSSHLab$' -count=1 -v
+```
+
+This does not alter your saved connections or host-trust records. The normal Go
+suite skips this opt-in test; rendered frontend tests separately cover selection,
+confirmation, cancellation, and error handling.
 
 ## SSH host verification and trust reset
 

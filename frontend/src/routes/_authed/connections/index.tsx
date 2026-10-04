@@ -201,7 +201,7 @@ function ConnectionsPage() {
             <li>
               Start the lab with{' '}
               <code className="break-all">
-                docker compose up --build -d --wait bastion
+                docker compose up --build -d --wait bastion target-1 target-2
               </code>
               .
             </li>
@@ -211,9 +211,9 @@ function ConnectionsPage() {
               repository. This key is only for the local demo.
             </li>
             <li>
-              Add a connection named <strong>Local bastion</strong> with host{' '}
-              <code>bastion</code>, port <code>22</code>, username{' '}
-              <code>demo</code>, and your uploaded key.
+              Open Import SSH config and select <code>demo/ssh_config</code>.
+              Choose your uploaded key for each host, check the selection, and
+              confirm the import.
             </li>
             <li>
               Use Connect to choose your saved destination, verify its host

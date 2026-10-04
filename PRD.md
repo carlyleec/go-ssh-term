@@ -156,7 +156,7 @@ Add an optional Jump through selection to saved connections. It references anoth
 
 The import modal parses a supported subset of SSH config, previews discovered connections, lets users choose entries, maps identity references to uploaded keys, and confirms before saving.
 
-Supported directives are `Host`, `HostName`, `User`, `Port`, `IdentityFile`, and a single `ProxyJump`. This is a limited importer, not full OpenSSH configuration compatibility.
+Supported directives are `Host`, `HostName`, `User`, `Port`, `IdentityFile`, and a single `ProxyJump`. This is a limited importer, not full OpenSSH configuration compatibility. The precise syntax, limits, and mapping rules are defined in [API ADR 022](adr/api/022-ssh-config-import.md).
 
 **Acceptance criteria**
 

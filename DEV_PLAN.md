@@ -234,7 +234,8 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
   - Confirmation reparses/revalidates under an immediate SQLite transaction and saves direct entries before dependents. Race-enabled tests cover rollback after partial insertion, concurrent confirmation, stale keys/names, cross-user references, invalid graphs, and retry conflicts.
 - [x] **S6.7** Test the sample config, malformed input, unsupported directives, missing keys, deselected jump dependencies, duplicate names, and cross-user references.
   - Added stale/foreign/chained existing-jump confirmation, origin/content-type/authentication guards, selection/UTF-8 byte limits, strict whitespace, and parser fuzz coverage. Full Go race suite passes after serializing concurrent output in the existing SSH test peer; frontend scenarios are verified in S6.5.
-- [ ] **S6.8** Verify cancellation writes nothing and a confirmed import can launch terminals on all three hosts. Add the import walkthrough to the README.
+- [x] **S6.8** Verify cancellation writes nothing and a confirmed import can launch terminals on all three hosts. Add the import walkthrough to the README.
+  - README and empty-workspace walkthrough use demo/ssh_config. Opt-in Docker test imports it into disposable storage and reads each real OpenSSH host's identifying file over application terminal WebSockets; abandoned previews write nothing. Rendered UI tests verify cancellation and explicit confirmation. Native browser walkthrough remains for user review; no user application data was changed.
 
 ## Slice 7 Multiple terminals and connection lifecycle
 

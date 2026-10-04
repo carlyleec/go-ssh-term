@@ -8,3 +8,5 @@ tmp
 
 local-data
 local-key-material
+
+frontend/scripts/node_modules

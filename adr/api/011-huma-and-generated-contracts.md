@@ -44,7 +44,9 @@ Chain two stages with contract:gen:
   components; reject unsupported constructs rather than weakening schemas.
 
 Generated artifacts carry do-not-edit banners and are excluded from Biome.
-Form schemas stay handwritten in their consuming files. A debounced, serialized
+Form schemas stay handwritten in their consuming files. Generation tools have a
+separate locked package to retain TypeScript 5 compiler APIs for openapi-typescript
+while the application uses TypeScript 7. A debounced, serialized
 development watcher runs the pipeline when Go contract inputs change. Generation
 and verification run locally; this demo has no CI. Generation failures are visible
 and leave the last valid outputs intact.

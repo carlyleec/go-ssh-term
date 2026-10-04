@@ -1,0 +1,6 @@
+FROM golang:1.27.0 AS go
+FROM oven/bun:1.4.2
+COPY --from=go /usr/local/go /usr/local/go
+ENV PATH="/usr/local/go/bin:${PATH}" GOTOOLCHAIN=local GOCACHE=/cache/go-build
+WORKDIR /app/frontend
+CMD ["sh", "-c", "bun install --cwd scripts --frozen-lockfile && exec bun run contract:watch"]

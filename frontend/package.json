@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "bun --bun vite",
-    "test": "bun run test:unit && bun run test:ui",
+    "test": "bun run test:unit && bun run test:ui && bun run test:contract",
     "format": "bun --bun biome format --write .",
     "lint": "bun --bun biome lint .",
     "check": "bun --bun biome check .",
@@ -18,7 +18,11 @@
     "build": "bun run typecheck && bun --bun vite build",
     "preview": "bun --bun vite preview",
     "test:unit": "bun test ./tests/*.test.ts",
-    "test:ui": "bun test --preload ./tests/ui/setup.ts ./tests/ui"
+    "test:ui": "bun test --preload ./tests/ui/setup.ts ./tests/ui",
+    "contract:gen": "bun scripts/contract.mjs generate",
+    "api:gen": "bun scripts/contract.mjs api",
+    "contract:watch": "bun scripts/contract.mjs watch",
+    "test:contract": "bun test scripts/contract.test.mjs"
   },
   "dependencies": {
     "@simplewebauthn/browser": "14.0.0",

@@ -12,7 +12,7 @@ help:
 	  'make openapi           Export OpenAPI with host Go; no running services needed' \
 	  'make up                Start development servers (Ctrl-C stops them)' \
 	  'make down              Remove development containers; preserve volumes' \
-	  'make logs              Follow Go and frontend logs' \
+	  'make logs              Follow Go, frontend, and contract logs' \
 	  'make ps                Show service status' \
 	  'make test              Run Go package tests' \
 	  'make frontend-test     Run frontend helper and rendered UI tests' \
@@ -31,6 +31,7 @@ setup:
 	asdf install bun
 	env -u GOROOT asdf exec go mod download
 	cd frontend && asdf exec bun install --frozen-lockfile
+	cd frontend/scripts && asdf exec bun install --frozen-lockfile
 
 up:
 	$(COMPOSE) up
@@ -39,7 +40,7 @@ down:
 	$(COMPOSE) down
 
 logs:
-	$(COMPOSE) logs -f app frontend
+	$(COMPOSE) logs -f app frontend contracts
 
 ps:
 	$(COMPOSE) ps

@@ -14,7 +14,7 @@ type KeyBody struct {
 	Key keyMetadata `json:"key"`
 }
 type KeysBody struct {
-	Keys []keyMetadata `json:"keys"`
+	Keys []keyMetadata `json:"keys" nullable:"false"`
 }
 type UploadOutput struct{ Body KeyBody }
 type ListOutput struct{ Body KeysBody }

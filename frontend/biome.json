@@ -7,6 +7,7 @@
       "!!**/dist",
       "!!**/.tanstack",
       "!src/routetree.gen.ts",
+      "!src/api/generated/*.gen.ts",
       "!bun.lock"
     ]
   },

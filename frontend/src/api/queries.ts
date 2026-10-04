@@ -8,16 +8,16 @@ import { queryOptions, useQuery } from '@tanstack/react-query'
 import apiClient, { ApiError } from './apiClient'
 import { ENDPOINTS } from './endpoints'
 
-export type Account = { id: string; display_name: string }
+import type { SchemaAccount, SchemaKeyMetadata } from './generated/schema.gen'
+import {
+  CurrentUserOutputBodySchema,
+  KeysBodySchema,
+} from './generated/zod.gen'
+export type Account = SchemaAccount
 export type AccessAttempt =
   | { kind: 'login' }
   | { kind: 'register'; displayName: string }
-export type SSHKey = {
-  id: string
-  name: string
-  public_fingerprint: string
-  created_at: string
-}
+export type SSHKey = SchemaKeyMetadata
 
 const auth = {
   currentUser: queryOptions({
@@ -35,10 +35,7 @@ const auth = {
         if (error instanceof ApiError && error.status === 401) return null
         throw error
       }
-      if (
-        typeof data?.account?.id !== 'string' ||
-        typeof data?.account?.display_name !== 'string'
-      ) {
+      if (!CurrentUserOutputBodySchema.safeParse(data).success) {
         throw new Error('The server returned an unexpected account response.')
       }
       return data.account
@@ -109,7 +106,7 @@ const keyOptions = (accountID: string) =>
       const data = await apiClient.get<{ keys: SSHKey[] }>(ENDPOINTS.keys, {
         signal,
       })
-      if (!Array.isArray(data?.keys))
+      if (!KeysBodySchema.safeParse(data).success)
         throw new Error('The server returned an unexpected key list.')
       return data.keys
     },

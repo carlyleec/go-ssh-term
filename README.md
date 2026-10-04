@@ -243,16 +243,48 @@ proxying, and persistence.
 
 ## OpenAPI contract
 
-With the pinned host Go toolchain installed, run `make openapi` to regenerate
-`openapi/api.json`. The command uses the same Huma operation registration as the
-server without starting HTTP, opening SQLite, or reading encryption material.
-It replaces the artifact only after export succeeds. `go run ./cmd/openapi`
-writes the contract to stdout for inspection.
+The contract covers all nine auth and SSH-key operations. With pinned host tools
+installed (`make setup`), run these commands from `frontend`:
 
-The contract covers all nine auth and SSH-key operations, including multipart
-upload and empty delete/logout responses. Frontend type/schema generation and
-the development watcher are not implemented yet. Go tests check deterministic
-export and reject a stale committed artifact.
+```sh
+bun run contract:gen    # Go → OpenAPI → TypeScript and Zod
+bun run api:gen         # Generate frontend files from saved OpenAPI only
+bun run contract:watch # Regenerate after Go/source changes; Ctrl-C stops it
+bun run test:contract  # Check Zod generation and representative payloads
+```
+
+Generation uses the runtime Huma registrations without starting HTTP, opening
+SQLite, or reading encryption material. Artifacts live in `openapi/api.json` and
+`frontend/src/api/generated/{schema,zod}.gen.ts`; review and commit them alongside
+source edits. Generated frontend files have do-not-edit banners and are excluded
+from Biome. `make openapi` remains available for exporting just the Go spec.
+
+The Zod generator covers request bodies, response envelopes, referenced schemas,
+multipart files (`File`), and empty responses (`undefined`). It rejects unknown
+schema keywords/formats instead of dropping constraints. Extend the translator
+and its tests when adding a new schema feature. Form schemas remain handwritten.
+Account and SSH-key queries use generated types and validate responses with the
+generated schemas; passkey browser calls retain the browser SDK's input types.
+
+`make up` also starts the `contracts` watcher service; `make logs` includes its
+output. It needs neither the app nor database to generate contracts. The watcher
+polls source contents for bind-mount compatibility, debounces changes, and runs
+one generation at a time. It ignores generated outputs and dependencies. Compile
+or generation errors are logged, preserve the last-good artifacts, and are
+retried after the next source edit. Both generators finish before outputs are
+replaced, and unchanged files are not rewritten.
+
+Generation tools have their own locked package in `frontend/scripts`: the app
+uses TypeScript 7, while `openapi-typescript` requires the TypeScript 5 compiler
+API. `make setup` installs both packages. After changing generator dependencies,
+recreate the Compose watcher:
+
+```sh
+docker compose -f compose.yaml -f compose.dev.yaml up -d --force-recreate contracts
+```
+
+Its Go caches and dependency volume are separate from the app's. This demo uses
+local verification and has no CI.
 
 ## Destructive volume reset
 

@@ -48,6 +48,18 @@ services:
       - "127.0.0.1:5173:5173"
     command: ["sh", "-c", "bun install --frozen-lockfile && exec bun run dev"]
 
+  contracts:
+    build:
+      context: .
+      dockerfile: Dockerfile.contract
+    volumes:
+      - .:/app
+      - contract-deps:/app/frontend/scripts/node_modules
+      - contract-go-mod:/go/pkg/mod
+      - contract-go-build:/cache/go-build
+    environment:
+      GOPATH: /go
+
 volumes:
   go-mod:
   go-build:
@@ -55,3 +67,6 @@ volumes:
   frontend-deps:
   frontend-build:
   bun-cache:
+  contract-deps:
+  contract-go-mod:
+  contract-go-build:

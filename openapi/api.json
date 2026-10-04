@@ -396,10 +396,7 @@
             "items": {
               "$ref": "#/components/schemas/KeyMetadata"
             },
-            "type": [
-              "array",
-              "null"
-            ]
+            "type": "array"
           }
         },
         "required": [

@@ -14,9 +14,9 @@ import {
 } from '@tanstack/react-router'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
-import type { Account } from '../../src/api/queries'
-import queries from '../../src/api/queries'
-import { routeTree } from '../../src/routetree.gen'
+import type { Account } from '~/api/queries'
+import queries from '~/api/queries'
+import { routeTree } from '~/routetree.gen'
 import { mockFetch } from '../mock-fetch'
 
 const currentUserOptions = queries.auth.currentUser

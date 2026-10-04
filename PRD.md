@@ -110,7 +110,7 @@ Provide a key-management modal for uploading, naming, listing, and deleting SSH 
 
 **Outcome:** A clearer, more consistent UI and API foundation before adding saved connections and terminals.
 
-Improve the existing interface and API integration while preserving account access, session protection, and SSH key-management guarantees. This slice introduces Zod form validation, an OpenAPI contract generated from the Go API with frontend TypeScript/Zod generation, and clearer auth-module boundaries. This slice introduces no new SSH capabilities.
+Improve the existing interface and API integration while preserving account access, session protection, and SSH key-management guarantees. This slice introduces Zod form validation, an OpenAPI contract generated from the Go API with frontend TypeScript/Zod generation, and route-owned auth helpers. This slice introduces no new SSH capabilities.
 
 **Acceptance criteria**
 

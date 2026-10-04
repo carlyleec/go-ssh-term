@@ -14,8 +14,8 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { StrictMode } from 'react'
-import type { SSHKey } from '../../src/api/queries'
-import { routeTree } from '../../src/routetree.gen'
+import type { SSHKey } from '~/api/queries'
+import { routeTree } from '~/routetree.gen'
 import { mockFetch } from '../mock-fetch'
 
 const originalFetch = globalThis.fetch

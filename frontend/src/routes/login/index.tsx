@@ -10,11 +10,11 @@ import {
 } from '@tanstack/react-router'
 import { useRef } from 'react'
 import { z } from 'zod'
-import { ApiError } from '../../api/apiClient'
-import queries, { type AccessAttempt } from '../../api/queries'
-import { AccessError, AccessPending } from '../../components/access-status'
-import { Button } from '../../components/button'
-import { Input } from '../../components/input'
+import { ApiError } from '~/api/apiClient'
+import queries, { type AccessAttempt } from '~/api/queries'
+import { AccessError, AccessPending } from '~/components/access-status'
+import { Button } from '~/components/button'
+import { Input } from '~/components/input'
 
 export const Route = createFileRoute('/login/')({
   beforeLoad: ({ context }) => redirectSignedIn(context.queryClient),

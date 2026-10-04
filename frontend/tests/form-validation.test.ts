@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test'
-import { keyUploadSchema } from '../src/routes/_authed/connections/-components/key-modal'
-import { registrationSchema } from '../src/routes/login/index'
+import { keyUploadSchema } from '~/routes/_authed/connections/-components/key-modal'
+import { registrationSchema } from '~/routes/login/index'
 
 const validFile = new File(['key'], 'key')
 

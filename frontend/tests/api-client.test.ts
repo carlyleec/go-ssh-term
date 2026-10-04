@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test'
-import apiClient, { ApiError } from '../src/api/apiClient'
+import apiClient, { ApiError } from '~/api/apiClient'
 import { mockFetch } from './mock-fetch'
 
 const originalFetch = globalThis.fetch

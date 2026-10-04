@@ -118,7 +118,7 @@ Slices 1 and 2 record the completed Postgres implementation. Slice 2.5 replaces 
 
 **Related ADRs:** [Huma and generated contracts](adr/api/011-huma-and-generated-contracts.md), [Frontend organization](adr/frontend/007-frontend-organization.md), [Forms and server state](adr/frontend/005-forms-and-server-state.md), [Session lifecycle](adr/auth/010-logout-and-session-expiry.md).
 
-This slice covers frontend organization, Zod form validation, generated API contracts, and auth-module boundaries. Huma typed handlers and the contract-generation pipeline are chosen in API ADR 011.
+This slice covers frontend organization, Zod form validation, generated API contracts, and route-owned auth helpers. Huma typed handlers and the contract-generation pipeline are chosen in API ADR 011.
 
 Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The refactor is `S3.5.1`; its former `S3.10` ID is retired.
 
@@ -135,7 +135,8 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
   - SSH-key list/upload/delete now use typed Huma handlers with verified-account middleware. Uploads retain the streaming parser, bounded reads, buffer clearing, and safe errors; the multipart schema is attached after registration to disable Huma body decoding. OpenAPI covers all nine auth/key operations. Go race tests verify ownership, encrypted storage, upload limits, rejection before body reads, and response/schema agreement. API routes use a separate mux so unsupported methods cannot fall through to the SPA handler.
   - Added pinned `openapi-typescript` with top-level aliases and a strict Zod translator for request/response schemas. Generated `.gen.ts` artifacts are excluded from Biome; account/key queries use generated types and schemas. A separate locked tooling package isolates TypeScript 5 compiler APIs from the app’s TypeScript 7. Corrected the key-list schema to describe its non-null array response.
   - `contract:gen` chains both stages; `api:gen` regenerates from saved OpenAPI. The debounced, serialized watcher runs locally or in the development Compose `contracts` service. Verified Go-field propagation, failure recovery with unchanged last-good artifacts, and no generated-output loops in isolated source copies. All 45 frontend tests, Biome, TypeScript, production build, and focused Go race tests pass. Generation also runs in Compose without runtime services. No CI is planned; verification is local. Vite reports a bundle-size advisory; browser prompts were not rechecked.
-- [ ] **S3.5.4** Consolidate `redirectSignedIn`, `requireAccount`, and `clearSessionData` in a focused auth module. Keep API requests in `api`, route rendering and lifecycle calls in `_authed`/login, and React account/logout access in `useAuth`. Agree the module boundary before moving code; preserve the single Query cache, server-verified access, layout-owned cleanup, and protection against late responses. Verify redirects, failed checks, logout, and expiry through the real routes.
+- **S3.5.4 — Retired.** A separate auth module is unnecessary: route guards and cleanup stay with their owning routes; test exports alone do not justify extraction. `useAuth` remains the shared account/logout interface.
+- [x] **S3.5.5** Add a `~/` alias for frontend source imports in TypeScript and Vite. Replace parent-relative source imports, including test imports, while retaining nearby relative imports and generated route-tree output. All 45 Bun tests, Biome, typechecking, and the production build pass; the existing Vite bundle-size advisory remains.
 
 ## Slice 4 Saved connections and a first terminal
 

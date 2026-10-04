@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import queries from '../api/queries'
+import queries from '~/api/queries'
 
 export function useAuth() {
   const client = useQueryClient()

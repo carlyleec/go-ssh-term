@@ -48,13 +48,17 @@ consumers. Keep endpoint-specific decisions (such as treating a current-user 401
 as anonymous) with queries and session consumers. Preserve existing query keys,
 cancellation, and session behavior.
 
-OpenAPI-based types and Zod schema generation are planned in Slice 3.5, using
-Huma typed handlers as recorded in [API 011](../api/011-huma-and-generated-contracts.md). Generated API contracts will live in
-`api/generated/`, separate from handwritten form schemas in their consuming files. A focused auth module for
-route guards and cache cleanup is also planned; the layout retains lifecycle
-ownership. These follow-ups are not yet implemented. Use the explicitly requested `apiClient.ts`
-name; keep other filenames lowercase and regenerate
-the route tree after route moves.
+OpenAPI-based types and Zod schemas live in `api/generated/`, following
+[API 011](../api/011-huma-and-generated-contracts.md). Form schemas stay handwritten
+in their consuming files. Route guards and cache cleanup remain with their owning
+routes; exporting them for tests does not justify a separate auth module.
+`useAuth` remains the shared account/logout interface, and the layout retains
+lifecycle ownership.
+
+Use `~/` for imports across source directories, mapped to `src` by TypeScript and
+Vite. Nearby imports may remain relative. Preserve generated route-tree imports.
+Use the explicitly requested `apiClient.ts` name; keep other filenames lowercase
+and regenerate the route tree after route moves.
 
 ## Consequences
 

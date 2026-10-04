@@ -6,8 +6,8 @@ import {
   useNavigate,
 } from '@tanstack/react-router'
 import { useEffect, useRef } from 'react'
-import queries from '../../api/queries'
-import { AccessError, AccessPending } from '../../components/access-status'
+import queries from '~/api/queries'
+import { AccessError, AccessPending } from '~/components/access-status'
 
 export const Route = createFileRoute('/_authed')({
   beforeLoad: ({ context }) => requireAccount(context.queryClient),

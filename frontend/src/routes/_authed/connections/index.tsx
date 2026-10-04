@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Button } from '../../../components/button'
-import { useAuth } from '../../../hooks/use-auth'
+import { Button } from '~/components/button'
+import { useAuth } from '~/hooks/use-auth'
 import { KeyModal } from './-components/key-modal'
 
 export const Route = createFileRoute('/_authed/connections/')({

@@ -1,8 +1,8 @@
 import { afterEach, expect, test } from 'bun:test'
 import { QueryClient } from '@tanstack/react-query'
-import type { Account } from '../src/api/queries'
-import queries from '../src/api/queries'
-import { clearSessionData } from '../src/routes/_authed/route'
+import type { Account } from '~/api/queries'
+import queries from '~/api/queries'
+import { clearSessionData } from '~/routes/_authed/route'
 import { mockFetch } from './mock-fetch'
 
 const currentUserOptions = queries.auth.currentUser

@@ -1,10 +1,10 @@
 import { afterEach, expect, test } from 'bun:test'
 import { QueryClient } from '@tanstack/react-query'
 import { isRedirect } from '@tanstack/react-router'
-import type { Account } from '../src/api/queries'
-import queries from '../src/api/queries'
-import { requireAccount } from '../src/routes/_authed/route'
-import { redirectSignedIn } from '../src/routes/login/index'
+import type { Account } from '~/api/queries'
+import queries from '~/api/queries'
+import { requireAccount } from '~/routes/_authed/route'
+import { redirectSignedIn } from '~/routes/login/index'
 import { mockFetch } from './mock-fetch'
 
 const currentUserOptions = queries.auth.currentUser

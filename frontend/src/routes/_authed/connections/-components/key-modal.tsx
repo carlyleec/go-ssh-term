@@ -2,10 +2,10 @@ import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { z } from 'zod'
-import { ApiError } from '../../../../api/apiClient'
-import queries, { type SSHKey } from '../../../../api/queries'
-import { Button } from '../../../../components/button'
-import { Input } from '../../../../components/input'
+import { ApiError } from '~/api/apiClient'
+import queries, { type SSHKey } from '~/api/queries'
+import { Button } from '~/components/button'
+import { Input } from '~/components/input'
 
 export function KeyModal({
   accountID,

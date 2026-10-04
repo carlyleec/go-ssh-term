@@ -27,7 +27,7 @@ func TestConnectionSchema(t *testing.T) {
 		exec(`INSERT INTO ssh_keys VALUES (?, ?, 'Key', 'SHA256:demo', X'01ff', ?)`, id(n+2), id(n), timestamp)
 		exec(`INSERT INTO saved_connections (id, account_id, name, host, port, username, ssh_key_id, created_at, updated_at) VALUES (?, ?, 'Lab', 'bastion', 22, 'demo', ?, ?, ?)`, id(n+4), id(n), id(n+2), timestamp, timestamp)
 		exec(`INSERT INTO host_trust VALUES (?, 'bastion', 22, ?, ?)`, id(n), []byte{0, 255, 128}, timestamp)
-		exec(`INSERT INTO connection_audit_events VALUES (?, ?, ?, ?, 'Lab', 'bastion', 22, 'demo', 'start', NULL, ?)`, id(n+6), id(n), id(n+4), id(n+8), timestamp)
+		exec(`INSERT INTO connection_audit_events (id, account_id, saved_connection_id, attempt_id, connection_name, host, port, username, event_type, failure_code, occurred_at) VALUES (?, ?, ?, ?, 'Lab', 'bastion', 22, 'demo', 'start', NULL, ?)`, id(n+6), id(n), id(n+4), id(n+8), timestamp)
 	}
 	for _, tc := range []struct{ table, assignment string }{
 		{"saved_connections", "id = 'invalid'"},
@@ -82,7 +82,7 @@ func TestConnectionSchema(t *testing.T) {
 		if event == "failure" {
 			code = "dial_timeout"
 		}
-		exec(`INSERT INTO connection_audit_events VALUES (?, ?, ?, ?, 'Lab', 'bastion', 22, 'demo', ?, ?, ?)`, id(11+n), id(1), id(5), id(9), event, code, timestamp+1)
+		exec(`INSERT INTO connection_audit_events (id, account_id, saved_connection_id, attempt_id, connection_name, host, port, username, event_type, failure_code, occurred_at) VALUES (?, ?, ?, ?, 'Lab', 'bastion', 22, 'demo', ?, ?, ?)`, id(11+n), id(1), id(5), id(9), event, code, timestamp+1)
 	}
 	if err := db.Close(); err != nil {
 		t.Fatal(err)

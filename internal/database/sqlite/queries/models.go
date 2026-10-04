@@ -28,6 +28,8 @@ type ConnectionAuditEvent struct {
 	EventType         string
 	FailureCode       sql.NullString
 	OccurredAt        int64
+	JumpSnapshot      sql.NullString
+	FailureHop        sql.NullString
 }
 
 type HostTrust struct {

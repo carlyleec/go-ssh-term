@@ -62,7 +62,8 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		terminalSetupFailure(ctx, socket, err)
 		return
 	}
-	audit = &terminalAudit{d: d, row: row, attempt: live.id}
+	jump, routeErr := d.jumpConnection(setupCtx, row)
+	audit = &terminalAudit{d: d, row: row, jump: jump, attempt: live.id}
 	if err := audit.insert(setupCtx, d.q, "start", ""); err != nil {
 		terminalSetupFailure(ctx, socket, failure(503, "could not record connection attempt; try again"))
 		return
@@ -71,9 +72,19 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 	setupFailure := func(err error) {
 		finishing.Store(true)
 		if ctx.Err() == nil {
-			audit.fail(auditSetupCode(err))
+			err = targetFailure(err)
+			var safe *ConnectionErrorBody
+			hop := ""
+			if errors.As(err, &safe) {
+				hop = safe.Hop
+			}
+			audit.failHop(auditSetupCode(err), hop)
 		}
 		terminalSetupFailure(ctx, socket, err)
+	}
+	if routeErr != nil {
+		setupFailure(routeErr)
+		return
 	}
 	workers.Go(func() {
 		ticker := time.NewTicker(d.pingInterval)
@@ -117,7 +128,7 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, own
 		}
 		return
 	}
-	client, _, err = d.dialConnection(setupCtx, row)
+	client, _, err = d.dialRoute(setupCtx, row, jump)
 	if err != nil {
 		setupFailure(err)
 		return
@@ -265,7 +276,7 @@ func terminalSetupFailure(ctx context.Context, socket *terminalSocket, err error
 	message := "could not start SSH terminal"
 	var safe *ConnectionErrorBody
 	if errors.As(err, &safe) {
-		message = safe.Message
+		message = connectionErrorMessage(safe)
 	}
 	_ = socket.writeStatus("failed", message)
 	socket.close(websocket.CloseNormalClosure, "terminal setup failed")

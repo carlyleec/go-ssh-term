@@ -224,6 +224,10 @@
         "properties": {
           "error": {
             "type": "string"
+          },
+          "hop": {
+            "description": "bastion or target",
+            "type": "string"
           }
         },
         "required": [
@@ -487,6 +491,10 @@
             "minLength": 1,
             "type": "string"
           },
+          "jump_connection_id": {
+            "description": "Echo the inspected bastion ID; omit for the target",
+            "type": "string"
+          },
           "port": {
             "format": "int64",
             "maximum": 65535,
@@ -510,7 +518,15 @@
           "fingerprint": {
             "type": "string"
           },
+          "hop": {
+            "description": "bastion or target",
+            "type": "string"
+          },
           "host": {
+            "type": "string"
+          },
+          "jump_connection_id": {
+            "description": "Present only when the fingerprint belongs to the selected bastion",
             "type": "string"
           },
           "port": {
@@ -526,6 +542,7 @@
           }
         },
         "required": [
+          "hop",
           "host",
           "port",
           "state",
@@ -2030,7 +2047,7 @@
             "session": []
           }
         ],
-        "summary": "Inspect an owned destination without authenticating"
+        "summary": "Inspect the next host requiring verification on an owned route"
       }
     },
     "/api/connections/{id}/host-trust": {

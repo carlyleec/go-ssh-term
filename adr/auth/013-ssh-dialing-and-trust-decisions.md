@@ -30,6 +30,8 @@ Expose authenticated, exact-Origin-protected POST operations under
 
 - `/host-key` returns the presented fingerprint, key algorithm, normalized endpoint,
   trust state (`unknown`, `trusted`, or `changed`), and prior trusted fingerprint.
+  [Hop-aware decisions](../api/021-hop-trust-and-audit.md) extend this response
+  with the inspected hop and guide bastion approval before target inspection.
 - `/host-trust` accepts `host`, `port`, and the displayed `fingerprint`. Probe
   again and require that exact fingerprint. In a short transaction, recheck the
   owned configuration's endpoint and insert trust only if absent. Existing trust

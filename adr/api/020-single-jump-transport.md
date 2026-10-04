@@ -32,9 +32,9 @@ waits for browser approval. Trust remains scoped to account and endpoint.
 
 ## Consequences and verification
 
-The current UI requires approving the bastion separately before inspecting its
-target. Guided per-hop fingerprint prompts, error attribution, and audit snapshots
-remain subsequent work. The terminal wire protocol and database schema do not change.
+The [hop trust and audit extension](021-hop-trust-and-audit.md) guides fingerprint
+approval through both hosts and records the bastion snapshot and failure hop.
+The terminal wire protocol remains unchanged.
 
 Controlled SSH peers verify separate credentials, target names resolved through
 forwarding, independent host-key rejection, shell input/output, isolated terminal

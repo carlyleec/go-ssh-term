@@ -77,7 +77,7 @@ func TestTerminalUpgradeGuards(t *testing.T) {
 				t.Fatalf("status: %s %v", data, err)
 			}
 			_, data, err = conn.ReadMessage()
-			if err != nil || string(data) != `{"type":"status","state":"failed","message":"approve the SSH host fingerprint before connecting"}` {
+			if err != nil || string(data) != `{"type":"status","state":"failed","message":"Target: approve the SSH host fingerprint before connecting"}` {
 				t.Fatalf("untrusted host: %s %v", data, err)
 			}
 			_, _, err = conn.ReadMessage()

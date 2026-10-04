@@ -31,7 +31,9 @@ Normal exit and intentional cancellation (browser close, logout, expiry, shutdow
 need only `end`. A concurrently observed failure can precede cancellation; these
 codes describe observations, not a guaranteed root cause. Never persist or log raw
 SSH/database errors, terminal contents, keystrokes, private keys, or login tokens.
-The failure-code vocabulary stays internal; no HTTP or WebSocket schema changes.
+The failure-code vocabulary stays internal. The [hop audit extension](021-hop-trust-and-audit.md)
+adds a bastion snapshot and a failure hop when known, retaining the existing
+WebSocket schema.
 
 ## Storage failure and lifetime
 

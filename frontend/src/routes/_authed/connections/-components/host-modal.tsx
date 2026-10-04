@@ -40,8 +40,11 @@ export function HostModal({
   const approve = useMutation({
     ...queries.connections.approveHost,
     onError: expire,
-    onSuccess: (data) => {
-      if (mounted.current) client.setQueryData(options.queryKey, data)
+    onSuccess: async (data) => {
+      if (!mounted.current) return
+      if (data.jump_connection_id) {
+        await client.invalidateQueries({ queryKey: options.queryKey })
+      } else client.setQueryData(options.queryKey, data)
     },
   })
   const reset = useMutation({
@@ -60,6 +63,7 @@ export function HostModal({
     active.current = true
     try {
       const decision = {
+        jump_connection_id: view.jump_connection_id,
         host: view.host,
         port: view.port,
         fingerprint:
@@ -99,6 +103,12 @@ export function HostModal({
           </Button>
         </div>
         <p className="mt-4 break-words">{connection.name}</p>
+        {connection.jump_connection_id && (
+          <p className="mt-2">
+            Verify the bastion first, then the target. Each host requires its
+            own trusted fingerprint.
+          </p>
+        )}
         {host.isFetching && (
           <p role="status" className="mt-4">
             Inspecting host fingerprint…
@@ -111,6 +121,11 @@ export function HostModal({
         )}
         {view && (
           <div className="mt-4 space-y-4">
+            <p className="font-semibold">
+              {view.hop === 'bastion'
+                ? 'Bastion fingerprint'
+                : 'Target fingerprint'}
+            </p>
             <p className="break-all font-mono">
               {view.host}:{view.port}
             </p>
@@ -121,7 +136,7 @@ export function HostModal({
                 <p>
                   This host is not trusted yet. Compare this fingerprint with
                   the host’s trusted configuration before approving. No SSH
-                  login has been attempted.
+                  login has been attempted to this host.
                 </p>
                 <div className="flex flex-wrap gap-3">
                   <Button
@@ -143,7 +158,7 @@ export function HostModal({
                 </div>
               </>
             )}
-            {view.state === 'trusted' && (
+            {view.state === 'trusted' && !view.jump_connection_id && (
               <div>
                 <p role="status">
                   Host fingerprint verified. Ready to open a shell.

@@ -34,7 +34,7 @@ func (d *Dialer) Register(api huma.API, access *auth.Access) {
 		}
 		next(ctx)
 	}
-	huma.Register(api, op("inspectHost", "host-key", "Inspect an owned destination without authenticating", 200), func(ctx context.Context, input *DeleteInput) (*HostOutput, error) {
+	huma.Register(api, op("inspectHost", "host-key", "Inspect the next host requiring verification on an owned route", 200), func(ctx context.Context, input *DeleteInput) (*HostOutput, error) {
 		account, _ := auth.AccountFromContext(ctx)
 		result, err := d.Inspect(ctx, account.ID, input.ID)
 		if err != nil {

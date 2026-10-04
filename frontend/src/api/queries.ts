@@ -179,7 +179,12 @@ const connections = {
       decision,
     }: {
       id: string
-      decision: { host: string; port: number; fingerprint: string }
+      decision: {
+        host: string
+        port: number
+        fingerprint: string
+        jump_connection_id?: string
+      }
     }) =>
       HostInspectionSchema.parse(
         await apiClient.post(
@@ -197,7 +202,12 @@ const connections = {
       decision,
     }: {
       id: string
-      decision: { host: string; port: number; fingerprint: string }
+      decision: {
+        host: string
+        port: number
+        fingerprint: string
+        jump_connection_id?: string
+      }
     }) =>
       apiClient.post<void>(
         `${ENDPOINTS.connections}/${encodeURIComponent(id)}/host-trust/reset`,

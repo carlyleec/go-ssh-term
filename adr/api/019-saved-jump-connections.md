@@ -33,9 +33,8 @@ remain but lose jump routing. Reapplication leaves those configurations direct.
 Use the existing explicit migration workflow before restarting the application.
 
 The [single-jump transport](020-single-jump-transport.md) forwards target probes
-and dialing through the selected bastion, with no direct fallback. Guided per-hop
-trust flow and audit snapshots for both hops remain subsequent work; the wire
-terminal protocol is unchanged.
+and dialing through the selected bastion, with no direct fallback. The [hop trust and audit extension](021-hop-trust-and-audit.md) guides per-hop
+trust and retains both destinations. The wire terminal protocol is unchanged.
 
 ## Connection forms
 

@@ -28,6 +28,8 @@ Number records independently within each area. Each record states its context, d
 
 - [020 Give each target transport its own verified SSH jump](api/020-single-jump-transport.md)
 
+- [021 Guide trust decisions and retain audit context for both SSH hops](api/021-hop-trust-and-audit.md)
+
 ## Auth
 
 - [001 Authenticate with passkeys and server-side sessions](auth/001-passkeys-and-sessions.md)

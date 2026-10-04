@@ -143,7 +143,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Inspect an owned destination without authenticating */
+        /** Inspect the next host requiring verification on an owned route */
         post: operations["inspectHost"];
         delete?: never;
         options?: never;
@@ -295,6 +295,8 @@ export interface components {
         };
         ConnectionErrorBody: {
             error: string;
+            /** @description bastion or target */
+            hop?: string;
         };
         ConnectionFields: {
             /** @description ASCII DNS hostname or unbracketed IPv4/IPv6 address; no port, zone, or URL */
@@ -364,13 +366,19 @@ export interface components {
         HostDecision: {
             fingerprint: string;
             host: string;
+            /** @description Echo the inspected bastion ID; omit for the target */
+            jump_connection_id?: string;
             /** Format: int64 */
             port: number;
         };
         HostInspection: {
             algorithm: string;
             fingerprint: string;
+            /** @description bastion or target */
+            hop: string;
             host: string;
+            /** @description Present only when the fingerprint belongs to the selected bastion */
+            jump_connection_id?: string;
             /** Format: int64 */
             port: number;
             /** @description unknown, trusted, or changed */

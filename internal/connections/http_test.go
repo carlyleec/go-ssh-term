@@ -112,7 +112,7 @@ func expect(t *testing.T, w *httptest.ResponseRecorder, status int) {
 	}
 	if status >= 400 {
 		var fields map[string]string
-		if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil || len(fields) != 1 || fields["error"] == "" {
+		if err := json.Unmarshal(w.Body.Bytes(), &fields); err != nil || (len(fields) != 1 && !(len(fields) == 2 && (fields["hop"] == "bastion" || fields["hop"] == "target"))) || fields["error"] == "" {
 			t.Fatalf("unsafe error: %s", w.Body)
 		}
 	}

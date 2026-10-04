@@ -3,6 +3,7 @@ package connections
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"log"
 	"sync"
@@ -15,18 +16,22 @@ import (
 // An attempt keeps the authorized destination used for dialing, even after edits
 // or deletion. Only fixed application codes enter failure records.
 type terminalAudit struct {
-	d       *Dialer
-	row     queries.SavedConnection
-	attempt string
-	mu      sync.Mutex
-	failure string
+	d          *Dialer
+	row        queries.SavedConnection
+	attempt    string
+	mu         sync.Mutex
+	failure    string
+	failureHop string
+	jump       *queries.SavedConnection
 }
 
-func (a *terminalAudit) fail(code string) {
+func (a *terminalAudit) fail(code string) { a.failHop(code, "") }
+func (a *terminalAudit) failHop(code, hop string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if a.failure == "" {
 		a.failure = code
+		a.failureHop = hop
 	}
 }
 
@@ -35,7 +40,28 @@ func (a *terminalAudit) insert(ctx context.Context, q *queries.Queries, event, c
 	if err != nil {
 		return err
 	}
+	var jumpJSON sql.NullString
+	if a.jump != nil {
+		data, err := json.Marshal(struct {
+			ID       string `json:"id"`
+			Name     string `json:"name"`
+			Host     string `json:"host"`
+			Port     int64  `json:"port"`
+			Username string `json:"username"`
+		}{a.jump.ID, a.jump.Name, a.jump.Host, a.jump.Port, a.jump.Username})
+		if err != nil {
+			return err
+		}
+		jumpJSON = sql.NullString{String: string(data), Valid: true}
+	}
+	var hop sql.NullString
+	if event == "failure" {
+		a.mu.Lock()
+		hop = sql.NullString{String: a.failureHop, Valid: a.failureHop != ""}
+		a.mu.Unlock()
+	}
 	return q.InsertConnectionAuditEvent(ctx, queries.InsertConnectionAuditEventParams{
+		JumpSnapshot: jumpJSON, FailureHop: hop,
 		ID: id.String(), AccountID: a.row.AccountID, SavedConnectionID: a.row.ID,
 		AttemptID: a.attempt, ConnectionName: a.row.Name, Host: a.row.Host,
 		Port: a.row.Port, Username: a.row.Username, EventType: event,

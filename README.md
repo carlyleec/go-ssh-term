@@ -97,13 +97,14 @@ owned direct destinations, excluding the connection being edited. Choose
 change or remove their dependent references before deleting them. Saved rows show
 the selected jump name. Unavailable choices require an explicit new selection.
 SSH forwarding uses the selected bastion, verifying each host independently and
-using each connection’s configured credentials. First select **Connect** on the
-bastion and approve its fingerprint. Then connect to the target to inspect and
-approve its own fingerprint before opening a terminal. Guided approval and error
-messages identifying each hop remain subsequent work.
+using each connection’s configured credentials. Select **Connect** on the target:
+the dialog first requests any needed bastion approval, then independently checks
+the target fingerprint. Changed keys require explicit reset and fresh approval.
+Only a verified target enables **Open terminal**. Setup errors identify the
+bastion or target operation that failed; audit events retain both destinations.
 See [saved jump connections](adr/api/019-saved-jump-connections.md).
 
-After updating to migration `20261004000200`, run `make migrate`, then `make up`.
+After updating to migration `20261004000300`, run `make migrate`, then `make up`.
 The server refuses to start with a pending migration; the browser otherwise shows
 “Could not check your session.” Migration preserves existing direct connections.
 
@@ -136,8 +137,8 @@ docker compose up --build -d --wait bastion target-1 target-2
 
 `make up` includes all three hosts. Save a direct connection to `bastion:22`,
 then save connections to `target-1:22` and `target-2:22` with that bastion selected
-under **Jump through**. Approve the bastion first, then each target as described
-above. The private targets cannot be reached directly by the application.
+under **Jump through**. Connect to either target and follow the fingerprint
+verification prompts. The private targets cannot be reached directly by the application.
 Each target keeps its host keys in its own named volume (`target-1-host-keys`
 and `target-2-host-keys`), shared by development and demo modes. Ordinary
 recreation preserves these identities, just as it does for the bastion.

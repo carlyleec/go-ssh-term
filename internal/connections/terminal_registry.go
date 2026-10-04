@@ -30,9 +30,10 @@ type liveTerminal struct {
 	transport  io.Closer
 	ioTimedOut atomic.Bool
 	// Attach the client before PTY setup; publish shell/stdin together once ready.
-	client *ssh.Client
-	shell  *ssh.Session
-	stdin  io.WriteCloser
+	client  *ssh.Client
+	shell   *ssh.Session
+	stdin   io.WriteCloser
+	inputMu sync.Mutex
 }
 
 type terminalRegistry struct {
@@ -123,6 +124,13 @@ func (r *terminalRegistry) input(owner terminalOwner, id string, data []byte) er
 	}
 	timer := time.AfterFunc(r.ioTimeout, func() { entry.ioTimedOut.Store(true); r.release(entry) })
 	defer timer.Stop()
+	// SSH channel writes are not safe concurrently. The timeout also bounds
+	// callers waiting for this terminal's current write to finish.
+	entry.inputMu.Lock()
+	defer entry.inputMu.Unlock()
+	if entry.ctx.Err() != nil {
+		return errLiveTerminal
+	}
 	// Network I/O never holds the registry lock; closing the client interrupts
 	// an operation admitted just before expiry or removal.
 	n, err := stdin.Write(data)

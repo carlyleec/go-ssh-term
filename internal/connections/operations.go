@@ -49,6 +49,7 @@ type DeleteInput struct {
 
 type ConnectionErrorBody struct {
 	Message string `json:"error"`
+	Hop     string `json:"hop,omitempty" doc:"bastion or target"`
 	status  int
 }
 

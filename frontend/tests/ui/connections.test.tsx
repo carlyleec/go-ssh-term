@@ -112,6 +112,7 @@ beforeEach(() => {
         hostState = 'trusted'
       }
       return Response.json({
+        hop: 'target',
         host: 'bastion',
         port: 22,
         state: hostState,

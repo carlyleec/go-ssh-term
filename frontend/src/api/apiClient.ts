@@ -11,9 +11,15 @@ export class ApiError extends Error {
       typeof body.error === 'string'
         ? body.error
         : undefined
+    const hop =
+      typeof body === 'object' && body !== null && 'hop' in body
+        ? body.hop
+        : undefined
+    const prefix =
+      hop === 'bastion' ? 'Bastion: ' : hop === 'target' ? 'Target: ' : ''
     super(
       message ??
-        serverMessage ??
+        (serverMessage ? prefix + serverMessage : undefined) ??
         'Could not complete the request. Please try again.',
     )
     this.name = 'ApiError'

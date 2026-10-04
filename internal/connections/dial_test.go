@@ -195,7 +195,7 @@ func destination(t *testing.T, f fixture, p *peer) Connection {
 	return result(t, f.request("POST", "/api/connections", fields, 0), 201)
 }
 func decision(v HostInspection) HostDecision {
-	return HostDecision{Host: v.Host, Port: v.Port, Fingerprint: v.Fingerprint}
+	return HostDecision{JumpConnectionID: v.JumpConnectionID, Host: v.Host, Port: v.Port, Fingerprint: v.Fingerprint}
 }
 func requireStatus(t *testing.T, err error, status int) {
 	t.Helper()

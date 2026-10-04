@@ -92,8 +92,15 @@ func hostAlgorithms(trusted []byte) []string {
 // closes the socket even while the peer is silent. Successful clients have their
 // setup deadline removed before ownership is transferred to the caller.
 func (d *Dialer) exchange(ctx context.Context, row queries.SavedConnection, config *ssh.ClientConfig) (*ssh.Client, error) {
+	jump, err := d.jumpConnection(ctx, row)
+	if err != nil {
+		return nil, err
+	}
+	return d.exchangeRoute(ctx, row, config, jump)
+}
+func (d *Dialer) exchangeRoute(ctx context.Context, row queries.SavedConnection, config *ssh.ClientConfig, jump *queries.SavedConnection) (*ssh.Client, error) {
 	address := net.JoinHostPort(row.Host, strconv.FormatInt(row.Port, 10))
-	conn, err := d.transport(ctx, row, address)
+	conn, err := d.transport(ctx, row, address, jump)
 	if err != nil {
 		return nil, err
 	}
@@ -128,7 +135,12 @@ func (d *Dialer) exchange(ctx context.Context, row queries.SavedConnection, conf
 func setupError(ctx context.Context, err error) error {
 	var networkError net.Error
 	if ctx.Err() != nil || errors.As(err, &networkError) && networkError.Timeout() {
-		return failure(504, "SSH setup timed out or was canceled")
+		timeout := failure(504, "SSH setup timed out or was canceled")
+		var original *ConnectionErrorBody
+		if errors.As(err, &original) {
+			timeout.Hop = original.Hop
+		}
+		return timeout
 	}
 	var safe *ConnectionErrorBody
 	if errors.As(err, &safe) {
@@ -161,6 +173,14 @@ func (d *Dialer) Dial(ctx context.Context, accountID, id string) (*ssh.Client, C
 }
 
 func (d *Dialer) dialConnection(ctx context.Context, row queries.SavedConnection) (*ssh.Client, Connection, error) {
+	jump, err := d.jumpConnection(ctx, row)
+	if err != nil {
+		return nil, Connection{}, err
+	}
+	return d.dialRoute(ctx, row, jump)
+}
+func (d *Dialer) dialRoute(ctx context.Context, row queries.SavedConnection, jump *queries.SavedConnection) (client *ssh.Client, snapshot Connection, err error) {
+	defer func() { err = targetFailure(err) }()
 	trusted, err := d.trusted(ctx, row)
 	if err != nil {
 		return nil, Connection{}, err
@@ -168,7 +188,7 @@ func (d *Dialer) dialConnection(ctx context.Context, row queries.SavedConnection
 	if trusted == nil {
 		return nil, Connection{}, failure(409, "approve the SSH host fingerprint before connecting")
 	}
-	client, err := d.exchange(ctx, row, &ssh.ClientConfig{User: row.Username, HostKeyAlgorithms: hostAlgorithms(trusted), HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
+	client, err = d.exchangeRoute(ctx, row, &ssh.ClientConfig{User: row.Username, HostKeyAlgorithms: hostAlgorithms(trusted), HostKeyCallback: func(_ string, _ net.Addr, key ssh.PublicKey) error {
 		if !bytes.Equal(trusted, key.Marshal()) {
 			return failure(409, "SSH host key changed; connection blocked until explicit trust reset")
 		}
@@ -187,7 +207,7 @@ func (d *Dialer) dialConnection(ctx context.Context, row queries.SavedConnection
 			return nil, failure(503, "could not load SSH authentication key")
 		}
 		return []ssh.Signer{signer}, nil
-	})}})
+	})}}, jump)
 	if err != nil {
 		return nil, Connection{}, setupError(ctx, err)
 	}

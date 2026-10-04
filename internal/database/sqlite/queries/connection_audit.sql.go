@@ -13,8 +13,8 @@ import (
 const insertConnectionAuditEvent = `-- name: InsertConnectionAuditEvent :exec
 INSERT INTO connection_audit_events (
     id, account_id, saved_connection_id, attempt_id, connection_name,
-    host, port, username, event_type, failure_code, occurred_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    host, port, username, event_type, failure_code, occurred_at, jump_snapshot, failure_hop
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `
 
 type InsertConnectionAuditEventParams struct {
@@ -29,6 +29,8 @@ type InsertConnectionAuditEventParams struct {
 	EventType         string
 	FailureCode       sql.NullString
 	OccurredAt        int64
+	JumpSnapshot      sql.NullString
+	FailureHop        sql.NullString
 }
 
 func (q *Queries) InsertConnectionAuditEvent(ctx context.Context, arg InsertConnectionAuditEventParams) error {
@@ -44,6 +46,8 @@ func (q *Queries) InsertConnectionAuditEvent(ctx context.Context, arg InsertConn
 		arg.EventType,
 		arg.FailureCode,
 		arg.OccurredAt,
+		arg.JumpSnapshot,
+		arg.FailureHop,
 	)
 	return err
 }

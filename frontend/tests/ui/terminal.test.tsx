@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, expect, test } from 'bun:test'
 import { act, cleanup, render, screen, waitFor } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { TerminalPanel } from '~/routes/_authed/connections/-components/terminal-panel'
+import { TerminalPanel } from '~/routes/_authed/workspace/-components/terminal-panel'
 import {
   FakeObserver,
   FakeSocket,
@@ -142,7 +142,7 @@ test('unmount during module loading cannot open a late socket', async () => {
   )
   view.unmount()
   await act(async () => {
-    await import('~/routes/_authed/connections/-components/terminal-runtime')
+    await import('~/routes/_authed/workspace/-components/terminal-runtime')
   })
   expect(FakeSocket.instances).toHaveLength(0)
 })

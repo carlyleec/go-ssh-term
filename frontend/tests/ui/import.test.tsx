@@ -9,7 +9,7 @@ import {
 } from '@testing-library/react'
 import { StrictMode } from 'react'
 import type { SchemaImportRequest } from '~/api/generated/schema.gen'
-import { ImportModal } from '~/routes/_authed/connections/-components/import-modal'
+import { ImportDrawer } from '~/routes/_authed/connections/-components/import-drawer'
 import { mockFetch } from '../mock-fetch'
 
 const originalFetch = globalThis.fetch
@@ -110,7 +110,7 @@ function mount() {
   render(
     <StrictMode>
       <QueryClientProvider client={client}>
-        <ImportModal
+        <ImportDrawer
           accountID="owner"
           onClose={() => closed++}
           onImported={() => closed++}

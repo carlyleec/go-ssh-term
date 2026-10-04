@@ -1,6 +1,6 @@
 # Serve a React application from Go
 
-Status: Accepted
+Status: Accepted; protected routes extended by [009](009-workspace-navigation-and-drawers.md).
 
 ## Context
 

@@ -1,6 +1,18 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect } from '@tanstack/react-router'
+import queries from '~/api/queries'
+import { AccessError, AccessPending } from '~/components/access-status'
 
-export const Route = createFileRoute('/')({ component: LandingPage })
+export const Route = createFileRoute('/')({
+  beforeLoad: async ({ context }) => {
+    const account = await context.queryClient.fetchQuery(
+      queries.auth.currentUser,
+    )
+    if (account) throw redirect({ to: '/workspace', replace: true })
+  },
+  pendingComponent: AccessPending,
+  errorComponent: AccessError,
+  component: LandingPage,
+})
 
 function LandingPage() {
   return (
@@ -19,7 +31,7 @@ function LandingPage() {
           <Link to="/login" className="btn btn-primary">
             Go to account access
           </Link>
-          <Link to="/connections" className="btn btn-outline">
+          <Link to="/workspace" className="btn btn-outline">
             Preview the workspace
           </Link>
         </div>

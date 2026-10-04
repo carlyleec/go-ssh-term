@@ -51,7 +51,7 @@ test('valid identity enters workspace and redirects away from login', async () =
   expect(await requireAccount(client())).toEqual({ account })
   const error = await redirectSignedIn(client()).catch((error) => error)
   expect(isRedirect(error)).toBe(true)
-  expect(error.options.to).toBe('/connections')
+  expect(error.options.to).toBe('/workspace')
 })
 
 test('service failures are errors rather than anonymous redirects and can be retried', async () => {

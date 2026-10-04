@@ -2,7 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { SavedConnection } from '~/api/queries'
 import { Button } from '~/components/button'
 
-export function ConnectModal({
+export function ConnectDrawer({
   connections,
   onClose,
   onSelect,
@@ -20,12 +20,12 @@ export function ConnectModal({
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className="side-drawer"
       aria-labelledby="connect-title"
       onClose={onClose}
     >
-      <div className="modal-box">
-        <div className="flex items-center justify-between gap-4">
+      <div className="drawer-panel">
+        <div className="drawer-heading">
           <h2 id="connect-title" className="text-2xl font-bold">
             Choose a connection
           </h2>

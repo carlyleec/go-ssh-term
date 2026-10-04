@@ -1,16 +1,13 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { ApiError } from '~/api/apiClient'
 import queries, { type SavedConnection } from '~/api/queries'
 import { Button } from '~/components/button'
+import { PageHeader } from '~/components/page-header'
 import { useAuth } from '~/hooks/use-auth'
-import { ConnectModal } from './-components/connect-modal'
-import { ConnectionModal } from './-components/connection-modal'
-import { HostModal } from './-components/host-modal'
-import { ImportModal } from './-components/import-modal'
-import { KeyModal } from './-components/key-modal'
-import { TerminalPanel } from './-components/terminal-panel'
+import { ConnectionDrawer } from './-components/connection-drawer'
+import { ImportDrawer } from './-components/import-drawer'
 
 export const Route = createFileRoute('/_authed/connections/')({
   component: ConnectionsPage,
@@ -19,19 +16,14 @@ export const Route = createFileRoute('/_authed/connections/')({
 function ConnectionsPage() {
   const { account, isSigningOut } = useAuth()
   const client = useQueryClient()
+  const navigate = useNavigate()
   const accountID = account?.id ?? ''
   const connections = queries.connections.useQuery(accountID)
-  const [modal, setModal] = useState<
-    'keys' | 'add' | 'connect' | 'import' | SavedConnection | null
+  const [drawer, setDrawer] = useState<
+    'add' | 'import' | SavedConnection | null
   >(null)
   const [confirmation, setConfirmation] = useState<SavedConnection | null>(null)
-  const [hostTarget, setHostTarget] = useState<SavedConnection | null>(null)
-  const [terminal, setTerminal] = useState<SavedConnection | null>(null)
   const [notice, setNotice] = useState('')
-  const [terminalAttempt, setTerminalAttempt] = useState(0)
-  const [reconnectPending, setReconnectPending] = useState(false)
-  const reconnectRequest = useRef(0)
-  const reconnectActive = useRef(false)
   const mounted = useRef(false)
   const active = useRef(false)
   useEffect(() => {
@@ -62,60 +54,19 @@ function ConnectionsPage() {
         client.setQueryData(queries.auth.currentUser.queryKey, null)
     },
   })
-  async function reconnect() {
-    if (!terminal || reconnectActive.current || isSigningOut) return
-    reconnectActive.current = true
-    const request = ++reconnectRequest.current
-    setReconnectPending(true)
-    setNotice('')
-    try {
-      const latest = await client.fetchQuery({
-        ...queries.connections.options(accountID),
-        staleTime: 0,
-      })
-      if (!mounted.current || request !== reconnectRequest.current) return
-      const target = latest.find((item) => item.id === terminal.id)
-      if (!target) {
-        setNotice(
-          'This saved connection was deleted. Close the terminal and choose another connection.',
-        )
-        return
-      }
-      setHostTarget(target)
-    } catch (error) {
-      if (!mounted.current || request !== reconnectRequest.current) return
-      if (error instanceof ApiError && error.status === 401)
-        client.setQueryData(queries.auth.currentUser.queryKey, null)
-      else setNotice('Could not prepare reconnect. Try again.')
-    } finally {
-      if (mounted.current && request === reconnectRequest.current) {
-        reconnectActive.current = false
-        setReconnectPending(false)
-      }
-    }
-  }
   if (!account) return null
   const busy = remove.isPending || isSigningOut
   return (
-    <section className="mx-auto max-w-5xl px-6 py-12">
-      <h1 className="text-3xl font-bold">Connections</h1>
-      <div className="mt-6 flex flex-wrap gap-3">
-        <Button
-          type="button"
-          className="btn-primary"
-          disabled={busy || !connections.isSuccess || terminal !== null}
-          onClick={() => {
-            setNotice('')
-            setModal('connect')
-          }}
-        >
-          Connect
-        </Button>
+    <section className="mx-auto max-w-6xl px-6 py-12">
+      <PageHeader
+        title="Connections"
+        description="Manage saved hosts and their connection settings."
+      >
         <Button
           type="button"
           className="btn-outline"
           disabled={busy}
-          onClick={() => setModal('add')}
+          onClick={() => setDrawer('add')}
         >
           Add connection
         </Button>
@@ -123,37 +74,14 @@ function ConnectionsPage() {
           type="button"
           className="btn-outline"
           disabled={busy}
-          onClick={() => setModal('keys')}
-        >
-          Manage SSH keys
-        </Button>
-        <Button
-          type="button"
-          className="btn-outline"
-          disabled={busy}
-          onClick={() => setModal('import')}
+          onClick={() => setDrawer('import')}
         >
           Import SSH config
         </Button>
-      </div>
+      </PageHeader>
       <p role="status" className="mt-4">
         {notice}
       </p>
-      {terminal && (
-        <TerminalPanel
-          key={terminalAttempt}
-          connection={terminal}
-          onReconnect={() => void reconnect()}
-          reconnectPending={reconnectPending || busy || hostTarget !== null}
-          onClose={() => {
-            reconnectRequest.current++
-            reconnectActive.current = false
-            setReconnectPending(false)
-            setHostTarget(null)
-            setTerminal(null)
-          }}
-        />
-      )}
       {connections.isPending && (
         <p role="status" className="mt-6">
           Loading connections…
@@ -186,7 +114,7 @@ function ConnectionsPage() {
               .
             </li>
             <li>
-              Open Manage SSH keys and upload{' '}
+              Open SSH Keys in the navbar and upload{' '}
               <code className="break-all">demo/keys/demo_ed25519</code> from the
               repository. This key is only for the local demo.
             </li>
@@ -196,8 +124,8 @@ function ConnectionsPage() {
               confirm the import.
             </li>
             <li>
-              Use Connect to choose your saved destination, verify its host
-              fingerprint, and open a terminal. Try{' '}
+              Open Workspace and use Connect to choose your saved destination,
+              verify its host fingerprint, and open a terminal. Try{' '}
               <code>cat /host-info.txt</code>.
             </li>
           </ol>
@@ -205,18 +133,17 @@ function ConnectionsPage() {
       )}
       {!!connections.data?.length && (
         <div className="mt-6">
-          <h2 className="text-xl font-semibold">Saved connections</h2>
-          <ul className="mt-4 space-y-4">
+          <ul className="space-y-4">
             {connections.data.map((connection) => (
               <li
                 key={connection.id}
                 className="rounded-box border border-base-300 p-5"
               >
-                <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-4">
                   <div className="min-w-0">
-                    <h3 className="font-semibold break-words">
+                    <h2 className="font-semibold break-words">
                       {connection.name}
-                    </h3>
+                    </h2>
                     <p className="mt-1 break-all font-mono text-sm text-base-content/75">
                       {connection.username}@{connection.host}:{connection.port}
                     </p>
@@ -229,7 +156,7 @@ function ConnectionsPage() {
                       </p>
                     )}
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-col gap-2 sm:flex-row">
                     <Button
                       type="button"
                       className="btn-outline btn-sm"
@@ -237,7 +164,7 @@ function ConnectionsPage() {
                       aria-label={`Edit ${connection.name}`}
                       onClick={() => {
                         setConfirmation(null)
-                        setModal(connection)
+                        setDrawer(connection)
                       }}
                     >
                       Edit
@@ -268,7 +195,7 @@ function ConnectionsPage() {
                         {remove.error.message}
                       </p>
                     )}
-                    <div className="mt-3 flex gap-2">
+                    <div className="mt-3 flex flex-wrap justify-end gap-2">
                       <Button
                         type="button"
                         className="btn-error"
@@ -301,56 +228,29 @@ function ConnectionsPage() {
           </ul>
         </div>
       )}
-      {modal === 'import' && (
-        <ImportModal
+      {drawer === 'import' && (
+        <ImportDrawer
           accountID={accountID}
-          onClose={() => setModal(null)}
+          onClose={() => setDrawer(null)}
           onImported={() => {
-            setModal(null)
-            setNotice('Connections imported. Use Connect to open a terminal.')
+            setDrawer(null)
+            setNotice(
+              'Connections imported. Open Workspace to start a terminal.',
+            )
           }}
         />
       )}
-      {modal === 'keys' && (
-        <KeyModal accountID={accountID} onClose={() => setModal(null)} />
-      )}
-      {(modal === 'add' || (typeof modal === 'object' && modal !== null)) && (
-        <ConnectionModal
+      {(drawer === 'add' ||
+        (typeof drawer === 'object' && drawer !== null)) && (
+        <ConnectionDrawer
           accountID={accountID}
           connection={
-            typeof modal === 'object' ? (modal ?? undefined) : undefined
+            typeof drawer === 'object' ? (drawer ?? undefined) : undefined
           }
-          onClose={() => setModal(null)}
-          onManageKeys={() => setModal('keys')}
+          onClose={() => setDrawer(null)}
+          onManageKeys={() => void navigate({ to: '/keys' })}
         />
       )}
-      {modal === 'connect' && (
-        <ConnectModal
-          connections={connections.isSuccess ? connections.data : []}
-          onClose={() => setModal(null)}
-          onAdd={() => setModal('add')}
-          onSelect={(connection) => {
-            setHostTarget(connection)
-            setModal(null)
-          }}
-        />
-      )}
-      {hostTarget && (
-        <HostModal
-          accountID={accountID}
-          connection={hostTarget}
-          onClose={() => setHostTarget(null)}
-          onConnect={() => {
-            if (!mounted.current || isSigningOut) return
-            setTerminalAttempt((attempt) => attempt + 1)
-            setTerminal(hostTarget)
-            setHostTarget(null)
-          }}
-        />
-      )}
-      <Link to="/" className="btn btn-ghost mt-8">
-        Back to home
-      </Link>
     </section>
   )
 }

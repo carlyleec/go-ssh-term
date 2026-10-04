@@ -1,6 +1,6 @@
 # Use xterm.js in a tabbed workspace
 
-Status: Accepted
+Status: Accepted; route and modal decisions superseded by [009](009-workspace-navigation-and-drawers.md).
 
 ## Context
 

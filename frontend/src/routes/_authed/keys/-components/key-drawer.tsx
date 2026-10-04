@@ -1,28 +1,27 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { z } from 'zod'
 import { ApiError } from '~/api/apiClient'
-import queries, { type SSHKey } from '~/api/queries'
+import queries from '~/api/queries'
 import { Button } from '~/components/button'
 import { Input } from '~/components/input'
 
-export function KeyModal({
+export function KeyDrawer({
   accountID,
   onClose,
+  onUploaded,
 }: {
   accountID: string
   onClose: () => void
+  onUploaded: () => void
 }) {
   const client = useQueryClient()
   const dialog = useRef<HTMLDialogElement>(null)
   const fileInput = useRef<HTMLInputElement>(null)
   const active = useRef(false)
   const mounted = useRef(false)
-  const [confirmation, setConfirmation] = useState<SSHKey | null>(null)
-  const [notice, setNotice] = useState('')
   const queryKey = queries.keys.options(accountID).queryKey
-  const keys = queries.keys.useQuery(accountID)
 
   useEffect(() => {
     mounted.current = true
@@ -36,10 +35,6 @@ export function KeyModal({
     if (mounted.current && error instanceof ApiError && error.status === 401)
       client.setQueryData(queries.auth.currentUser.queryKey, null)
   }
-  useEffect(() => {
-    if (keys.error instanceof ApiError && keys.error.status === 401)
-      client.setQueryData(queries.auth.currentUser.queryKey, null)
-  }, [keys.error, client])
 
   const form = useForm({
     defaultValues: { name: '', file: null as File | null },
@@ -47,7 +42,6 @@ export function KeyModal({
     onSubmit: async () => {
       if (active.current) return
       active.current = true
-      setNotice('')
       try {
         await upload.mutateAsync(form.state.values)
       } catch {
@@ -60,43 +54,33 @@ export function KeyModal({
   const upload = useMutation({
     ...queries.keys.upload,
     onSuccess: async () => {
-      // A session check can unmount the modal while a mutation is in flight.
+      // A session check can unmount the drawer while a mutation is in flight.
       if (!mounted.current) return
       form.reset()
       if (fileInput.current) fileInput.current.value = ''
-      setNotice('Key uploaded.')
       await client.invalidateQueries({ queryKey })
-    },
-    onError: expire,
-  })
-  const remove = useMutation({
-    ...queries.keys.remove,
-    onSuccess: async () => {
-      if (!mounted.current) return
-      setConfirmation(null)
-      setNotice('Key deleted.')
-      await client.invalidateQueries({ queryKey })
+      if (mounted.current) onUploaded()
     },
     onError: expire,
   })
   useEffect(() => () => form.reset(), [form])
 
-  const busy = upload.isPending || remove.isPending
+  const busy = upload.isPending
 
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className="side-drawer"
       aria-labelledby="keys-title"
       onCancel={(event) => {
         if (active.current || busy) event.preventDefault()
       }}
       onClose={onClose}
     >
-      <div className="modal-box max-w-2xl">
-        <div className="flex items-center justify-between gap-4">
+      <div className="drawer-panel">
+        <div className="drawer-heading">
           <h2 id="keys-title" className="text-2xl font-bold">
-            SSH keys
+            Upload SSH key
           </h2>
           <Button
             type="button"
@@ -113,7 +97,7 @@ export function KeyModal({
           keys cannot be downloaded.
         </p>
         <form
-          className="mt-6 space-y-4"
+          className="mt-6 flex flex-1 flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault()
             if (!busy) void form.handleSubmit()
@@ -186,103 +170,12 @@ export function KeyModal({
               {upload.error.message}
             </p>
           )}
-          <Button type="submit" className="btn-primary" disabled={busy}>
-            {upload.isPending ? 'Uploading…' : 'Upload key'}
-          </Button>
-        </form>
-        <p role="status" className="mt-4">
-          {notice}
-        </p>
-        <h3 className="mt-6 text-lg font-semibold">Saved keys</h3>
-        {keys.isPending && (
-          <p role="status" className="mt-3">
-            Loading keys…
-          </p>
-        )}
-        {keys.isError && (
-          <div className="mt-3">
-            <p role="alert" className="text-error">
-              {keys.error.message}
-            </p>
-            <Button
-              type="button"
-              className="btn-outline mt-2"
-              disabled={keys.isFetching || busy}
-              onClick={() => void keys.refetch()}
-            >
-              Retry key list
+          <div className="drawer-actions">
+            <Button type="submit" className="btn-primary" disabled={busy}>
+              {upload.isPending ? 'Uploading…' : 'Upload key'}
             </Button>
           </div>
-        )}
-        {keys.data?.length === 0 && (
-          <p className="mt-3">No SSH keys yet. Upload a key to get started.</p>
-        )}
-        <ul className="mt-3 space-y-4">
-          {keys.data?.map((key) => (
-            <li key={key.id} className="rounded-box border border-base-300 p-4">
-              <p className="font-semibold break-words">{key.name}</p>
-              <p className="mt-2 break-all font-mono text-sm">
-                {key.public_fingerprint}
-              </p>
-              <p className="mt-2 text-sm text-base-content/65">
-                Added {new Date(key.created_at).toLocaleString()}
-              </p>
-              {confirmation?.id === key.id ? (
-                <div className="mt-3">
-                  <p>
-                    Delete “{key.name}”? You will need the original file to
-                    upload it again.
-                  </p>
-                  {remove.error && (
-                    <p role="alert" className="mt-2 text-error">
-                      {remove.error.message}
-                    </p>
-                  )}
-                  <div className="mt-3 flex gap-2">
-                    <Button
-                      type="button"
-                      className="btn-error"
-                      disabled={busy}
-                      onClick={() => {
-                        if (active.current) return
-                        active.current = true
-                        setNotice('')
-                        remove.mutate(key.id, {
-                          onSettled: () => {
-                            active.current = false
-                          },
-                        })
-                      }}
-                    >
-                      {remove.isPending ? 'Deleting…' : 'Confirm deletion'}
-                    </Button>
-                    <Button
-                      type="button"
-                      className="btn-ghost"
-                      disabled={busy}
-                      onClick={() => setConfirmation(null)}
-                    >
-                      Cancel deletion
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <Button
-                  type="button"
-                  className="btn-outline btn-sm mt-3"
-                  disabled={busy}
-                  aria-label={`Delete ${key.name}`}
-                  onClick={() => {
-                    remove.reset()
-                    setConfirmation(key)
-                  }}
-                >
-                  Delete
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
+        </form>
       </div>
     </dialog>
   )

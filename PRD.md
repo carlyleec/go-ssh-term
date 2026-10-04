@@ -24,9 +24,9 @@ The public and private networks are local Docker lab networks, not a public depl
 | SSH key | A named, user-owned private key reusable across saved connections. |
 | Live SSH session | An active SSH connection and shell, owned by a login session and represented by a terminal tab. |
 
-Routes are `/` for the landing page, `/login` for sign-in and account creation, and `/connections` for the protected workspace. A separate connection detail route is not required for v1. Registration may share the login page rather than requiring another route.
+Routes are `/` for the landing page, `/login` for sign-in and account creation, `/workspace` for protected terminal work, `/connections` for saved connection management, and `/keys` for SSH key management. Navbar links separate the three protected sections; sign-in opens Workspace, and authenticated visits to `/` redirect there. A separate connection detail route is not required for v1. Registration may share the login page rather than requiring another route.
 
-The workspace offers Import SSH config, Add connection, key management, and Connect actions. Forms and the connection picker use modals. An empty workspace explains the demo setup and offers Connect prominently. Each successful connection opens a terminal tab; multiple tabs may use the same saved connection. Only one terminal is visible at a time, while other tabs stay connected.
+Workspace offers Connect and active terminals. Connections offers adding, editing, deleting, and importing saved configurations; its empty state explains the demo setup. SSH Keys lists uploaded key metadata and supports upload and deletion. Forms, import, connection selection, and host verification open in right-side drawers, full width on small screens. Only one drawer is open at a time. Switching between protected sections keeps live terminals mounted and receiving output; leaving the signed-in area ends them. Each successful connection opens a terminal tab; multiple tabs may use the same saved connection. Only one terminal is visible at a time, while other tabs stay connected.
 
 ## Slice 1 Landing page and runnable application
 
@@ -94,7 +94,7 @@ Postgres compatibility, importing old data, multiple app replicas, and network-f
 
 **Outcome:** A user can upload credentials once and reuse them.
 
-Provide a key-management modal for uploading, naming, listing, and deleting SSH keys. Persist encrypted private keys in SQLite. Generate an application encryption key on first initialization and persist it in a separate Docker volume; keep it out of the database and repository. Decrypt SSH keys on the server only when needed.
+Provide an SSH Keys page for listing and deleting keys, with a right-side drawer for uploading and naming them. Persist encrypted private keys in SQLite. Generate an application encryption key on first initialization and persist it in a separate Docker volume; keep it out of the database and repository. Decrypt SSH keys on the server only when needed.
 
 **Acceptance criteria**
 
@@ -154,7 +154,7 @@ Add an optional Jump through selection to saved connections. It references anoth
 
 **Outcome:** A user can import the supplied lab configuration instead of entering each host manually.
 
-The import modal parses a supported subset of SSH config, previews discovered connections, lets users choose entries, maps identity references to uploaded keys, and confirms before saving.
+The import drawer parses a supported subset of SSH config, previews discovered connections, lets users choose entries, maps identity references to uploaded keys, and confirms before saving.
 
 Supported directives are `Host`, `HostName`, `User`, `Port`, `IdentityFile`, and a single `ProxyJump`. This is a limited importer, not full OpenSSH configuration compatibility. The precise syntax, limits, and mapping rules are defined in [API ADR 022](adr/api/022-ssh-config-import.md).
 

@@ -2,9 +2,9 @@
 
 A Go and React browser SSH gateway in development. The frontend has a landing
 page at `/`, passkey account access at `/login`, and a protected
-workspace at `/connections`. SSH key management and the Docker bastion are
+terminal workspace at `/workspace`, saved connections at `/connections`, and SSH keys at `/keys`. SSH key management and the Docker bastion are
 implemented, along with saved-connection forms, editing, confirmed deletion,
-a reviewed SSH config importer, and a Connect picker. The empty workspace explains the local demo setup.
+a reviewed SSH config importer, and a Connect picker. The empty Connections page explains the local demo setup. Forms and connection selection use right-side drawers.
 The picker inspects SSH host fingerprints and asks for approval before trusting
 an unfamiliar host. Once verified, **Open terminal** opens an interactive shell
 in the workspace. One terminal is supported at a time; close it before opening
@@ -21,10 +21,10 @@ the updated API against an existing database.
 ## Import the lab SSH config
 
 1. Start the app with `make up` (development), or follow [Demo with Docker](#demo-with-docker). All three SSH hosts must be running: `docker compose up --build -d --wait bastion target-1 target-2` starts them separately if needed.
-2. Register or sign in with your passkey. In **Manage SSH keys**, upload [demo/keys/demo_ed25519](demo/keys/demo_ed25519). This intentionally public key is only for the disposable lab.
-3. Choose **Import SSH config** and select [demo/ssh_config](demo/ssh_config). Preview lists `bastion`, `target-1`, and `target-2`, with their endpoints and identity hints. Keep all three selected and choose your uploaded demo key for each host. The targets use the selected `bastion` entry as their jump.
+2. Register or sign in with your passkey. Open **SSH Keys** in the navbar, choose **Upload SSH key**, and upload [demo/keys/demo_ed25519](demo/keys/demo_ed25519). This intentionally public key is only for the disposable lab.
+3. Open **Connections** and choose **Import SSH config** and select [demo/ssh_config](demo/ssh_config). Preview lists `bastion`, `target-1`, and `target-2`, with their endpoints and identity hints. Keep all three selected and choose your uploaded demo key for each host. The targets use the selected `bastion` entry as their jump.
 4. Choose **Check selection**, review the settings, then **Confirm import**. Closing with **Cancel** before confirmation saves nothing. Changing a selection or mapping requires another check. Confirmation revalidates current ownership, names, keys, and jumps and saves all selected entries together.
-5. Choose **Connect**, select `bastion`, compare and approve its fingerprint, and choose **Open terminal**. Run `cat /host-info.txt`; expect `Bastion host: bastion`. Close the terminal and repeat with each target; expect `Private target: target-1` and `Private target: target-2`. Each target has its own fingerprint approval. The UI currently supports one terminal at a time.
+5. Open **Workspace** and choose **Connect**, select `bastion`, compare and approve its fingerprint, and choose **Open terminal**. Run `cat /host-info.txt`; expect `Bastion host: bastion`. Close the terminal and repeat with each target; expect `Private target: target-1` and `Private target: target-2`. Each target has its own fingerprint approval. The UI currently supports one terminal at a time.
 
 To obtain fingerprints from the lab's host-key volumes for comparison:
 
@@ -120,7 +120,7 @@ shell ends. **Reconnect** reloads the current saved configuration and opens host
 verification again; **Open terminal** replaces the ended terminal with a fresh
 shell. Previous output, commands, and working directory are not restored. A
 deleted configuration cannot be reconnected. **Close terminal** releases the
-browser resources. Leaving the workspace or confirmed
+browser resources. Switching between Workspace, Connections, and SSH Keys preserves the live shell and its output. Leaving the signed-in area, closing the browser page, or confirmed
 session cleanup closes its socket. There is no automatic reconnect or shell
 restoration. The terminal retains 1,000 scrollback lines and disconnects if its
 pending input/output queue exceeds 1 MiB.
@@ -739,7 +739,7 @@ paths outside source control and initialize/migrate while the app is stopped.
 
 ### SSH key-management API
 
-To try the key-management modal, follow the [demo key upload steps](demo/keys/README.md#upload).
+To try the SSH Keys page, follow the [demo key upload steps](demo/keys/README.md#upload).
 The supplied key is intentionally public and only for the disposable local lab.
 
 All key endpoints require a signed-in session. Upload and delete also require
@@ -770,7 +770,7 @@ with those connections.
 ### Verify uploaded-key persistence
 
 Upload the [demo key](demo/keys/README.md#upload) and note its name, fingerprint,
-and creation time in **Manage SSH keys**. Recreate the app for the mode you are
+and creation time in **SSH Keys**. Recreate the app for the mode you are
 running, retaining both volumes:
 
 ```sh
@@ -781,7 +781,7 @@ docker compose -f compose.yaml -f compose.dev.yaml up -d --no-deps --force-recre
 docker compose up -d --no-deps --force-recreate --wait app
 ```
 
-Wait for the server to start, refresh the workspace, and reopen **Manage SSH keys**.
+Wait for the server to start, refresh the workspace, and reopen **SSH Keys**.
 Sign in again if your session has expired. The saved metadata should be unchanged;
 there should be no need to upload again. Successful backend startup also means
 its decryption check passed for every stored key. Actual SSH authentication is
@@ -801,7 +801,7 @@ for a valid session and existing account in the configured RP. Anonymous, invali
 or expired sessions return 401; session/database failures return 503. Identity
 responses are not cached by HTTP and do not extend the session lifetime.
 
-The `/connections` route checks this endpoint before rendering and redirects
+The protected `/workspace`, `/connections`, and `/keys` routes check this endpoint before rendering and redirects
 signed-out users to `/login`. Signed-in users visiting `/login` return to the
 workspace. Connection failures show a retry screen; account recovery remains
 unavailable. The workspace rechecks the session every 30 seconds while visible

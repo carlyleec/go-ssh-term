@@ -47,7 +47,7 @@ function LoginPage() {
     queryClient.removeQueries({
       queryKey: queries.auth.currentUser.queryKey,
     })
-    await navigate({ to: '/connections', replace: true })
+    await navigate({ to: '/workspace', replace: true })
   }
 
   const form = useForm({
@@ -84,7 +84,7 @@ function LoginPage() {
             : ''}
       </p>
       {access.isSuccess && (
-        <Link to="/connections" className="link">
+        <Link to="/workspace" className="link">
           Open workspace
         </Link>
       )}
@@ -181,7 +181,7 @@ function LoginPage() {
 
 export async function redirectSignedIn(queryClient: QueryClient) {
   const account = await queryClient.fetchQuery(queries.auth.currentUser)
-  if (account) throw redirect({ to: '/connections', replace: true })
+  if (account) throw redirect({ to: '/workspace', replace: true })
 }
 
 export function accessErrorMessage(error: Error): string {

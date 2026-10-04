@@ -35,6 +35,29 @@ function App() {
           <Link to="/" className="text-lg font-bold tracking-tight">
             Browser SSH Gateway
           </Link>
+          {account && (
+            <div className="order-last flex w-full flex-wrap items-center gap-1 sm:order-none sm:w-auto">
+              {(
+                [
+                  ['/workspace', 'Workspace'],
+                  ['/connections', 'Connections'],
+                  ['/keys', 'SSH Keys'],
+                ] as const
+              ).map(([to, label]) => (
+                <Link
+                  key={to}
+                  to={to}
+                  className="btn btn-ghost btn-sm"
+                  activeProps={{
+                    className: 'bg-base-300 text-primary',
+                    'aria-current': 'page',
+                  }}
+                >
+                  {label}
+                </Link>
+              ))}
+            </div>
+          )}
           {account ? (
             <fieldset
               aria-label="Account"

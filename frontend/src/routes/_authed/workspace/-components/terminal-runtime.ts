@@ -119,7 +119,7 @@ export function mountTerminal(
       send(bytes.subarray(offset, offset + dataLimit))
   }
   function resize() {
-    if (ended || disposed) return
+    if (ended || disposed || container.closest('[hidden]')) return
     const dimensions = fit.proposeDimensions()
     if (!dimensions) return
     const cols = Math.max(1, Math.min(1000, dimensions.cols))

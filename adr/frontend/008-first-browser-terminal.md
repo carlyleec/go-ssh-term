@@ -1,6 +1,6 @@
 # Attach a disposable xterm.js terminal to the workspace
 
-Status: Accepted; implements the first terminal from
+Status: Accepted; route ownership and navigation disposal updated by [009](009-workspace-navigation-and-drawers.md); implements the first terminal from
 [the terminal workspace decision](002-terminal-workspace.md).
 
 ## Decision

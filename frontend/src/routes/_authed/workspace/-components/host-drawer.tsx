@@ -4,7 +4,7 @@ import { ApiError } from '~/api/apiClient'
 import queries, { type SavedConnection } from '~/api/queries'
 import { Button } from '~/components/button'
 
-export function HostModal({
+export function HostDrawer({
   accountID,
   connection,
   onClose,
@@ -81,15 +81,15 @@ export function HostModal({
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className="side-drawer"
       aria-labelledby="host-title"
       onClose={onClose}
       onCancel={(event) => {
         if (busy || active.current) event.preventDefault()
       }}
     >
-      <div className="modal-box max-w-2xl">
-        <div className="flex items-center justify-between gap-4">
+      <div className="drawer-panel">
+        <div className="drawer-heading">
           <h2 id="host-title" className="text-2xl font-bold">
             Verify SSH host
           </h2>
@@ -132,45 +132,17 @@ export function HostModal({
             <p>Presented key ({view.algorithm})</p>
             <p className="break-all font-mono">{view.fingerprint}</p>
             {view.state === 'unknown' && (
-              <>
-                <p>
-                  This host is not trusted yet. Compare this fingerprint with
-                  the host’s trusted configuration before approving. No SSH
-                  login has been attempted to this host.
-                </p>
-                <div className="flex flex-wrap gap-3">
-                  <Button
-                    type="button"
-                    className="btn-primary"
-                    disabled={busy}
-                    onClick={() => void decide('approve')}
-                  >
-                    {approve.isPending ? 'Approving…' : 'Approve fingerprint'}
-                  </Button>
-                  <Button
-                    type="button"
-                    className="btn-outline"
-                    disabled={busy}
-                    onClick={() => dialog.current?.close()}
-                  >
-                    Reject and close
-                  </Button>
-                </div>
-              </>
+              <p>
+                This host is not trusted yet. Compare this fingerprint with the
+                host’s trusted configuration before approving. No SSH login has
+                been attempted to this host.
+              </p>
             )}
             {view.state === 'trusted' && !view.jump_connection_id && (
               <div>
                 <p role="status">
                   Host fingerprint verified. Ready to open a shell.
                 </p>
-                <Button
-                  type="button"
-                  className="btn-primary mt-3"
-                  disabled={busy}
-                  onClick={onConnect}
-                >
-                  Open terminal
-                </Button>
               </div>
             )}
             {view.state === 'changed' && (
@@ -190,37 +162,8 @@ export function HostModal({
                       endpoint? Every saved connection to this endpoint will
                       require fresh approval. This does not approve the new key.
                     </p>
-                    <div className="mt-3 flex flex-wrap gap-3">
-                      <Button
-                        type="button"
-                        className="btn-error"
-                        disabled={busy}
-                        onClick={() => void decide('reset')}
-                      >
-                        {reset.isPending ? 'Resetting…' : 'Confirm trust reset'}
-                      </Button>
-                      <Button
-                        type="button"
-                        disabled={busy}
-                        onClick={() => setConfirmReset(false)}
-                      >
-                        Cancel reset
-                      </Button>
-                    </div>
                   </div>
-                ) : (
-                  <Button
-                    type="button"
-                    className="btn-outline"
-                    disabled={busy}
-                    onClick={() => {
-                      reset.reset()
-                      setConfirmReset(true)
-                    }}
-                  >
-                    Reset host trust
-                  </Button>
-                )}
+                ) : null}
               </>
             )}
           </div>
@@ -230,19 +173,83 @@ export function HostModal({
             {approve.error?.message ?? reset.error?.message}
           </p>
         )}
-        <Button
-          type="button"
-          className="btn-outline mt-5"
-          disabled={busy || host.isFetching}
-          onClick={() => {
-            approve.reset()
-            reset.reset()
-            setConfirmReset(false)
-            void host.refetch()
-          }}
-        >
-          Inspect again
-        </Button>
+        <div className="drawer-actions">
+          {view?.state === 'unknown' && (
+            <>
+              <Button
+                type="button"
+                className="btn-primary"
+                disabled={busy}
+                onClick={() => void decide('approve')}
+              >
+                {approve.isPending ? 'Approving…' : 'Approve fingerprint'}
+              </Button>
+              <Button
+                type="button"
+                className="btn-outline"
+                disabled={busy}
+                onClick={() => dialog.current?.close()}
+              >
+                Reject and close
+              </Button>
+            </>
+          )}
+          {view?.state === 'trusted' && !view.jump_connection_id && (
+            <Button
+              type="button"
+              className="btn-primary"
+              disabled={busy}
+              onClick={onConnect}
+            >
+              Open terminal
+            </Button>
+          )}
+          {view?.state === 'changed' &&
+            (confirmReset ? (
+              <>
+                <Button
+                  type="button"
+                  className="btn-error"
+                  disabled={busy}
+                  onClick={() => void decide('reset')}
+                >
+                  {reset.isPending ? 'Resetting…' : 'Confirm trust reset'}
+                </Button>
+                <Button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => setConfirmReset(false)}
+                >
+                  Cancel reset
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                className="btn-outline"
+                disabled={busy}
+                onClick={() => {
+                  reset.reset()
+                  setConfirmReset(true)
+                }}
+              >
+                Reset host trust
+              </Button>
+            ))}
+          <Button
+            type="button"
+            className="btn-outline"
+            disabled={busy || host.isFetching}
+            onClick={() => {
+              approve.reset()
+              reset.reset()
+              setConfirmReset(false)
+              void host.refetch()
+            }}
+          >
+            Inspect again
+          </Button>
+        </div>
       </div>
     </dialog>
   )

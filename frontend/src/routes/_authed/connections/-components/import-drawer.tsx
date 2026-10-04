@@ -8,7 +8,7 @@ import type {
 import queries from '~/api/queries'
 import { Button } from '~/components/button'
 
-export function ImportModal({
+export function ImportDrawer({
   accountID,
   onClose,
   onImported,
@@ -142,17 +142,27 @@ export function ImportModal({
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className="side-drawer"
       aria-labelledby="import-title"
       onClose={onClose}
       onCancel={(event) => {
         if (active.current) event.preventDefault()
       }}
     >
-      <div className="modal-box max-w-3xl">
-        <h2 id="import-title" className="text-xl font-semibold">
-          Import SSH config
-        </h2>
+      <div className="drawer-panel drawer-panel-wide">
+        <div className="drawer-heading">
+          <h2 id="import-title" className="text-xl font-semibold">
+            Import SSH config
+          </h2>
+          <Button
+            type="button"
+            className="btn-ghost"
+            disabled={busy}
+            onClick={() => dialog.current?.close()}
+          >
+            Close
+          </Button>
+        </div>
         <p className="mt-3">
           Choose demo/ssh_config or a supported config file (64 KiB maximum).
           Nothing is saved until you confirm.
@@ -365,7 +375,7 @@ export function ImportModal({
             )}
           </>
         )}
-        <div className="modal-action flex-wrap">
+        <div className="drawer-actions">
           <Button
             type="button"
             className="btn-outline"

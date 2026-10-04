@@ -19,6 +19,7 @@ import type { SavedConnection } from '~/api/queries'
 import { routeTree } from '~/routetree.gen'
 import { mockFetch } from '../mock-fetch'
 import {
+  FakeObserver,
   FakeSocket,
   FakeTerminal,
   installTerminals,
@@ -229,7 +230,9 @@ test('empty demo instructions, create, edit, picker, and confirmed deletion', as
   save()
   await screen.findByRole('button', { name: 'Edit Renamed' })
   expect(saved).toBe(2)
-  fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Workspace' }))
+  await screen.findByRole('heading', { name: 'Workspace' })
+  fireEvent.click(await screen.findByRole('button', { name: 'Connect' }))
   const picker = await screen.findByRole('dialog', {
     name: 'Choose a connection',
   })
@@ -239,7 +242,8 @@ test('empty demo instructions, create, edit, picker, and confirmed deletion', as
     await screen.findByRole('button', { name: 'Reject and close' }),
   )
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  fireEvent.click(screen.getByRole('button', { name: 'Delete Renamed' }))
+  fireEvent.click(screen.getByRole('link', { name: 'Connections' }))
+  fireEvent.click(await screen.findByRole('button', { name: 'Delete Renamed' }))
   expect(deleted).toBe(0)
   fireEvent.click(screen.getByRole('button', { name: 'Cancel deletion' }))
   expect(deleted).toBe(0)
@@ -287,7 +291,7 @@ test('no keys directs to key management and disables saving', async () => {
       name: 'Manage SSH keys',
     }),
   )
-  await screen.findByRole('dialog', { name: 'SSH keys' })
+  await screen.findByRole('heading', { name: 'SSH Keys' })
 })
 
 test('list and save failures allow manual retry without losing form values', async () => {
@@ -417,7 +421,14 @@ test('a save finishing after session cleanup cannot restore private query data',
 async function inspectHost() {
   records = [record]
   await open()
-  await screen.findByRole('button', { name: 'Edit Local bastion' })
+  fireEvent.click(screen.getByRole('link', { name: 'Workspace' }))
+  await screen.findByRole('heading', { name: 'Workspace' })
+  await waitFor(() =>
+    expect(
+      (screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(false),
+  )
   fireEvent.click(screen.getByRole('button', { name: 'Connect' }))
   const picker = await screen.findByRole('dialog', {
     name: 'Choose a connection',
@@ -840,4 +851,45 @@ test('jump list errors retry without discarding inputs and pending saves freeze 
   expect(
     records.find((item) => item.id === record.id)?.jump_connection_id,
   ).toBe(jumpRecord.id)
+})
+
+test('management and home navigation preserve a live terminal until page departure', async () => {
+  hostState = 'trusted'
+  await inspectHost()
+  fireEvent.click(await screen.findByRole('button', { name: 'Open terminal' }))
+  await waitFor(() => expect(FakeSocket.instances).toHaveLength(1))
+  const socket = FakeSocket.instances[0]
+  const terminal = FakeTerminal.instances[0]
+  if (!socket || !terminal) throw new Error('Terminal was not initialized')
+  act(() => {
+    socket.open()
+    socket.status('connected')
+  })
+  const initialResizes = terminal.sizes.length
+  for (const name of ['Connections', 'SSH Keys']) {
+    fireEvent.click(screen.getByRole('link', { name }))
+    await screen.findByRole('heading', { name, level: 1 })
+    expect(
+      screen.queryByRole('region', { name: 'Terminal for Local bastion' }),
+    ).toBeNull()
+    expect(socket.closed).toBe(0)
+    expect(terminal.disposed).toBe(false)
+    act(() => FakeObserver.instances[0]?.callback())
+    expect(terminal.sizes).toHaveLength(initialResizes)
+    act(() => socket.message(new Uint8Array([65]).buffer))
+  }
+  expect(terminal.writes).toHaveLength(2)
+  fireEvent.click(screen.getByRole('link', { name: 'Workspace' }))
+  await screen.findByRole('region', { name: 'Terminal for Local bastion' })
+  expect(FakeSocket.instances).toHaveLength(1)
+  expect(FakeTerminal.instances[0]).toBe(terminal)
+  act(() => FakeObserver.instances[0]?.callback())
+  expect(terminal.sizes).toHaveLength(initialResizes + 1)
+  fireEvent.click(screen.getByRole('link', { name: 'Browser SSH Gateway' }))
+  await screen.findByRole('heading', { name: 'Workspace', level: 1 })
+  expect(socket.closed).toBe(0)
+  expect(FakeSocket.instances).toHaveLength(1)
+  act(() => window.dispatchEvent(new Event('pagehide')))
+  expect(socket.closed).toBe(1)
+  expect(terminal.disposed).toBe(true)
 })

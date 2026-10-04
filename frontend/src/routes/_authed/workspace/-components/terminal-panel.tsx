@@ -86,9 +86,10 @@ export function TerminalPanel({
         <div ref={container} className="h-[55vh] min-h-64" />
       </div>
       <p className="px-4 py-3 text-sm text-base-content/75">
-        Close this terminal before opening another. Leaving this page ends the
-        shell. Reconnect starts a fresh shell without previous output, commands,
-        or working directory.
+        Close this terminal before opening another. Switching between Workspace,
+        Connections, and SSH Keys keeps the shell running. Leaving the signed-in
+        area or closing the browser page ends it. Reconnect starts a fresh shell
+        without previous output, commands, or working directory.
       </p>
     </section>
   )

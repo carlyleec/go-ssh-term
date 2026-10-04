@@ -8,6 +8,7 @@ import {
 import { useEffect, useRef } from 'react'
 import queries from '~/api/queries'
 import { AccessError, AccessPending } from '~/components/access-status'
+import { TerminalWorkspace } from './-components/terminal-workspace'
 
 export const Route = createFileRoute('/_authed')({
   beforeLoad: ({ context }) => requireAccount(context.queryClient),
@@ -45,7 +46,11 @@ function AuthedLayout() {
     )
   if (currentUser.isError) return <AccessError />
   if (!currentUser.data) return <AccessPending />
-  return <Outlet />
+  return (
+    <TerminalWorkspace key={currentUser.data.id}>
+      <Outlet />
+    </TerminalWorkspace>
+  )
 }
 
 export async function requireAccount(queryClient: QueryClient) {

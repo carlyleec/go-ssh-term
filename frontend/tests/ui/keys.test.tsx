@@ -107,10 +107,10 @@ afterEach(async () => {
   globalThis.fetch = originalFetch
 })
 
-async function openKeys() {
+async function openKeys(upload = true) {
   const router = createRouter({
     routeTree,
-    history: createMemoryHistory({ initialEntries: ['/connections'] }),
+    history: createMemoryHistory({ initialEntries: ['/keys'] }),
     context: { queryClient: client },
   })
   await act(async () => {
@@ -123,10 +123,12 @@ async function openKeys() {
     )
     await router.load()
   })
-  fireEvent.click(
-    await screen.findByRole('button', { name: 'Manage SSH keys' }),
-  )
-  await screen.findByRole('dialog', { name: 'SSH keys' })
+  if (upload && listStatus !== 401) {
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Upload SSH key' }),
+    )
+    await screen.findByRole('dialog', { name: 'Upload SSH key' })
+  }
 }
 
 function fill(file = new File(['private material'], 'lab')) {
@@ -149,10 +151,7 @@ test('uploads multipart data, clears the file and name, lists metadata, and conf
   await submit()
   await screen.findByText(metadata.public_fingerprint)
   expect(uploads).toBe(1)
-  expect((screen.getByLabelText('Key name') as HTMLInputElement).value).toBe('')
-  expect(
-    (screen.getByLabelText('Private-key file') as HTMLInputElement).value,
-  ).toBe('')
+  expect(screen.queryByRole('dialog')).toBeNull()
   expect(document.body.textContent).not.toContain('private material')
   fireEvent.click(screen.getByRole('button', { name: 'Delete Lab' }))
   expect(deletes).toBe(0)
@@ -218,7 +217,7 @@ test('pending uploads disable competing actions and duplicate submission', async
 test('list and deletion failures remain retryable', async () => {
   listStatus = 503
   records = [metadata]
-  await openKeys()
+  await openKeys(false)
   await screen.findByText('Could not list keys.')
   listStatus = 200
   fireEvent.click(screen.getByRole('button', { name: 'Retry key list' }))
@@ -239,7 +238,7 @@ test.each(['list', 'upload', 'delete'])(
   async (operation) => {
     records = [metadata]
     if (operation === 'list') listStatus = 401
-    await openKeys()
+    await openKeys(operation === 'upload')
     if (operation === 'upload') {
       uploadStatus = 401
       fill()
@@ -260,7 +259,7 @@ test('closing and reopening discards the upload form', async () => {
   fill()
   fireEvent.click(screen.getByRole('button', { name: 'Close' }))
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull())
-  fireEvent.click(screen.getByRole('button', { name: 'Manage SSH keys' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Upload SSH key' }))
   await screen.findByRole('dialog')
   expect((screen.getByLabelText('Key name') as HTMLInputElement).value).toBe('')
 })
@@ -275,7 +274,7 @@ test('shows list loading and prevents duplicate deletion while pending', async (
     finishDelete = resolve
   })
   records = [metadata]
-  await openKeys()
+  await openKeys(false)
   await screen.findByText('Loading keys…')
   await act(async () => finishList())
   fireEvent.click(await screen.findByRole('button', { name: 'Delete Lab' }))
@@ -285,8 +284,11 @@ test('shows list loading and prevents duplicate deletion while pending', async (
   })) as HTMLButtonElement
   expect(button.disabled).toBe(true)
   expect(
-    (screen.getByRole('button', { name: 'Upload key' }) as HTMLButtonElement)
-      .disabled,
+    (
+      screen.getByRole('button', {
+        name: 'Upload SSH key',
+      }) as HTMLButtonElement
+    ).disabled,
   ).toBe(true)
   fireEvent.click(button)
   expect(deletes).toBe(1)

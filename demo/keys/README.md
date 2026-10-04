@@ -16,8 +16,8 @@ for reaching private targets through a jump connection is still pending.
 1. Follow the root README's [development](../../README.md#development-with-docker)
    or [demo](../../README.md#demo-with-docker) startup instructions, including
    migrations. Open the documented localhost URL for that mode.
-2. Create an account with a passkey or sign in, then open the Connections workspace.
-3. Choose **Manage SSH keys**, enter a name such as **Local demo**, and select
+2. Create an account with a passkey or sign in, then open **SSH Keys** from the navbar.
+3. Choose **Upload SSH key**, enter a name such as **Local demo**, and select
    `demo/keys/demo_ed25519` as the **Private-key file**. Do not select the `.pub` file.
 4. Choose **Upload key**. The saved entry should show this public fingerprint:
 

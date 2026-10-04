@@ -50,7 +50,7 @@ export const connectionSchema = z.object({
   jump_connection_id: z.string(),
 })
 
-export function ConnectionModal({
+export function ConnectionDrawer({
   accountID,
   connection,
   onClose,
@@ -154,15 +154,15 @@ export function ConnectionModal({
   return (
     <dialog
       ref={dialog}
-      className="modal"
+      className="side-drawer"
       aria-labelledby="connection-title"
       onClose={onClose}
       onCancel={(event) => {
         if (active.current || busy) event.preventDefault()
       }}
     >
-      <div className="modal-box max-w-2xl">
-        <div className="flex items-center justify-between gap-4">
+      <div className="drawer-panel">
+        <div className="drawer-heading">
           <h2 id="connection-title" className="text-2xl font-bold">
             {connection ? 'Edit connection' : 'Add connection'}
           </h2>
@@ -180,7 +180,7 @@ export function ConnectionModal({
           future connections.
         </p>
         <form
-          className="mt-6 space-y-4"
+          className="mt-6 flex flex-1 flex-col gap-4"
           onSubmit={(event) => {
             event.preventDefault()
             if (!busy) void form.handleSubmit()
@@ -371,18 +371,20 @@ export function ConnectionModal({
               {save.error.message}
             </p>
           )}
-          <Button
-            type="submit"
-            className="btn-primary"
-            disabled={
-              busy ||
-              !keys.isSuccess ||
-              keys.data.length === 0 ||
-              !connections.isSuccess
-            }
-          >
-            {busy ? 'Saving…' : 'Save connection'}
-          </Button>
+          <div className="drawer-actions">
+            <Button
+              type="submit"
+              className="btn-primary"
+              disabled={
+                busy ||
+                !keys.isSuccess ||
+                keys.data.length === 0 ||
+                !connections.isSuccess
+              }
+            >
+              {busy ? 'Saving…' : 'Save connection'}
+            </Button>
+          </div>
         </form>
       </div>
     </dialog>

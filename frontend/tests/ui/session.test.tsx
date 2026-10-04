@@ -415,12 +415,28 @@ test('account dropdown replaces account access and dismisses with Escape', async
   expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
 })
 
-test('navbar sign-out clears private data from the public home page', async () => {
+test('authenticated home redirects to Workspace and sign-out clears private data', async () => {
   await open('/')
+  await screen.findByRole('heading', { name: 'Workspace', level: 1 })
+  expect(router.state.location.pathname).toBe('/workspace')
+  expect(
+    screen.queryByRole('heading', {
+      name: 'Your SSH workspace, in the browser.',
+    }),
+  ).toBeNull()
   fireEvent.click(await screen.findByRole('button', { name: 'Cam' }))
   client.setQueryData(['connections'], [{ host: 'private' }])
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
   await expectLogin()
   expect(client.getQueryData(['connections'])).toBeUndefined()
   expect(logouts).toBe(1)
+})
+
+test('anonymous home keeps the landing page', async () => {
+  signedIn = false
+  await open('/')
+  await screen.findByRole('heading', {
+    name: 'Your SSH workspace, in the browser.',
+  })
+  expect(router.state.location.pathname).toBe('/')
 })

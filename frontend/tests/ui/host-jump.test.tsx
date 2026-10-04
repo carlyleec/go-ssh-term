@@ -7,7 +7,7 @@ import {
   screen,
   waitFor,
 } from '@testing-library/react'
-import { HostModal } from '~/routes/_authed/connections/-components/host-modal'
+import { HostDrawer } from '~/routes/_authed/workspace/-components/host-drawer'
 import { mockFetch } from '../mock-fetch'
 
 const originalFetch = globalThis.fetch
@@ -86,7 +86,7 @@ afterEach(() => {
 function show() {
   render(
     <QueryClientProvider client={client}>
-      <HostModal
+      <HostDrawer
         accountID="owner"
         connection={target}
         onClose={() => {

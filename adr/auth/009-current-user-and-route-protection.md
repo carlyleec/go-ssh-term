@@ -25,7 +25,7 @@ requirement used by registration and login. SSH key-management endpoints use thi
 boundary as well; future handlers must also use it.
 
 Share one QueryClient between React and TanStack Router. Before entering the
-connections route, fetch current-user data with zero stale time and no automatic
+pathless `_authed` layout that wraps protected routes, fetch current-user data with zero stale time and no automatic
 retry. Redirect only a confirmed 401 to login; service and network failures show a
 retry screen. Redirect signed-in users away from login. After a successful passkey
 ceremony, discard prior current-user query state and navigate to the workspace,

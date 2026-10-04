@@ -1,9 +1,12 @@
 import { afterEach, expect, test } from 'bun:test'
 import { QueryClient } from '@tanstack/react-query'
-import { currentUserOptions } from '../src/auth/current-user'
-import { clearSessionData, logout } from '../src/auth/logout'
-import type { Account } from '../src/auth/passkeys'
+import type { Account } from '../src/api/queries'
+import queries from '../src/api/queries'
+import { clearSessionData } from '../src/routes/_authed/route'
 import { mockFetch } from './mock-fetch'
+
+const currentUserOptions = queries.auth.currentUser
+const logout = queries.auth.logout.mutationFn
 
 const originalFetch = globalThis.fetch
 let client = new QueryClient()
@@ -28,7 +31,10 @@ test('successful logout clears private cached data and marks current user anonym
     {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: new Headers({
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+      }),
       body: '{}',
       cache: 'no-store',
     },

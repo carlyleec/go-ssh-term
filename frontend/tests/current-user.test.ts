@@ -1,13 +1,13 @@
 import { afterEach, expect, test } from 'bun:test'
 import { QueryClient } from '@tanstack/react-query'
 import { isRedirect } from '@tanstack/react-router'
-import {
-  currentUserOptions,
-  redirectSignedIn,
-  requireAccount,
-} from '../src/auth/current-user'
-import type { Account } from '../src/auth/passkeys'
+import type { Account } from '../src/api/queries'
+import queries from '../src/api/queries'
+import { requireAccount } from '../src/routes/_authed/route'
+import { redirectSignedIn } from '../src/routes/login/index'
 import { mockFetch } from './mock-fetch'
+
+const currentUserOptions = queries.auth.currentUser
 
 const originalFetch = globalThis.fetch
 const clients: QueryClient[] = []
@@ -72,7 +72,9 @@ test('network failure and malformed identity never grant access', async () => {
   globalThis.fetch = mockFetch(async () => {
     throw new TypeError('offline')
   })
-  await expect(requireAccount(client())).rejects.toThrow('offline')
+  await expect(requireAccount(client())).rejects.toThrow(
+    'Could not reach the server',
+  )
   globalThis.fetch = mockFetch(async () => Response.json({ account: {} }))
   await expect(requireAccount(client())).rejects.toThrow('unexpected account')
 })

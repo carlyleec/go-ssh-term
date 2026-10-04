@@ -47,6 +47,8 @@ Number records independently within each area. Each record states its context, d
 
 - [006 Test session UI with real routes and mocked HTTP](frontend/006-rendered-session-tests.md)
 
+- [007 Organize the frontend by routes, shared components, and API modules](frontend/007-frontend-organization.md)
+
 ## Docker
 
 - [001 Provide an isolated OpenSSH lab with Compose](docker/001-compose-lab.md)

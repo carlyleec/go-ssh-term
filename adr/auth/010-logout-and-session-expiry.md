@@ -29,16 +29,18 @@ without relying on HTTP polling or database cleanup, and coordinate the logout
 callback with in-flight connection publication. The callback alone does not solve
 that race. There are no terminal resources or per-session timers to manage yet.
 
-The workspace observes the current-user query every 30 seconds while visible,
+The pathless `_authed` layout observes the current-user query every 30 seconds while visible,
 and refetches when the document becomes visible or the network reconnects.
 Confirmed 401 responses remove private UI, cancel pending queries, clear cached
 queries/mutations, and navigate to login. Network/server errors show a retry
 screen without treating the session as logged out. Browser timer throttling can
 delay UI updates in background tabs; server authorization always checks expiry.
 
-The logout mutation only makes the request. Its onSuccess handler clears cached
-data and navigates after confirmed server success. A separate effect handles
-session loss discovered by the current-user query. Neither path retries logout
+The API logout mutation only makes the request. After confirmed success, the
+`useAuth` hook cancels any in-flight account check and marks the session anonymous.
+The layout owns cleanup for logout and expiry: it observes anonymous current-user state,
+clears private data, and navigates to login for both logout and session expiry.
+Child pages use the same Query cache through `useAuth`. Neither path retries logout
 automatically or queues it for a later reconnect.
 
 ## Consequences

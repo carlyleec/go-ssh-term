@@ -14,10 +14,12 @@ import {
 } from '@tanstack/react-router'
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { StrictMode } from 'react'
-import { currentUserOptions } from '../../src/auth/current-user'
-import type { Account } from '../../src/auth/passkeys'
+import type { Account } from '../../src/api/queries'
+import queries from '../../src/api/queries'
 import { routeTree } from '../../src/routetree.gen'
 import { mockFetch } from '../mock-fetch'
+
+const currentUserOptions = queries.auth.currentUser
 
 const originalFetch = globalThis.fetch
 let client: QueryClient
@@ -134,7 +136,7 @@ function visibility(value: 'visible' | 'hidden') {
   document.dispatchEvent(new Event('visibilitychange', { bubbles: true }))
 }
 
-test('sign-out uses the real mutation success callback to clear data and replace navigation', async () => {
+test('confirmed sign-out triggers layout cleanup and replace navigation', async () => {
   await workspace()
   client.setQueryData(['connections'], [{ host: 'private' }])
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
@@ -189,7 +191,7 @@ test('route error retry renders the workspace after the service recovers', async
     await screen.findByRole('heading', { name: 'Could not check your session' })
     expect(caughtErrors).toHaveLength(1)
     expect(caughtErrors[0]).toEqual(
-      new Error('Could not check your session. Please try again.'),
+      expect.objectContaining({ status: 503, message: 'unavailable' }),
     )
     expect(router.state.location.pathname).toBe('/connections')
     status = 200
@@ -298,4 +300,47 @@ test('pending logout disables duplicate submission and waits for server success'
   })
   await expectLogin()
   expect(logouts).toBe(1)
+})
+
+test('a late account response cannot restore the session after logout', async () => {
+  await workspace()
+  client.setQueryData(['connections'], [{ host: 'private' }])
+  const api = globalThis.fetch
+  let finish!: () => void
+  let signal: AbortSignal | null | undefined
+  const pending = new Promise<void>((resolve) => {
+    finish = resolve
+  })
+  let delayNextRead = true
+  globalThis.fetch = mockFetch(async (input, init) => {
+    if (String(input) === '/api/auth/me' && delayNextRead) {
+      delayNextRead = false
+      signal = init?.signal
+      await pending
+      return Response.json({
+        account: { id: 'account-id', display_name: 'Cam' },
+      })
+    }
+    return api(input, init)
+  })
+
+  let revalidation!: Promise<void>
+  await act(async () => {
+    revalidation = client.refetchQueries({
+      queryKey: currentUserOptions.queryKey,
+    })
+  })
+  expect(signal).toBeDefined()
+  fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+  await expectLogin()
+  expect(signal?.aborted).toBe(true)
+
+  await act(async () => {
+    finish()
+    await pending
+    await revalidation
+  })
+  expect(client.getQueryData(currentUserOptions.queryKey)).toBeNull()
+  expect(client.getQueryData(['connections'])).toBeUndefined()
+  expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
 })

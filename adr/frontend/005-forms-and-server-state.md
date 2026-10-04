@@ -30,9 +30,8 @@ server errors, particularly the instruction to sign in after an account was save
 but its session could not be started. Explain cancellation without asserting that
 the browser distinguishes cancellation from timeout or denied permission.
 
-Keep page components in route files and extract focused auth helpers. Use existing
-Tailwind and daisyUI controls; do not introduce a general form-component framework
-for the initial display-name field. Pin dependencies and commit the Bun lockfile.
+Keep page components in route files and extract focused auth helpers. Organize
+API operations and shared Tailwind/daisyUI controls according to [007](007-frontend-organization.md); do not introduce a general form-component framework. Pin dependencies and commit the Bun lockfile.
 
 ## Consequences
 

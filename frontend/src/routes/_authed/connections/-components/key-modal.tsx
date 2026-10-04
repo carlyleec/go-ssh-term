@@ -1,15 +1,10 @@
 import { useForm } from '@tanstack/react-form'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
-import { currentUserOptions } from '../auth/current-user'
-import {
-  keyRequest,
-  listKeys,
-  SessionExpired,
-  type SSHKey,
-  validateKeyFile,
-  validateKeyName,
-} from './api'
+import { ApiError } from '../../../../api/apiClient'
+import queries, { type SSHKey } from '../../../../api/queries'
+import { Button } from '../../../../components/button'
+import { Input } from '../../../../components/input'
 
 export function KeyModal({
   accountID,
@@ -25,13 +20,8 @@ export function KeyModal({
   const mounted = useRef(false)
   const [confirmation, setConfirmation] = useState<SSHKey | null>(null)
   const [notice, setNotice] = useState('')
-  const queryKey = ['ssh-keys', accountID]
-  const keys = useQuery({
-    queryKey,
-    queryFn: ({ signal }) => listKeys(signal),
-    retry: false,
-    networkMode: 'always',
-  })
+  const queryKey = queries.keys.options(accountID).queryKey
+  const keys = queries.keys.useQuery(accountID)
 
   useEffect(() => {
     mounted.current = true
@@ -42,12 +32,12 @@ export function KeyModal({
   }, [])
 
   function expire(error: Error) {
-    if (mounted.current && error instanceof SessionExpired)
-      client.setQueryData(currentUserOptions.queryKey, null)
+    if (mounted.current && error instanceof ApiError && error.status === 401)
+      client.setQueryData(queries.auth.currentUser.queryKey, null)
   }
   useEffect(() => {
-    if (keys.error instanceof SessionExpired)
-      client.setQueryData(currentUserOptions.queryKey, null)
+    if (keys.error instanceof ApiError && keys.error.status === 401)
+      client.setQueryData(queries.auth.currentUser.queryKey, null)
   }, [keys.error, client])
 
   const form = useForm({
@@ -57,7 +47,7 @@ export function KeyModal({
       active.current = true
       setNotice('')
       try {
-        await upload.mutateAsync()
+        await upload.mutateAsync(form.state.values)
       } catch {
         // The mutation owns the visible error and leaves the form available for retry.
       } finally {
@@ -66,13 +56,7 @@ export function KeyModal({
     },
   })
   const upload = useMutation({
-    mutationFn: async () => {
-      const { name, file } = form.state.values
-      const body = new FormData()
-      body.append('name', name.trim())
-      if (file) body.append('private_key', file)
-      await keyRequest('', { method: 'POST', body })
-    },
+    ...queries.keys.upload,
     onSuccess: async () => {
       // A session check can unmount the modal while a mutation is in flight.
       if (!mounted.current) return
@@ -82,12 +66,9 @@ export function KeyModal({
       await client.invalidateQueries({ queryKey })
     },
     onError: expire,
-    retry: false,
-    networkMode: 'always',
   })
   const remove = useMutation({
-    mutationFn: (id: string) =>
-      keyRequest(`/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+    ...queries.keys.remove,
     onSuccess: async () => {
       if (!mounted.current) return
       setConfirmation(null)
@@ -95,8 +76,6 @@ export function KeyModal({
       await client.invalidateQueries({ queryKey })
     },
     onError: expire,
-    retry: false,
-    networkMode: 'always',
   })
   useEffect(() => () => form.reset(), [form])
 
@@ -117,14 +96,14 @@ export function KeyModal({
           <h2 id="keys-title" className="text-2xl font-bold">
             SSH keys
           </h2>
-          <button
+          <Button
             type="button"
-            className="btn btn-ghost"
+            className="btn-ghost"
             disabled={busy}
             onClick={() => dialog.current?.close()}
           >
             Close
-          </button>
+          </Button>
         </div>
         <p id="key-help" className="mt-4 text-sm text-base-content/75">
           Upload one unencrypted Ed25519 private key in OpenSSH format, at most
@@ -150,9 +129,9 @@ export function KeyModal({
                 <label htmlFor="key-name" className="mb-2 block font-medium">
                   Key name
                 </label>
-                <input
+                <Input
                   id="key-name"
-                  className="input w-full"
+                  className="w-full"
                   value={field.state.value}
                   disabled={busy}
                   onBlur={field.handleBlur}
@@ -182,11 +161,11 @@ export function KeyModal({
                 <label htmlFor="key-file" className="mb-2 block font-medium">
                   Private-key file
                 </label>
-                <input
+                <Input
                   ref={fileInput}
                   id="key-file"
                   type="file"
-                  className="file-input w-full"
+                  className="w-full"
                   disabled={busy}
                   onChange={(event) =>
                     field.handleChange(event.target.files?.[0] ?? null)
@@ -209,9 +188,9 @@ export function KeyModal({
               {upload.error.message}
             </p>
           )}
-          <button type="submit" className="btn btn-primary" disabled={busy}>
+          <Button type="submit" className="btn-primary" disabled={busy}>
             {upload.isPending ? 'Uploading…' : 'Upload key'}
-          </button>
+          </Button>
         </form>
         <p role="status" className="mt-4">
           {notice}
@@ -227,14 +206,14 @@ export function KeyModal({
             <p role="alert" className="text-error">
               {keys.error.message}
             </p>
-            <button
+            <Button
               type="button"
-              className="btn btn-outline mt-2"
+              className="btn-outline mt-2"
               disabled={keys.isFetching || busy}
               onClick={() => void keys.refetch()}
             >
               Retry key list
-            </button>
+            </Button>
           </div>
         )}
         {keys.data?.length === 0 && (
@@ -262,9 +241,9 @@ export function KeyModal({
                     </p>
                   )}
                   <div className="mt-3 flex gap-2">
-                    <button
+                    <Button
                       type="button"
-                      className="btn btn-error"
+                      className="btn-error"
                       disabled={busy}
                       onClick={() => {
                         if (active.current) return
@@ -278,21 +257,21 @@ export function KeyModal({
                       }}
                     >
                       {remove.isPending ? 'Deleting…' : 'Confirm deletion'}
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                       type="button"
-                      className="btn btn-ghost"
+                      className="btn-ghost"
                       disabled={busy}
                       onClick={() => setConfirmation(null)}
                     >
                       Cancel deletion
-                    </button>
+                    </Button>
                   </div>
                 </div>
               ) : (
-                <button
+                <Button
                   type="button"
-                  className="btn btn-outline btn-sm mt-3"
+                  className="btn-outline btn-sm mt-3"
                   disabled={busy}
                   aria-label={`Delete ${key.name}`}
                   onClick={() => {
@@ -301,7 +280,7 @@ export function KeyModal({
                   }}
                 >
                   Delete
-                </button>
+                </Button>
               )}
             </li>
           ))}
@@ -309,4 +288,20 @@ export function KeyModal({
       </div>
     </dialog>
   )
+}
+
+function validateKeyName(value: string) {
+  const name = value.trim()
+  if (!name) return 'Enter a name for this key.'
+  if ([...name].length > 64) return 'Use at most 64 characters.'
+  if (/\p{Cc}/u.test(name)) return 'The name cannot contain control characters.'
+  if (new TextEncoder().encode(value).length > 256)
+    return 'The name is too long. Remove extra whitespace.'
+  return undefined
+}
+
+function validateKeyFile(file: File | null) {
+  if (!file || file.size === 0) return 'Choose a private-key file.'
+  if (file.size > 16_384) return 'The private-key file must be at most 16 KiB.'
+  return undefined
 }

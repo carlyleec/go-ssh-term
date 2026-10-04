@@ -1,4 +1,5 @@
 import { Link, useRouter } from '@tanstack/react-router'
+import { Button } from './button'
 
 export function AccessPending() {
   return (
@@ -17,15 +18,15 @@ export function AccessError() {
         Check your connection and try again. The server may be temporarily
         unavailable.
       </p>
-      <button
+      <Button
         type="button"
-        className="btn btn-primary mt-6"
+        className="btn-primary mt-6"
         onClick={() => {
           void router.invalidate()
         }}
       >
         Try again
-      </button>
+      </Button>
       <Link to="/" className="btn btn-ghost mt-6 ml-3">
         Back to home
       </Link>

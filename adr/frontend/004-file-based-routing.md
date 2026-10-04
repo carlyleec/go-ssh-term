@@ -10,6 +10,7 @@ without manually maintaining a route tree.
 ## Decision
 
 Define routes under `frontend/src/routes` using TanStack Router's file conventions.
+Use directory-based routes and colocated components as specified in [007](007-frontend-organization.md).
 Keep page components in their route files and the shared layout on the root route.
 Use the Vite router plugin during development and the router CLI before type
 checking to generate `src/routetree.gen.ts`. Share generator settings through

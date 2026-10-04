@@ -1,6 +1,6 @@
 # Organize code by vertical slice
 
-Status: Accepted
+Status: Accepted for Go organization and incremental delivery; frontend folder organization is superseded by [Frontend 007](../frontend/007-frontend-organization.md).
 
 ## Context
 

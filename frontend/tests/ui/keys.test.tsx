@@ -14,8 +14,8 @@ import {
   waitFor,
 } from '@testing-library/react'
 import { StrictMode } from 'react'
+import type { SSHKey } from '../../src/api/queries'
 import { routeTree } from '../../src/routetree.gen'
-import type { SSHKey } from '../../src/sshkeys/api'
 import { mockFetch } from '../mock-fetch'
 
 const originalFetch = globalThis.fetch
@@ -61,7 +61,7 @@ beforeEach(() => {
       uploads++
       if (uploadStatus === 401) signedIn = false
       await uploadWait
-      expect(init.headers).toBeUndefined()
+      expect(new Headers(init.headers).has('Content-Type')).toBe(false)
       const body = init.body as FormData
       expect(body.get('name')).toBe('Lab')
       expect(body.get('private_key')).toBeInstanceOf(File)

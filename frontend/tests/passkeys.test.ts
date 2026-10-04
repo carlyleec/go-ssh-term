@@ -7,8 +7,11 @@ mock.module('@simplewebauthn/browser', () => ({
   startRegistration: registration,
   startAuthentication: authentication,
 }))
-const { accessWithPasskey, accessErrorMessage, validateDisplayName } =
-  await import('../src/auth/passkeys')
+const { default: queries } = await import('../src/api/queries')
+const accessWithPasskey = queries.auth.access.mutationFn
+const { accessErrorMessage, validateDisplayName } = await import(
+  '../src/routes/login/index'
+)
 const originalFetch = globalThis.fetch
 
 afterEach(() => {

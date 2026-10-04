@@ -1,18 +1,21 @@
 import { browserSupportsWebAuthn } from '@simplewebauthn/browser'
 import { useForm } from '@tanstack/react-form'
+import type { QueryClient } from '@tanstack/react-query'
 import { useMutation } from '@tanstack/react-query'
-import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
-import { useRef } from 'react'
-import { AccessError, AccessPending } from '../auth/access-status'
-import { currentUserOptions, redirectSignedIn } from '../auth/current-user'
 import {
-  type AccessAttempt,
-  accessErrorMessage,
-  accessWithPasskey,
-  validateDisplayName,
-} from '../auth/passkeys'
+  createFileRoute,
+  Link,
+  redirect,
+  useNavigate,
+} from '@tanstack/react-router'
+import { useRef } from 'react'
+import { ApiError } from '../../api/apiClient'
+import queries, { type AccessAttempt } from '../../api/queries'
+import { AccessError, AccessPending } from '../../components/access-status'
+import { Button } from '../../components/button'
+import { Input } from '../../components/input'
 
-export const Route = createFileRoute('/login')({
+export const Route = createFileRoute('/login/')({
   beforeLoad: ({ context }) => redirectSignedIn(context.queryClient),
   pendingComponent: AccessPending,
   errorComponent: AccessError,
@@ -24,12 +27,7 @@ function LoginPage() {
   const { queryClient } = Route.useRouteContext()
   const activeAttempt = useRef(false)
   const supported = window.isSecureContext && browserSupportsWebAuthn()
-  const access = useMutation({
-    mutationFn: accessWithPasskey,
-    retry: false,
-    // An interactive prompt must not be queued for a later network reconnect.
-    networkMode: 'always',
-  })
+  const access = useMutation(queries.auth.access)
 
   async function submit(attempt: AccessAttempt) {
     if (activeAttempt.current || !supported) return
@@ -42,8 +40,12 @@ function LoginPage() {
     } finally {
       activeAttempt.current = false
     }
-    await queryClient.cancelQueries({ queryKey: currentUserOptions.queryKey })
-    queryClient.removeQueries({ queryKey: currentUserOptions.queryKey })
+    await queryClient.cancelQueries({
+      queryKey: queries.auth.currentUser.queryKey,
+    })
+    queryClient.removeQueries({
+      queryKey: queries.auth.currentUser.queryKey,
+    })
     await navigate({ to: '/connections', replace: true })
   }
 
@@ -89,9 +91,9 @@ function LoginPage() {
         <p className="mt-2 text-sm text-base-content/75">
           Choose the passkey you used to create your account.
         </p>
-        <button
+        <Button
           type="button"
-          className="btn btn-primary mt-5 w-full"
+          className="btn-primary mt-5 w-full"
           disabled={disabled}
           onClick={() => {
             void submit({ kind: 'login' })
@@ -100,7 +102,7 @@ function LoginPage() {
           {access.isPending && access.variables?.kind === 'login'
             ? 'Signing in…'
             : 'Sign in with a passkey'}
-        </button>
+        </Button>
       </div>
       <form
         className="mt-6 rounded-box border border-base-300 p-6"
@@ -127,10 +129,10 @@ function LoginPage() {
               <label htmlFor={field.name} className="mb-2 block font-medium">
                 Display name
               </label>
-              <input
+              <Input
                 id={field.name}
                 name={field.name}
-                className="input w-full"
+                className="w-full"
                 autoComplete="nickname"
                 value={field.state.value}
                 disabled={disabled}
@@ -161,18 +163,47 @@ function LoginPage() {
         </p>
         <form.Subscribe selector={(state) => state.isSubmitting}>
           {(isSubmitting) => (
-            <button
+            <Button
               type="submit"
-              className="btn btn-outline mt-5 w-full"
+              className="btn-outline mt-5 w-full"
               disabled={disabled || isSubmitting}
             >
               {access.isPending && access.variables?.kind === 'register'
                 ? 'Creating account…'
                 : 'Create account with a passkey'}
-            </button>
+            </Button>
           )}
         </form.Subscribe>
       </form>
     </section>
   )
+}
+
+export async function redirectSignedIn(queryClient: QueryClient) {
+  const account = await queryClient.fetchQuery(queries.auth.currentUser)
+  if (account) throw redirect({ to: '/connections', replace: true })
+}
+
+export function accessErrorMessage(error: Error): string {
+  if (error instanceof ApiError) {
+    if (error.status === 0 || (error.status >= 200 && error.status < 300))
+      return `${error.message} If you just created a passkey, try signing in first.`
+    return error.message
+  }
+  const cause = error.cause instanceof Error ? error.cause : error
+  if (cause.name === 'NotAllowedError' || cause.name === 'AbortError') {
+    return 'The passkey prompt was cancelled, timed out, or was not allowed. Try again when you’re ready.'
+  }
+  if (cause.name === 'InvalidStateError')
+    return 'This passkey may already be registered. Try signing in instead.'
+  if (cause.name === 'SecurityError')
+    return 'Passkeys are unavailable at this address. Use the documented localhost URL or HTTPS.'
+  return 'Could not use your passkey. Check that your browser and device support passkeys, then try again.'
+}
+
+export function validateDisplayName(value: string): string | undefined {
+  const name = value.trim()
+  if (!name || [...name].length > 64 || /\p{Cc}/u.test(name)) {
+    return 'Enter 1–64 characters without control characters.'
+  }
 }

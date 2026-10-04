@@ -59,8 +59,8 @@ terminal payloads or return raw SSH/storage errors in status messages.
 
 The endpoint attaches one [direct SSH shell](015-direct-terminal-shell.md) after
 verified dialing. Transport helpers are exercised with loopback peers.
-Login-session registry/expiry/logout enforcement after upgrade, complete bounded
-I/O cleanup, shutdown, heartbeat detection, auditing, and browser UI remain
-in the following terminal tasks.
+The [registry](016-login-owned-terminal-registry.md) enforces login ownership
+and expiry. Logout enforcement, complete bounded I/O cleanup, shutdown,
+heartbeat detection, auditing, and browser UI remain in the following tasks.
 
 Library behavior: [Gorilla WebSocket documentation](https://pkg.go.dev/github.com/gorilla/websocket).

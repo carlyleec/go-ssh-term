@@ -55,6 +55,6 @@ Initial trust depends on the user's fingerprint comparison.
 
 The picker currently performs host verification only. The backend
 [terminal path](../api/015-direct-terminal-shell.md) attaches a PTY and shell
-after dialing. Live registries, auditing, browser terminal UI, and session-bound
-lifetime management remain subsequent tasks. Trust decisions are not themselves
-terminal connection events.
+after dialing, with [login-owned handles and expiry](../api/016-login-owned-terminal-registry.md).
+Auditing, browser terminal UI, logout, and remaining lifetime management are
+subsequent tasks. Trust decisions are not themselves terminal connection events.

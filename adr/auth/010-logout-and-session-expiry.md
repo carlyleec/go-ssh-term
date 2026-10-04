@@ -27,7 +27,9 @@ before success. It is the integration point for invalidating a terminal owner.
 When terminals are introduced, their registry must enforce the supplied deadline
 without relying on HTTP polling or database cleanup, and coordinate the logout
 callback with in-flight connection publication. The callback alone does not solve
-that race. There are no terminal resources or per-session timers to manage yet.
+that race. The [terminal registry](../api/016-login-owned-terminal-registry.md)
+now enforces login ownership and absolute expiry for pending and live terminals;
+logout invalidation and publication coordination remain to be integrated.
 
 The pathless `_authed` layout observes the current-user query every 30 seconds while visible,
 and refetches when the document becomes visible or the network reconnects.

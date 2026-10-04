@@ -17,11 +17,18 @@ type terminalInput struct {
 
 // runTerminal owns this socket and SSH client until the shell or transport ends.
 // Input is bounded to one pending message; output uses direct, bounded writes.
-func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, accountID, id string) {
-	ctx, cancel := context.WithCancel(parent)
+func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, owner terminalOwner, id string) {
+	live, err := d.terminals.start(parent, owner)
+	if err != nil {
+		terminalSetupFailure(parent, socket, failure(401, "sign in to open a terminal"))
+		_ = socket.conn.Close()
+		return
+	}
+	ctx, cancel := live.ctx, live.cancel
 	var client *ssh.Client
 	var workers sync.WaitGroup
 	defer func() {
+		d.terminals.release(live)
 		cancel()
 		_ = socket.conn.Close()
 		if client != nil {
@@ -33,7 +40,7 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, acc
 	defer stopSocket()
 	input := make(chan terminalInput)
 	workers.Go(func() {
-		defer cancel()
+		defer func() { _ = d.terminals.close(owner, live.id); cancel() }()
 		for {
 			data, resize, err := socket.read()
 			if err != nil {
@@ -51,8 +58,7 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, acc
 	}
 	setupCtx, cancelSetup := context.WithTimeout(ctx, d.timeout)
 	defer cancelSetup()
-	var err error
-	client, _, err = d.Dial(setupCtx, accountID, id)
+	client, _, err = d.Dial(setupCtx, owner.accountID, id)
 	if err != nil {
 		terminalSetupFailure(ctx, socket, err)
 		return
@@ -81,6 +87,10 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, acc
 		return
 	}
 	cancelSetup()
+	if err := d.terminals.publish(owner, live.id, client, session, stdin); err != nil {
+		terminalSetupFailure(ctx, socket, failure(401, "login session is no longer available"))
+		return
+	}
 	if socket.writeStatus("connected", "") != nil {
 		return
 	}
@@ -110,9 +120,9 @@ func (d *Dialer) runTerminal(parent context.Context, socket *terminalSocket, acc
 			case event := <-input:
 				var err error
 				if event.resize != nil {
-					err = session.WindowChange(event.resize.Rows, event.resize.Cols)
+					err = d.terminals.resize(owner, live.id, event.resize.Rows, event.resize.Cols)
 				} else {
-					_, err = stdin.Write(event.data)
+					err = d.terminals.input(owner, live.id, event.data)
 				}
 				if err != nil {
 					reportFailure()

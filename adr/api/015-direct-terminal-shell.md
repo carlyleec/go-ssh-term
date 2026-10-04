@@ -47,7 +47,8 @@ The backend terminal endpoint now opens a real SSH shell after explicit trust.
 Controlled SSH/WebSocket peers verify the protocol and resource handoff. Native
 browser/xterm.js and Docker-bastion walkthroughs remain separate verification.
 
-Login-session registry ownership, logout/expiry enforcement after upgrade, and
+The [login-owned registry](016-login-owned-terminal-registry.md) tracks pending
+and live handles and enforces absolute expiry. Logout enforcement and
 server-shutdown coordination remain the following lifecycle tasks. Observing a
 close is not a heartbeat guarantee: silent peers and blocked SSH input still
 need bounded I/O/interrupt detection. Audit events and the browser terminal UI

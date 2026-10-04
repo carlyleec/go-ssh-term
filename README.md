@@ -54,9 +54,16 @@ sends safe `failed` status; remote exit drains output and sends `disconnected`.
 See the [shell decision](adr/api/015-direct-terminal-shell.md) for setup bounds
 and cleanup behavior. No automatic reconnect occurs.
 
-The picker remains a host-verification flow. Login-session registry ownership,
-logout/expiry cleanup after upgrade, shutdown coordination, auditing, and
-xterm.js integration are subsequent work.
+Each terminal has a distinct in-memory handle owned by the verified login
+session, including when several sockets use the same saved configuration.
+Input, resize, and close operations recheck that ownership. The absolute session
+deadline cancels pending setup and closes live shells; editing/deleting a saved
+configuration does not affect a running shell. See the
+[registry decision](adr/api/016-login-owned-terminal-registry.md).
+
+The picker remains a host-verification flow. Logout cleanup, shutdown
+coordination, remaining stalled-I/O handling, auditing, and xterm.js integration
+are subsequent work.
 
 ## SSH lab bastion
 

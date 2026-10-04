@@ -155,6 +155,13 @@ func dialFixture(t *testing.T) (fixture, *Dialer, ssh.Signer) {
 	access := auth.NewAccess(f.sessions, f.db, "localhost", origin)
 	sshkeys.NewHandler(f.db, encryption).Register(contract, access)
 	d := NewDialer(f.db, encryption)
+	t.Cleanup(func() {
+		d.terminals.mu.Lock()
+		defer d.terminals.mu.Unlock()
+		if len(d.terminals.entries) != 0 {
+			t.Errorf("terminal registry retained %d entries", len(d.terminals.entries))
+		}
+	})
 	d.Register(contract, access)
 	d.RegisterTerminal(mux, access, origin)
 	NewHandler(f.db).Register(contract, access)

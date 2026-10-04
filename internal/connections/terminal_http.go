@@ -22,6 +22,11 @@ func (d *Dialer) RegisterTerminal(mux *http.ServeMux, access *auth.Access, origi
 	}
 	endpoint := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		account, _ := auth.AccountFromContext(r.Context())
+		login, ok := auth.SessionFromContext(r.Context())
+		if !ok || login.ID == "" {
+			terminalHTTPError(w, 401, "sign in to continue")
+			return
+		}
 		_, err := d.owned(r.Context(), account.ID, r.PathValue("id"))
 		if err != nil {
 			safe := err.(*ConnectionErrorBody)
@@ -37,7 +42,7 @@ func (d *Dialer) RegisterTerminal(mux *http.ServeMux, access *auth.Access, origi
 			return
 		}
 		socket := newTerminalSocket(conn)
-		d.runTerminal(r.Context(), socket, account.ID, r.PathValue("id"))
+		d.runTerminal(r.Context(), socket, terminalOwner{accountID: account.ID, session: login}, r.PathValue("id"))
 	})
 	// Guard every request, including malformed handshakes without Upgrade headers.
 	mux.Handle("GET /api/connections/{id}/terminal", auth.RequireOrigin(origin, access.Require(endpoint)))

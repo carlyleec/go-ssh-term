@@ -26,10 +26,11 @@ type Dialer struct {
 	q          *queries.Queries
 	encryption *sshkeys.Encryption
 	timeout    time.Duration
+	terminals  *terminalRegistry
 }
 
 func NewDialer(db *sql.DB, encryption *sshkeys.Encryption) *Dialer {
-	return &Dialer{db: db, q: queries.New(db), encryption: encryption, timeout: SSHSetupTimeout}
+	return &Dialer{db: db, q: queries.New(db), encryption: encryption, timeout: SSHSetupTimeout, terminals: newTerminalRegistry()}
 }
 
 func (d *Dialer) owned(ctx context.Context, accountID, id string) (queries.SavedConnection, error) {

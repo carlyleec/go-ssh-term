@@ -12,6 +12,8 @@ Run the application, one Ubuntu OpenSSH bastion, and two Ubuntu OpenSSH private 
 
 Supply demo credentials, a matching sample SSH config, and a readable `/host-info.txt` on each host. Persist application data and encryption material in separate volumes. The deployment is local-only; configured external destinations may still be used if reachable.
 
+Persist the bastion's SSH host keys in a dedicated named volume shared by demo and development. Generate missing keys at startup and keep SSH configuration in the image. Ordinary container replacement preserves host identity; deleting the volume replaces that identity.
+
 ## Consequences
 
 The demo exercises real shells and SSH forwarding rather than a fake shell. Docker is required, and network isolation must be verified in the lab. Users can reset the environment by deleting volumes, but that destroys persisted data. Public deployment is outside v1.

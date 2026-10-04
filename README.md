@@ -20,8 +20,23 @@ docker compose up --build -d --wait bastion
 docker compose logs bastion
 ```
 
-Host keys currently live in the container and change when it is recreated.
-Persistent host keys are the next lab task. Private targets and browser terminal
+Host keys are generated on first startup in the `bastion-host-keys` volume,
+separate from the image and SSH configuration. Both Compose modes share this
+volume when using the same project name. Ordinary shutdown, image rebuilds, and
+container recreation preserve the keys and their fingerprints.
+
+To check persistence, run this fingerprint command before and after
+`docker compose up -d --force-recreate --wait bastion`; all three fingerprints
+should match:
+
+```sh
+docker compose exec bastion sh -c 'for key in /var/lib/ssh-host-keys/*_key.pub; do ssh-keygen -lf "$key"; done'
+```
+
+Deleting the volume deliberately replaces the bastion's identity on its next
+startup. Upgrading from the original container-only keys also changes its
+identity once; those old keys are not migrated. Clients that trusted the old
+identity will report a changed host key. Private targets and browser terminal
 access are still pending.
 
 ## Demo with Docker
@@ -55,8 +70,9 @@ docker compose down
 ```
 
 Ordinary shutdown preserves the `sqlite-data` directory volume, including the
-database and SQLite journal files, and the separate `encryption-key` volume.
-Demo and development use the same Compose project and both persistent volumes when run from this directory;
+database and SQLite journal files, the separate `encryption-key` volume, and
+the `bastion-host-keys` volume.
+Demo and development use the same Compose project and these persistent volumes when run from this directory;
 stop one mode before starting the other (`make down` for development,
 `docker compose down` for the demo). Do not add `--volumes` when switching modes.
 
@@ -319,7 +335,7 @@ modes, so this command works after either demo or development use:
 docker compose -f compose.yaml -f compose.dev.yaml down --volumes
 ```
 
-The reset removes `sqlite-data`, `encryption-key`, `go-mod`, `go-build`, `go-tmp`,
+The reset removes `sqlite-data`, `encryption-key`, `bastion-host-keys`, `go-mod`, `go-build`, `go-tmp`,
 `frontend-deps`, `frontend-build`, and `bun-cache` for this Compose project.
 It preserves repository files, `.env`, host editor dependencies, and Docker
 images. If you used a custom Compose project name, use that same name for the

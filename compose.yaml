@@ -32,6 +32,8 @@ services:
     build:
       context: ./demo
       dockerfile: ssh/Dockerfile
+    volumes:
+      - bastion-host-keys:/var/lib/ssh-host-keys
     networks:
       - lab-gateway
     healthcheck:
@@ -67,3 +69,4 @@ networks:
 volumes:
   sqlite-data:
   encryption-key:
+  bastion-host-keys:

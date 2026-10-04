@@ -222,7 +222,8 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 
 - [x] **S6.1** Define the precise supported `Host` syntax and single-hop `ProxyJump` forms. Document unsupported wildcard, inheritance, and other OpenSSH behavior rather than silently approximating it.
   - API ADR 022 defines bounded strict parsing, explicit mappings, and atomic confirmation. Checked against saved-connection validation and single-hop ownership constraints.
-- [ ] **S6.2** Write the sample config for the bastion and private targets using `Host`, `HostName`, `User`, `Port`, `IdentityFile`, and a single `ProxyJump`.
+- [x] **S6.2** Write the sample config for the bastion and private targets using `Host`, `HostName`, `User`, `Port`, `IdentityFile`, and a single `ProxyJump`.
+  - Added demo/ssh_config; checked hostnames, port, user, and identity hint against Compose and the demo image/key.
 - [ ] **S6.3** Implement bounded upload and parsing into preview data. Report unsupported directives and syntax, including `ProxyCommand`, without executing commands or reading referenced filesystem paths.
 - [ ] **S6.4** Implement user-scoped name-conflict detection, identity-to-uploaded-key mapping, and jump resolution against selected entries or existing configurations.
 - [ ] **S6.5** Build the import modal with host selection, parsed settings, key mapping, jump resolution, conflict messages, and a confirmation action.

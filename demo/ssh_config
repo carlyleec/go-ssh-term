@@ -1,0 +1,21 @@
+# Browser SSH Gateway lab. Upload demo/keys/demo_ed25519 first.
+# IdentityFile is only a hint: explicitly select that uploaded key in preview.
+Host bastion
+    HostName bastion
+    User demo
+    Port 22
+    IdentityFile demo/keys/demo_ed25519
+
+Host target-1
+    HostName target-1
+    User demo
+    Port 22
+    IdentityFile demo/keys/demo_ed25519
+    ProxyJump bastion
+
+Host target-2
+    HostName target-2
+    User demo
+    Port 22
+    IdentityFile demo/keys/demo_ed25519
+    ProxyJump bastion

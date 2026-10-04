@@ -53,6 +53,8 @@ account/endpoint and survives saved-configuration deletion. DNS still determines
 the reachable address, while the approved host key establishes server identity.
 Initial trust depends on the user's fingerprint comparison.
 
-The picker currently performs host verification only. PTYs, browser transport,
-live registries, auditing, and session-bound lifetime management remain subsequent
-tasks. Trust decisions are not themselves terminal connection events.
+The picker currently performs host verification only. The backend
+[terminal path](../api/015-direct-terminal-shell.md) attaches a PTY and shell
+after dialing. Live registries, auditing, browser terminal UI, and session-bound
+lifetime management remain subsequent tasks. Trust decisions are not themselves
+terminal connection events.

@@ -54,6 +54,10 @@ func (p *peer) useKey(host, user ssh.Signer) {
 	p.config.Store(config)
 }
 func startPeer(t *testing.T, host, user ssh.Signer) *peer {
+	return startPeerChannels(t, host, user, nil)
+}
+
+func startPeerChannels(t *testing.T, host, user ssh.Signer, serve func(ssh.NewChannel)) *peer {
 	t.Helper()
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -84,10 +88,16 @@ func startPeer(t *testing.T, host, user ssh.Signer) *peer {
 				if err != nil {
 					return
 				}
-				defer server.Close()
+				channelsDone := make(chan struct{})
+				defer func() { _ = server.Close(); <-channelsDone }()
 				go func() {
+					defer close(channelsDone)
 					for channel := range chans {
-						_ = channel.Reject(ssh.Prohibited, "no shell in test")
+						if serve != nil {
+							serve(channel)
+						} else {
+							_ = channel.Reject(ssh.Prohibited, "no shell in test")
+						}
 					}
 				}()
 				for request := range requests {
@@ -146,6 +156,7 @@ func dialFixture(t *testing.T) (fixture, *Dialer, ssh.Signer) {
 	sshkeys.NewHandler(f.db, encryption).Register(contract, access)
 	d := NewDialer(f.db, encryption)
 	d.Register(contract, access)
+	d.RegisterTerminal(mux, access, origin)
 	NewHandler(f.db).Register(contract, access)
 	f.handler = mux
 	r := httptest.NewRequest("POST", "/api/keys", &body)

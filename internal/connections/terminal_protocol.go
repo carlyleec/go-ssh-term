@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"sync"
 	"time"
 	"unicode/utf8"
 
@@ -33,9 +34,12 @@ type terminalStatus struct {
 	Message string `json:"message,omitempty"`
 }
 
-// terminalSocket has one reader and one writer. Callers serialize output and
-// status writes; close may run concurrently. No terminal data is logged.
-type terminalSocket struct{ conn *websocket.Conn }
+// terminalSocket has one reader and serializes output/status writes, including
+// SSH stdout and stderr. Close may run concurrently. No terminal data is logged.
+type terminalSocket struct {
+	conn    *websocket.Conn
+	writeMu sync.Mutex
+}
 
 func newTerminalSocket(conn *websocket.Conn) *terminalSocket {
 	conn.SetReadLimit(terminalDataLimit)
@@ -106,6 +110,8 @@ func (s *terminalSocket) writeStatus(state, message string) error {
 }
 
 func (s *terminalSocket) write(kind int, payload []byte) error {
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
 	if err := s.conn.SetWriteDeadline(time.Now().Add(terminalWriteTimeout)); err != nil {
 		return err
 	}

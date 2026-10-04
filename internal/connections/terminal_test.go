@@ -73,8 +73,12 @@ func TestTerminalUpgradeGuards(t *testing.T) {
 			}
 			_ = conn.SetReadDeadline(time.Now().Add(time.Second))
 			kind, data, err := conn.ReadMessage()
-			if err != nil || kind != websocket.TextMessage || string(data) != `{"type":"status","state":"failed","message":"Terminal sessions are not available yet."}` {
+			if err != nil || kind != websocket.TextMessage || string(data) != `{"type":"status","state":"connecting"}` {
 				t.Fatalf("status: %s %v", data, err)
+			}
+			_, data, err = conn.ReadMessage()
+			if err != nil || string(data) != `{"type":"status","state":"failed","message":"approve the SSH host fingerprint before connecting"}` {
+				t.Fatalf("untrusted host: %s %v", data, err)
 			}
 			_, _, err = conn.ReadMessage()
 			if !websocket.IsCloseError(err, websocket.CloseNormalClosure) {

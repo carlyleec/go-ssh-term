@@ -22,8 +22,8 @@ Choose **Connect**, then a saved destination. Compare the displayed SHA-256
 fingerprint with a trusted source before choosing **Approve fingerprint**.
 **Reject and close** stores nothing. Inspection and approval stop before user
 authentication; approval is remembered for your account and that host/port.
-The reusable backend dialer supports key-based SSH login after approval. The
-WebSocket transport is defined, but connecting it to an SSH shell is still pending.
+The backend terminal endpoint supports key-based SSH login and a PTY-backed
+shell after approval. Connecting the picker to a browser terminal is still pending.
 
 A changed host key blocks connection. Verify why the identity changed first
 (for example, the lab host-key volume was intentionally replaced). In the
@@ -47,10 +47,16 @@ resize/status controls use JSON text up to 1 KiB. See the
 [protocol decision](adr/api/014-terminal-websocket-protocol.md) for message shapes,
 dimension limits, close codes, and write bounds.
 
-The endpoint currently sends `failed` with “Terminal sessions are not available
-yet.” and closes normally. It opens no SSH session. The picker remains a host
-verification flow; PTY forwarding, session lifetime management, and xterm.js
-integration are subsequent work.
+After upgrade, the endpoint sends `connecting`, verifies SSH host trust, opens
+an `xterm-256color` PTY (initially 80×24), starts a shell, and sends `connected`.
+Binary input/output and JSON resize events then reach the shell. Setup failure
+sends safe `failed` status; remote exit drains output and sends `disconnected`.
+See the [shell decision](adr/api/015-direct-terminal-shell.md) for setup bounds
+and cleanup behavior. No automatic reconnect occurs.
+
+The picker remains a host-verification flow. Login-session registry ownership,
+logout/expiry cleanup after upgrade, shutdown coordination, auditing, and
+xterm.js integration are subsequent work.
 
 ## SSH lab bastion
 

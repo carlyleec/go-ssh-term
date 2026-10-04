@@ -20,6 +20,7 @@ Number records independently within each area. Each record states its context, d
 - [012 Store connection configurations, endpoint trust, and audit snapshots separately](api/012-connection-storage.md)
 - [013 Expose owner-scoped saved connection operations](api/013-saved-connection-api.md)
 - [014 Bound and authenticate the terminal WebSocket transport](api/014-terminal-websocket-protocol.md)
+- [015 Attach one direct SSH shell to each terminal socket](api/015-direct-terminal-shell.md)
 
 ## Auth
 

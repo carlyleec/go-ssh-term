@@ -37,7 +37,7 @@ or live-session ID, and no multiplexing. Compression stays disabled.
 Status states are `connecting`, `connected`, `failed`, and `disconnected`.
 `connected` means the shell is ready, not merely that the WebSocket opened.
 `failed` describes setup failure; `disconnected` describes the end of a shell.
-The eventual shell handler sends a final status before closing when possible.
+The shell handler sends a final status before closing when possible.
 Transport loss may prevent final status delivery. Neither failure nor closure
 itself requests automatic reconnection.
 
@@ -50,18 +50,17 @@ limit; SSH output writers likewise use bounded chunks. Empty binary messages
 are valid no-ops. WebSocket ping/pong and close frames keep their standard meaning;
 explicit terminal close uses a WebSocket close, not a JSON command.
 
-Use one reader and one writer per socket, with callers serializing data/status
-writes. Read bounded payloads without output queues; bound each application
+Use one reader per socket and serialize data/status writes with a socket mutex.
+Read bounded payloads without output queues; bound each application
 write, close-frame write, and upgrade handshake to five seconds. Never log
 terminal payloads or return raw SSH/storage errors in status messages.
 
 ## Consequences
 
-The endpoint currently sends a safe `failed` status explaining that terminals
-are unavailable, then closes with 1000. It does not dial SSH, accept terminal
-input, or allocate a PTY yet. Transport helpers are exercised with loopback peers.
-Shell wiring, login-session registry/expiry/logout enforcement after upgrade,
-cancellation, shutdown, heartbeat detection, auditing, and browser UI remain
-in the following terminal tasks. This endpoint creates no long-lived resources.
+The endpoint attaches one [direct SSH shell](015-direct-terminal-shell.md) after
+verified dialing. Transport helpers are exercised with loopback peers.
+Login-session registry/expiry/logout enforcement after upgrade, complete bounded
+I/O cleanup, shutdown, heartbeat detection, auditing, and browser UI remain
+in the following terminal tasks.
 
 Library behavior: [Gorilla WebSocket documentation](https://pkg.go.dev/github.com/gorilla/websocket).

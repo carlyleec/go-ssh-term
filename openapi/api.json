@@ -607,9 +607,28 @@
         ],
         "type": "object"
       },
+      "ImportIssue": {
+        "additionalProperties": false,
+        "properties": {
+          "message": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "message"
+        ],
+        "type": "object"
+      },
       "ImportPreview": {
         "additionalProperties": false,
         "properties": {
+          "can_confirm": {
+            "type": "boolean"
+          },
           "diagnostics": {
             "items": {
               "$ref": "#/components/schemas/ImportDiagnostic"
@@ -621,9 +640,17 @@
               "$ref": "#/components/schemas/ImportEntry"
             },
             "type": "array"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ImportIssue"
+            },
+            "type": "array"
           }
         },
         "required": [
+          "issues",
+          "can_confirm",
           "entries",
           "diagnostics"
         ],
@@ -635,10 +662,47 @@
           "config": {
             "maxLength": 65536,
             "type": "string"
+          },
+          "selections": {
+            "items": {
+              "$ref": "#/components/schemas/ImportSelection"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
           }
         },
         "required": [
           "config"
+        ],
+        "type": "object"
+      },
+      "ImportSelection": {
+        "additionalProperties": false,
+        "properties": {
+          "jump_connection_id": {
+            "maxLength": 36,
+            "type": "string"
+          },
+          "jump_updated_at": {
+            "maxLength": 40,
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "ssh_key_id": {
+            "maxLength": 36,
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "ssh_key_id",
+          "jump_connection_id",
+          "jump_updated_at"
         ],
         "type": "object"
       },

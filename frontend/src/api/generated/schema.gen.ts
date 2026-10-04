@@ -418,12 +418,25 @@ export interface components {
             port: number;
             username: string;
         };
+        ImportIssue: {
+            message: string;
+            name: string;
+        };
         ImportPreview: {
+            can_confirm: boolean;
             diagnostics: components["schemas"]["ImportDiagnostic"][];
             entries: components["schemas"]["ImportEntry"][];
+            issues: components["schemas"]["ImportIssue"][];
         };
         ImportRequest: {
             config: string;
+            selections?: components["schemas"]["ImportSelection"][] | null;
+        };
+        ImportSelection: {
+            jump_connection_id: string;
+            jump_updated_at: string;
+            name: string;
+            ssh_key_id: string;
         };
         KeyBody: {
             key: components["schemas"]["KeyMetadata"];
@@ -553,8 +566,10 @@ export type SchemaHostDecision = components['schemas']['HostDecision'];
 export type SchemaHostInspection = components['schemas']['HostInspection'];
 export type SchemaImportDiagnostic = components['schemas']['ImportDiagnostic'];
 export type SchemaImportEntry = components['schemas']['ImportEntry'];
+export type SchemaImportIssue = components['schemas']['ImportIssue'];
 export type SchemaImportPreview = components['schemas']['ImportPreview'];
 export type SchemaImportRequest = components['schemas']['ImportRequest'];
+export type SchemaImportSelection = components['schemas']['ImportSelection'];
 export type SchemaKeyBody = components['schemas']['KeyBody'];
 export type SchemaKeyErrorBody = components['schemas']['KeyErrorBody'];
 export type SchemaKeyMetadata = components['schemas']['KeyMetadata'];

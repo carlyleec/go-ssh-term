@@ -24,6 +24,8 @@ type ImportEntry struct {
 	Line     int    `json:"line"`
 }
 type ImportPreview struct {
+	Issues      []ImportIssue      `json:"issues" nullable:"false"`
+	CanConfirm  bool               `json:"can_confirm"`
 	Entries     []ImportEntry      `json:"entries" nullable:"false"`
 	Diagnostics []ImportDiagnostic `json:"diagnostics" nullable:"false"`
 }
@@ -41,7 +43,7 @@ func literalAlias(s string) bool {
 }
 
 func parseImport(source string) ImportPreview {
-	result := ImportPreview{Entries: []ImportEntry{}, Diagnostics: []ImportDiagnostic{}}
+	result := ImportPreview{Issues: []ImportIssue{}, Entries: []ImportEntry{}, Diagnostics: []ImportDiagnostic{}}
 	report := func(line int, message string) {
 		result.Diagnostics = append(result.Diagnostics, ImportDiagnostic{line, message})
 	}

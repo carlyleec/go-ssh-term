@@ -46,6 +46,11 @@ clears private data, and navigates to login for both logout and session expiry.
 Child pages use the same Query cache through `useAuth`. Neither path retries logout
 automatically or queues it for a later reconnect.
 
+The root navbar owns the display-name dropdown and sign-out control. Its success
+handler also clears private data and navigates to login so signing out from a
+public route works without the protected layout. A shared logout mutation key
+keeps workspace actions disabled while navbar sign-out is pending.
+
 ## Consequences
 
 Logout affects only the current login session and never changes the passkey.

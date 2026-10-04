@@ -237,10 +237,6 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 - [x] **S6.8** Verify cancellation writes nothing and a confirmed import can launch terminals on all three hosts. Add the import walkthrough to the README.
   - README and empty-workspace walkthrough use demo/ssh_config. Opt-in Docker test imports it into disposable storage and reads each real OpenSSH host's identifying file over application terminal WebSockets; abandoned previews write nothing. Rendered UI tests verify cancellation and explicit confirmation. Native browser walkthrough remains for user review; no user application data was changed.
 
-- [x] **S6.9** Apply the Catppuccin Mocha daisyUI theme as the application default before Slice 7. Pin the theme package and disable the built-in light theme. Match xterm.js background, text, cursor, selection, and all 16 ANSI colors to Mocha, with matching panel padding.
-  - Biome, application/test TypeScript checks, and production build pass. Browser preview confirms the landing page uses the dark background and lavender controls; authenticated screens were not visually reviewed.
-  - Terminal theme update passes the same checks and all 9 terminal UI regression tests. Live SSH terminal colors remain for user visual review.
-
 ## Slice 7 Multiple terminals and connection lifecycle
 
 **Deliverable:** Concurrent terminal tabs and predictable replacement of shells after browser interruption.

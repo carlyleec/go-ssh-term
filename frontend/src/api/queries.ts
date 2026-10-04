@@ -89,6 +89,7 @@ const auth = {
     networkMode: 'always' as const,
   },
   logout: {
+    mutationKey: ['sign-out'],
     mutationFn: async () => {
       try {
         await apiClient.post<void>(

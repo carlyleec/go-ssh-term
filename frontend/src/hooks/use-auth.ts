@@ -1,4 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  useIsMutating,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import queries from '~/api/queries'
 
 export function useAuth() {
@@ -19,5 +24,11 @@ export function useAuth() {
       client.setQueryData(queries.auth.currentUser.queryKey, null)
     },
   })
-  return { account: currentUser.data, signOut }
+  const isSigningOut =
+    useIsMutating({ mutationKey: queries.auth.logout.mutationKey }) > 0
+  return {
+    account: currentUser.isError ? undefined : currentUser.data,
+    signOut,
+    isSigningOut,
+  }
 }

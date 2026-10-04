@@ -651,6 +651,7 @@ test.each(['logout', 'expiry'])(
           return new Response(null, { status: 204 })
         return previous(input, init)
       })
+      fireEvent.click(screen.getByRole('button', { name: 'Cam' }))
       fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
     } else {
       await act(async () => {

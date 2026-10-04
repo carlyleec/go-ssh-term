@@ -17,7 +17,7 @@ export const Route = createFileRoute('/_authed/connections/')({
 })
 
 function ConnectionsPage() {
-  const { account, signOut } = useAuth()
+  const { account, isSigningOut } = useAuth()
   const client = useQueryClient()
   const accountID = account?.id ?? ''
   const connections = queries.connections.useQuery(accountID)
@@ -63,7 +63,7 @@ function ConnectionsPage() {
     },
   })
   async function reconnect() {
-    if (!terminal || reconnectActive.current || signOut.isPending) return
+    if (!terminal || reconnectActive.current || isSigningOut) return
     reconnectActive.current = true
     const request = ++reconnectRequest.current
     setReconnectPending(true)
@@ -95,30 +95,10 @@ function ConnectionsPage() {
     }
   }
   if (!account) return null
-  const busy = remove.isPending || signOut.isPending
+  const busy = remove.isPending || isSigningOut
   return (
     <section className="mx-auto max-w-5xl px-6 py-12">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold">Connections</h1>
-          <p className="mt-2 text-base-content/75">
-            Signed in as {account.display_name}.
-          </p>
-        </div>
-        <Button
-          type="button"
-          className="btn-ghost"
-          disabled={busy}
-          onClick={() => signOut.mutate()}
-        >
-          {signOut.isPending ? 'Signing out…' : 'Sign out'}
-        </Button>
-      </div>
-      {signOut.error && (
-        <p role="alert" className="mt-3 text-error">
-          {signOut.error.message}
-        </p>
-      )}
+      <h1 className="text-3xl font-bold">Connections</h1>
       <div className="mt-6 flex flex-wrap gap-3">
         <Button
           type="button"
@@ -361,7 +341,7 @@ function ConnectionsPage() {
           connection={hostTarget}
           onClose={() => setHostTarget(null)}
           onConnect={() => {
-            if (!mounted.current || signOut.isPending) return
+            if (!mounted.current || isSigningOut) return
             setTerminalAttempt((attempt) => attempt + 1)
             setTerminal(hostTarget)
             setHostTarget(null)

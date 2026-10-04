@@ -120,6 +120,7 @@ async function open(path = '/connections') {
 
 async function workspace() {
   await open()
+  fireEvent.click(await screen.findByRole('button', { name: 'Cam' }))
   expect(await screen.findByRole('button', { name: 'Sign out' })).not.toBeNull()
 }
 
@@ -197,6 +198,7 @@ test('route error retry renders the workspace after the service recovers', async
     expect(router.state.location.pathname).toBe('/connections')
     status = 200
     fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Cam' }))
     expect(
       await screen.findByRole('button', { name: 'Sign out' }),
     ).not.toBeNull()
@@ -211,7 +213,7 @@ test('background revalidation failure hides private UI and retry restores it', a
   visibility('hidden')
   visibility('visible')
   await screen.findByRole('heading', { name: 'Could not check your session' })
-  expect(screen.queryByText(/Signed in as/)).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Cam' })).toBeNull()
   expect(router.state.location.pathname).toBe('/connections')
   status = 200
   fireEvent.click(screen.getByRole('button', { name: 'Try again' }))
@@ -293,6 +295,13 @@ test('pending logout disables duplicate submission and waits for server success'
   fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
   const button = await screen.findByRole('button', { name: 'Signing out…' })
   expect((button as HTMLButtonElement).disabled).toBe(true)
+  expect(
+    (
+      screen.getByRole('button', {
+        name: 'Add connection',
+      }) as HTMLButtonElement
+    ).disabled,
+  ).toBe(true)
   fireEvent.click(button)
   expect(router.state.location.pathname).toBe('/connections')
   expect(client.getQueryData(currentUserOptions.queryKey)).not.toBeNull()
@@ -390,4 +399,28 @@ test('registration renders schema issues and blocks invalid submissions', async 
       Object.defineProperty(window, 'PublicKeyCredential', credential)
     else Reflect.deleteProperty(window, 'PublicKeyCredential')
   }
+})
+
+test('account dropdown replaces account access and dismisses with Escape', async () => {
+  await open()
+  const trigger = await screen.findByRole('button', { name: 'Cam' })
+  expect(screen.queryByRole('link', { name: 'Account access' })).toBeNull()
+  expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
+  fireEvent.click(trigger)
+  const signOut = screen.getByRole('button', { name: 'Sign out' })
+  expect(trigger.getAttribute('aria-expanded')).toBe('true')
+  fireEvent.keyDown(signOut, { key: 'Escape' })
+  expect(trigger.getAttribute('aria-expanded')).toBe('false')
+  expect(document.activeElement).toBe(trigger)
+  expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
+})
+
+test('navbar sign-out clears private data from the public home page', async () => {
+  await open('/')
+  fireEvent.click(await screen.findByRole('button', { name: 'Cam' }))
+  client.setQueryData(['connections'], [{ host: 'private' }])
+  fireEvent.click(screen.getByRole('button', { name: 'Sign out' }))
+  await expectLogin()
+  expect(client.getQueryData(['connections'])).toBeUndefined()
+  expect(logouts).toBe(1)
 })

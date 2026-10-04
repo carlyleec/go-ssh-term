@@ -8,8 +8,8 @@ disposable local SSH lab; never authorize it on a real or publicly reachable hos
 - `demo_ed25519.pub` is the matching public key for the lab hosts' authorized keys.
 
 The bastion and both private targets authorize this identity for their `demo`
-user. Browser terminals can connect directly to the bastion; application support
-for reaching private targets through a jump connection is still pending.
+user. Browser terminals connect directly to the bastion or reach either private target
+through a saved bastion connection.
 
 ## Upload
 
@@ -39,7 +39,7 @@ commit the generated application key.
 
 Uploaded private keys are encrypted in the SQLite volume using material in the
 separate `encryption-key` volume. Keep both volumes to preserve usable uploads.
-See [database storage and volume recovery](../../README.md#database-and-queries)
+See [database storage and volume recovery](../../docs/configuration.md#storage-and-recovery)
 for backup and missing-key recovery instructions. Losing the encryption material
 requires restoring the matching backup or deliberately discarding unusable
 records and re-uploading their original keys. Access to both volumes defeats the

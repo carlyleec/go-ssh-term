@@ -1,11 +1,13 @@
 COMPOSE := docker compose -f compose.yaml -f compose.dev.yaml
+DEMO_COMPOSE := docker compose -f compose.yaml
 
 .DEFAULT_GOAL := help
-.PHONY: help setup up down logs ps test frontend-test format fix lint typecheck check build frontend-restart migrate migrate-status generate openapi
+.PHONY: help setup demo up down logs ps test frontend-test format fix lint typecheck check build frontend-restart migrate migrate-status generate openapi
 
 help:
 	@printf '%s\n' \
 	  'make setup             Install pinned host tools and editor dependencies' \
+	  'make demo              Migrate, build, and start the demo; preserve volumes' \
 	  'make migrate           Stop app and apply pending SQLite migrations' \
 	  'make migrate-status    Show applied and pending migrations' \
 	  'make generate          Generate Go queries with sqlc' \
@@ -32,6 +34,12 @@ setup:
 	env -u GOROOT asdf exec go mod download
 	cd frontend && asdf exec bun install --frozen-lockfile
 	cd frontend/scripts && asdf exec bun install --frozen-lockfile
+
+demo:
+	$(DEMO_COMPOSE) stop app
+	$(DEMO_COMPOSE) run --rm --no-deps storage-init
+	$(DEMO_COMPOSE) run --rm --no-deps dbmate
+	$(DEMO_COMPOSE) up --build -d --wait
 
 up:
 	$(COMPOSE) up

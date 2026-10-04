@@ -9,9 +9,7 @@ mock.module('@simplewebauthn/browser', () => ({
 }))
 const { default: queries } = await import('../src/api/queries')
 const accessWithPasskey = queries.auth.access.mutationFn
-const { accessErrorMessage, validateDisplayName } = await import(
-  '../src/routes/login/index'
-)
+const { accessErrorMessage } = await import('../src/routes/login/index')
 const originalFetch = globalThis.fetch
 
 afterEach(() => {
@@ -85,11 +83,4 @@ test('registration preserves session-failure recovery guidance without retrying'
   expect(error).toBeInstanceOf(Error)
   expect(accessErrorMessage(error as Error)).toBe(recovery)
   expect(requests).toBe(2)
-})
-
-test('display names count Unicode code points and reject control characters', () => {
-  expect(validateDisplayName('😀'.repeat(64))).toBeUndefined()
-  expect(validateDisplayName('😀'.repeat(65))).toBeDefined()
-  expect(validateDisplayName('   ')).toBeDefined()
-  expect(validateDisplayName('Ca\u0000m')).toBeDefined()
 })

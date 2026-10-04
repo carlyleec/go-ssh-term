@@ -12,6 +12,15 @@ These responsibilities need consistent ownership alongside TanStack Router.
 
 Use TanStack Query for server queries and mutations, TanStack Form for field
 values, validation, and submission, and the existing TanStack Router for navigation.
+Use one handwritten Zod object schema per form, passed directly to useForm
+validators through TanStack Form's Standard Schema support. Validate on change
+and submission, letting the form map schema issues to fields. Keep schemas in
+their consuming route/component files and render issue messages rather than raw
+issue objects. Count Unicode code points and raw UTF-8 bytes explicitly where the
+API policy requires them. Validate without transforming form state; submission
+code owns payload normalization. Generated API schemas describe wire contracts
+and remain separate from form validation.
+
 Mount one QueryClientProvider at the React entry point. Use ordinary fetch for
 same-origin API requests, with multipart/form-data for file uploads and JSON
 elsewhere; HTTP-only cookies remain the login-session authority.

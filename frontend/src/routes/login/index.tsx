@@ -9,6 +9,7 @@ import {
   useNavigate,
 } from '@tanstack/react-router'
 import { useRef } from 'react'
+import { z } from 'zod'
 import { ApiError } from '../../api/apiClient'
 import queries, { type AccessAttempt } from '../../api/queries'
 import { AccessError, AccessPending } from '../../components/access-status'
@@ -51,6 +52,7 @@ function LoginPage() {
 
   const form = useForm({
     defaultValues: { displayName: '' },
+    validators: { onChange: registrationSchema },
     onSubmit: async ({ value }) => {
       await submit({ kind: 'register', displayName: value.displayName })
     },
@@ -117,13 +119,7 @@ function LoginPage() {
           Choose a display name, then save a passkey on your device or in your
           password manager.
         </p>
-        <form.Field
-          name="displayName"
-          validators={{
-            onBlur: ({ value }) => validateDisplayName(value),
-            onSubmit: ({ value }) => validateDisplayName(value),
-          }}
-        >
+        <form.Field name="displayName">
           {(field) => (
             <div className="mt-5">
               <label htmlFor={field.name} className="mb-2 block font-medium">
@@ -152,7 +148,11 @@ function LoginPage() {
                 className="mt-2 text-sm text-error"
                 role="alert"
               >
-                {field.state.meta.errors.join(' ')}
+                {[
+                  ...new Set(
+                    field.state.meta.errors.map((error) => error?.message),
+                  ),
+                ].join(' ')}
               </p>
             </div>
           )}
@@ -201,9 +201,12 @@ export function accessErrorMessage(error: Error): string {
   return 'Could not use your passkey. Check that your browser and device support passkeys, then try again.'
 }
 
-export function validateDisplayName(value: string): string | undefined {
-  const name = value.trim()
-  if (!name || [...name].length > 64 || /\p{Cc}/u.test(name)) {
-    return 'Enter 1–64 characters without control characters.'
-  }
-}
+export const registrationSchema = z.object({
+  displayName: z.string().refine(
+    (value) => {
+      const name = value.trim()
+      return name.length > 0 && [...name].length <= 64 && !/\p{Cc}/u.test(name)
+    },
+    { error: 'Enter 1–64 characters without control characters.' },
+  ),
+})

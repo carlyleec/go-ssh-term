@@ -344,3 +344,49 @@ test('a late account response cannot restore the session after logout', async ()
   expect(client.getQueryData(['connections'])).toBeUndefined()
   expect(screen.queryByRole('button', { name: 'Sign out' })).toBeNull()
 })
+
+test('registration renders schema issues and blocks invalid submissions', async () => {
+  const secure = Object.getOwnPropertyDescriptor(window, 'isSecureContext')
+  const credential = Object.getOwnPropertyDescriptor(
+    window,
+    'PublicKeyCredential',
+  )
+  Object.defineProperty(window, 'isSecureContext', {
+    configurable: true,
+    value: true,
+  })
+  Object.defineProperty(window, 'PublicKeyCredential', {
+    configurable: true,
+    value: class {},
+  })
+  try {
+    signedIn = false
+    await open('/login')
+    const input = await screen.findByLabelText('Display name')
+    fireEvent.change(input, { target: { value: '😀'.repeat(65) } })
+    fireEvent.blur(input)
+    await screen.findByText('Enter 1–64 characters without control characters.')
+    expect(input.getAttribute('aria-invalid')).toBe('true')
+    const fetcher = globalThis.fetch
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Create account with a passkey' }),
+    )
+    await act(async () => {})
+    expect(fetcher).toHaveBeenCalledTimes(1)
+    expect(document.body.textContent).not.toContain('[object Object]')
+
+    fireEvent.change(input, { target: { value: '😀'.repeat(64) } })
+    fireEvent.blur(input)
+    await act(async () => {})
+    expect(input.getAttribute('aria-invalid')).toBe('false')
+    expect(
+      screen.queryByText('Enter 1–64 characters without control characters.'),
+    ).toBeNull()
+  } finally {
+    if (secure) Object.defineProperty(window, 'isSecureContext', secure)
+    else Reflect.deleteProperty(window, 'isSecureContext')
+    if (credential)
+      Object.defineProperty(window, 'PublicKeyCredential', credential)
+    else Reflect.deleteProperty(window, 'PublicKeyCredential')
+  }
+})

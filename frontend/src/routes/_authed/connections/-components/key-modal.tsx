@@ -1,6 +1,7 @@
 import { useForm } from '@tanstack/react-form'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import { z } from 'zod'
 import { ApiError } from '../../../../api/apiClient'
 import queries, { type SSHKey } from '../../../../api/queries'
 import { Button } from '../../../../components/button'
@@ -42,6 +43,7 @@ export function KeyModal({
 
   const form = useForm({
     defaultValues: { name: '', file: null as File | null },
+    validators: { onChange: keyUploadSchema },
     onSubmit: async () => {
       if (active.current) return
       active.current = true
@@ -117,13 +119,7 @@ export function KeyModal({
             if (!busy) void form.handleSubmit()
           }}
         >
-          <form.Field
-            name="name"
-            validators={{
-              onBlur: ({ value }) => validateKeyName(value),
-              onSubmit: ({ value }) => validateKeyName(value),
-            }}
-          >
+          <form.Field name="name">
             {(field) => (
               <div>
                 <label htmlFor="key-name" className="mb-2 block font-medium">
@@ -144,18 +140,16 @@ export function KeyModal({
                   role="alert"
                   className="mt-2 text-sm text-error"
                 >
-                  {[...new Set(field.state.meta.errors)].join(' ')}
+                  {[
+                    ...new Set(
+                      field.state.meta.errors.map((error) => error?.message),
+                    ),
+                  ].join(' ')}
                 </p>
               </div>
             )}
           </form.Field>
-          <form.Field
-            name="file"
-            validators={{
-              onChange: ({ value }) => validateKeyFile(value),
-              onSubmit: ({ value }) => validateKeyFile(value),
-            }}
-          >
+          <form.Field name="file">
             {(field) => (
               <div>
                 <label htmlFor="key-file" className="mb-2 block font-medium">
@@ -178,7 +172,11 @@ export function KeyModal({
                   role="alert"
                   className="mt-2 text-sm text-error"
                 >
-                  {[...new Set(field.state.meta.errors)].join(' ')}
+                  {[
+                    ...new Set(
+                      field.state.meta.errors.map((error) => error?.message),
+                    ),
+                  ].join(' ')}
                 </p>
               </div>
             )}
@@ -290,18 +288,32 @@ export function KeyModal({
   )
 }
 
-function validateKeyName(value: string) {
-  const name = value.trim()
-  if (!name) return 'Enter a name for this key.'
-  if ([...name].length > 64) return 'Use at most 64 characters.'
-  if (/\p{Cc}/u.test(name)) return 'The name cannot contain control characters.'
-  if (new TextEncoder().encode(value).length > 256)
-    return 'The name is too long. Remove extra whitespace.'
-  return undefined
-}
-
-function validateKeyFile(file: File | null) {
-  if (!file || file.size === 0) return 'Choose a private-key file.'
-  if (file.size > 16_384) return 'The private-key file must be at most 16 KiB.'
-  return undefined
-}
+export const keyUploadSchema = z.object({
+  name: z
+    .string()
+    .refine((value) => value.trim().length > 0, {
+      error: 'Enter a name for this key.',
+      abort: true,
+    })
+    .refine((value) => [...value.trim()].length <= 64, {
+      error: 'Use at most 64 characters.',
+      abort: true,
+    })
+    .refine((value) => !/\p{Cc}/u.test(value.trim()), {
+      error: 'The name cannot contain control characters.',
+      abort: true,
+    })
+    .refine((value) => new TextEncoder().encode(value).length <= 256, {
+      error: 'The name is too long. Remove extra whitespace.',
+    }),
+  file: z
+    .file()
+    .nullable()
+    .refine((file) => file !== null && file.size > 0, {
+      error: 'Choose a private-key file.',
+      abort: true,
+    })
+    .refine((file) => file === null || file.size <= 16_384, {
+      error: 'The private-key file must be at most 16 KiB.',
+    }),
+})

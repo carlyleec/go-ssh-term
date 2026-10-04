@@ -2,6 +2,7 @@ package connections
 
 import (
 	"context"
+	"github.com/google/uuid"
 	"time"
 
 	"github.com/carlyleec/go-ssh-term/internal/auth"
@@ -122,4 +123,68 @@ func validateImport(ctx context.Context, q *queries.Queries, owner string, reque
 	}
 	result.CanConfirm = len(request.Selections) > 0 && len(result.Issues) == 0
 	return result, nil
+}
+
+func (h *handler) confirmImport(ctx context.Context, input *ImportInput) (*ListOutput, error) {
+	if len(input.Body.Config) > MaxImportBytes {
+		return nil, failure(413, "config exceeds 64 KiB")
+	}
+	account, _ := auth.AccountFromContext(ctx)
+	ctx, cancel := sqlite.WorkContext(ctx)
+	defer cancel()
+	// The configured immediate transaction serializes name checks with writers.
+	tx, err := h.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, failure(503, "could not save import; try again")
+	}
+	defer tx.Rollback()
+	q := h.queries.WithTx(tx)
+	preview, err := validateImport(ctx, q, account.ID, input.Body)
+	if err != nil {
+		return nil, err
+	}
+	if !preview.CanConfirm {
+		return nil, failure(409, "import is no longer valid; preview the selection again")
+	}
+	selections := map[string]ImportSelection{}
+	ids := map[string]string{}
+	for _, selection := range input.Body.Selections {
+		selections[selection.Name] = selection
+		id, err := uuid.NewRandom()
+		if err != nil {
+			return nil, failure(503, "could not save import; try again")
+		}
+		ids[selection.Name] = id.String()
+	}
+	saved := make([]Connection, 0, len(selections))
+	now := time.Now().UTC().UnixNano()
+	// Direct entries must exist before target foreign keys and graph triggers run.
+	for _, withJump := range []bool{false, true} {
+		for _, entry := range preview.Entries {
+			selection, selected := selections[entry.Name]
+			if !selected || (entry.Jump != "") != withJump {
+				continue
+			}
+			var jump *string
+			if withJump {
+				id := ids[entry.Jump]
+				if id == "" {
+					id = selection.JumpConnectionID
+				}
+				jump = &id
+			}
+			row, err := q.CreateSavedConnection(ctx, queries.CreateSavedConnectionParams{
+				ID: ids[entry.Name], AccountID: account.ID, Name: entry.Name, Host: entry.Host, Port: entry.Port,
+				Username: entry.Username, SshKeyID: selection.SSHKeyID, JumpConnectionID: nullableJump(jump), CreatedAt: now, UpdatedAt: now,
+			})
+			if err != nil {
+				return nil, saveError(err)
+			}
+			saved = append(saved, metadata(row))
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, failure(503, "could not save import; refresh connections before retrying")
+	}
+	return &ListOutput{Body: ConnectionsBody{Connections: saved}}, nil
 }

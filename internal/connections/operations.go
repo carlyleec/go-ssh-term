@@ -103,6 +103,10 @@ func (h *handler) Register(api huma.API, access *auth.Access) {
 	preview.MaxBodyBytes = 512 * 1024
 	preview.Middlewares = append(preview.Middlewares, jsonOnly)
 	huma.Register(api, preview, h.previewImport)
+	confirm := operation("confirmConnectionImport", "POST", "/api/connections/import/confirm", "Revalidate and atomically save selected SSH config entries", 201)
+	confirm.MaxBodyBytes = 512 * 1024
+	confirm.Middlewares = append(confirm.Middlewares, jsonOnly)
+	huma.Register(api, confirm, h.confirmImport)
 	huma.Register(api, create, h.create)
 	huma.Register(api, operation("listConnections", "GET", "/api/connections", "List owned saved connections", 200), h.list)
 	huma.Register(api, update, h.update)

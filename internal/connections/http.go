@@ -15,9 +15,12 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
-type handler struct{ queries *queries.Queries }
+type handler struct {
+	queries *queries.Queries
+	db      *sql.DB
+}
 
-func NewHandler(db *sql.DB) *handler { return &handler{queries: queries.New(db)} }
+func NewHandler(db *sql.DB) *handler { return &handler{queries: queries.New(db), db: db} }
 
 func metadata(row queries.SavedConnection) Connection {
 	var jump *string

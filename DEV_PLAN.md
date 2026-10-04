@@ -229,7 +229,8 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 - [x] **S6.4** Implement user-scoped name-conflict detection, identity-to-uploaded-key mapping, and jump resolution against selected entries or existing configurations.
   - Shared validation resolves explicit owned key/jump mappings, selected dependencies, exact name conflicts, and stale jump timestamps. Focused tests pass for foreign keys/names, missing/deselected dependencies, and stale mappings.
 - [ ] **S6.5** Build the import modal with host selection, parsed settings, key mapping, jump resolution, conflict messages, and a confirmation action.
-- [ ] **S6.6** Revalidate the complete import on confirmation and save it transactionally. Reject stale, unauthorized, or unresolved references without partial writes or silent overwrites.
+- [x] **S6.6** Revalidate the complete import on confirmation and save it transactionally. Reject stale, unauthorized, or unresolved references without partial writes or silent overwrites.
+  - Confirmation reparses/revalidates under an immediate SQLite transaction and saves direct entries before dependents. Race-enabled tests cover rollback after partial insertion, concurrent confirmation, stale keys/names, cross-user references, invalid graphs, and retry conflicts.
 - [ ] **S6.7** Test the sample config, malformed input, unsupported directives, missing keys, deselected jump dependencies, duplicate names, and cross-user references.
 - [ ] **S6.8** Verify cancellation writes nothing and a confirmed import can launch terminals on all three hosts. Add the import walkthrough to the README.
 

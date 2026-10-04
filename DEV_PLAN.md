@@ -220,7 +220,8 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 
 **Related ADRs:** [SSH configuration](adr/api/005-ssh-configuration.md), [SSH key storage](adr/auth/002-ssh-key-storage.md).
 
-- [ ] **S6.1** Define the precise supported `Host` syntax and single-hop `ProxyJump` forms. Document unsupported wildcard, inheritance, and other OpenSSH behavior rather than silently approximating it.
+- [x] **S6.1** Define the precise supported `Host` syntax and single-hop `ProxyJump` forms. Document unsupported wildcard, inheritance, and other OpenSSH behavior rather than silently approximating it.
+  - API ADR 022 defines bounded strict parsing, explicit mappings, and atomic confirmation. Checked against saved-connection validation and single-hop ownership constraints.
 - [ ] **S6.2** Write the sample config for the bastion and private targets using `Host`, `HostName`, `User`, `Port`, `IdentityFile`, and a single `ProxyJump`.
 - [ ] **S6.3** Implement bounded upload and parsing into preview data. Report unsupported directives and syntax, including `ProxyCommand`, without executing commands or reading referenced filesystem paths.
 - [ ] **S6.4** Implement user-scoped name-conflict detection, identity-to-uploaded-key mapping, and jump resolution against selected entries or existing configurations.

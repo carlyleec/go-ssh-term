@@ -30,6 +30,8 @@ Number records independently within each area. Each record states its context, d
 
 - [021 Guide trust decisions and retain audit context for both SSH hops](api/021-hop-trust-and-audit.md)
 
+- [022 Import a strict, reviewed SSH config subset](api/022-ssh-config-import.md)
+
 ## Auth
 
 - [001 Authenticate with passkeys and server-side sessions](auth/001-passkeys-and-sessions.md)
@@ -71,4 +73,4 @@ Number records independently within each area. Each record states its context, d
 
 ## Open choices
 
-The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats, the upload-size limit, and the parsing library are recorded in Auth 002. The SSH library, setup deadline, and host-trust reset interface are recorded in Auth 013. The WebSocket library and protocol limits are recorded in API 014. SSH config syntax and remaining timeout and resource values remain implementation decisions. Coordination between multiple browser tabs is outside v1.
+The SQLite driver/session-adapter pairing is recorded in API 008–009 and Auth 011. Accepted SSH key formats, the upload-size limit, and the parsing library are recorded in Auth 002. The SSH library, setup deadline, and host-trust reset interface are recorded in Auth 013. The WebSocket library and protocol limits are recorded in API 014. Remaining timeout and resource values remain implementation decisions. Coordination between multiple browser tabs is outside v1.

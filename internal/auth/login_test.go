@@ -42,11 +42,11 @@ func loginIdentity(t *testing.T) (loginUser, *ecdsa.PrivateKey) {
 	}, key
 }
 
-func loginFixture(t *testing.T) (*login, http.Handler, loginUser, *ecdsa.PrivateKey) {
+func loginFixture(t *testing.T) (*Login, http.Handler, loginUser, *ecdsa.PrivateKey) {
 	t.Helper()
 	reg, _ := registrationFixture(t)
 	user, key := loginIdentity(t)
-	h := &login{webauthn: reg.webauthn, sessions: reg.sessions, pending: make(map[string]webauthn.SessionData)}
+	h := &Login{webauthn: reg.webauthn, sessions: reg.sessions, pending: make(map[string]webauthn.SessionData)}
 	h.verify = func(_ context.Context, s webauthn.SessionData, p *protocol.ParsedCredentialAssertionData) (queries.Account, error) {
 		if !bytes.Equal(p.RawID, user.credential.ID) || !bytes.Equal(p.Response.UserHandle, user.account.WebauthnUserHandle) {
 			return queries.Account{}, errInvalidLogin
@@ -233,7 +233,7 @@ func TestLoginPendingLifecycle(t *testing.T) {
 		t.Fatal("expired attempt accepted")
 	}
 	options, cookie = beginLoginTest(t, handler, cookie)
-	restarted := &login{webauthn: h.webauthn, sessions: h.sessions, verify: h.verify, pending: make(map[string]webauthn.SessionData)}
+	restarted := &Login{webauthn: h.webauthn, sessions: h.sessions, verify: h.verify, pending: make(map[string]webauthn.SessionData)}
 	if w := loginRequestTest(restarted.routes(testOrigin), "finish", assertionResponse(t, key, user, options, 1, 0x1d, testOrigin, "localhost"), testOrigin, cookie); w.Code != 400 {
 		t.Fatal("pending attempt survived restart")
 	}

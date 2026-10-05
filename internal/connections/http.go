@@ -15,12 +15,12 @@ import (
 	sqlite3 "modernc.org/sqlite/lib"
 )
 
-type handler struct {
+type Handler struct {
 	queries *queries.Queries
 	db      *sql.DB
 }
 
-func NewHandler(db *sql.DB) *handler { return &handler{queries: queries.New(db), db: db} }
+func NewHandler(db *sql.DB) *Handler { return &Handler{queries: queries.New(db), db: db} }
 
 func metadata(row queries.SavedConnection) Connection {
 	var jump *string
@@ -49,7 +49,7 @@ func saveError(err error) error {
 	return failure(503, "could not save connection; try again")
 }
 
-func (h *handler) create(ctx context.Context, input *CreateInput) (*ConnectionOutput, error) {
+func (h *Handler) Create(ctx context.Context, input *CreateInput) (*ConnectionOutput, error) {
 	if err := input.Body.normalize(); err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (h *handler) create(ctx context.Context, input *CreateInput) (*ConnectionOu
 	return &ConnectionOutput{Body: ConnectionBody{Connection: metadata(row)}}, nil
 }
 
-func (h *handler) list(ctx context.Context, _ *struct{}) (*ListOutput, error) {
+func (h *Handler) List(ctx context.Context, _ *struct{}) (*ListOutput, error) {
 	account, _ := auth.AccountFromContext(ctx)
 	ctx, cancel := sqlite.WorkContext(ctx)
 	defer cancel()
@@ -85,7 +85,7 @@ func (h *handler) list(ctx context.Context, _ *struct{}) (*ListOutput, error) {
 	return &ListOutput{Body: ConnectionsBody{Connections: result}}, nil
 }
 
-func (h *handler) update(ctx context.Context, input *UpdateInput) (*ConnectionOutput, error) {
+func (h *Handler) Update(ctx context.Context, input *UpdateInput) (*ConnectionOutput, error) {
 	if !canonicalID(input.ID) {
 		return nil, failure(404, "connection not found")
 	}
@@ -107,7 +107,7 @@ func (h *handler) update(ctx context.Context, input *UpdateInput) (*ConnectionOu
 	return &ConnectionOutput{Body: ConnectionBody{Connection: metadata(row)}}, nil
 }
 
-func (h *handler) delete(ctx context.Context, input *DeleteInput) (*struct{}, error) {
+func (h *Handler) Delete(ctx context.Context, input *DeleteInput) (*struct{}, error) {
 	if !canonicalID(input.ID) {
 		return nil, failure(404, "connection not found")
 	}

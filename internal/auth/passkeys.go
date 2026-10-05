@@ -48,7 +48,7 @@ type PasskeyAttestation struct {
 	PublicKeyAlgorithm int64    `json:"publicKeyAlgorithm,omitempty"`
 }
 
-func registerPasskeySchemas(api huma.API) {
+func RegisterPasskeySchemas(api huma.API) {
 	schemas := api.OpenAPI().Components.Schemas
 	schemas.RegisterTypeAlias(reflect.TypeFor[protocol.URLEncodedBase64](), reflect.TypeFor[string]())
 	schemas.RegisterTypeAlias(reflect.TypeFor[protocol.UserEntity](), reflect.TypeFor[PasskeyUser]())

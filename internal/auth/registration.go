@@ -41,7 +41,7 @@ type pendingRegistration struct {
 	session webauthn.SessionData
 }
 
-type registration struct {
+type Registration struct {
 	webauthn *webauthn.WebAuthn
 	sessions *scs.SessionManager
 	save     func(context.Context, registrationUser, *webauthn.Credential) error
@@ -51,15 +51,15 @@ type registration struct {
 
 // NewRegistration keeps one pending ceremony per browser session. Restarting
 // the process invalidates pending ceremonies, while login sessions remain stored.
-func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB) *registration {
-	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration)}
+func NewRegistration(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB) *Registration {
+	h := &Registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration)}
 	h.save = func(ctx context.Context, user registrationUser, credential *webauthn.Credential) error {
 		return saveRegistration(ctx, pool, wa.Config.RPID, user, credential)
 	}
 	return h
 }
 
-func (h *registration) begin(ctx context.Context, input *RegistrationBeginInput) (*RegistrationBeginOutput, error) {
+func (h *Registration) Begin(ctx context.Context, input *RegistrationBeginInput) (*RegistrationBeginOutput, error) {
 	r, w := input.request, input.writer
 
 	name := strings.TrimSpace(input.Body.DisplayName)
@@ -97,7 +97,7 @@ func (h *registration) begin(ctx context.Context, input *RegistrationBeginInput)
 	return &RegistrationBeginOutput{Body: *options}, nil
 }
 
-func (h *registration) put(binding string, pending pendingRegistration) bool {
+func (h *Registration) put(binding string, pending pendingRegistration) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	now := time.Now()
@@ -113,7 +113,7 @@ func (h *registration) put(binding string, pending pendingRegistration) bool {
 	return true
 }
 
-func (h *registration) take(binding string) (pendingRegistration, bool) {
+func (h *Registration) take(binding string) (pendingRegistration, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	pending, ok := h.pending[binding]
@@ -122,7 +122,7 @@ func (h *registration) take(binding string) (pendingRegistration, bool) {
 	return pending, ok && time.Now().Before(pending.session.Expires)
 }
 
-func (h *registration) finish(ctx context.Context, input *RegistrationFinishInput) (*AccountOutput, error) {
+func (h *Registration) Finish(ctx context.Context, input *RegistrationFinishInput) (*AccountOutput, error) {
 	r, w := input.request, input.writer
 	pending := ctx.Value(registrationCeremonyKey{}).(pendingRegistration)
 	parsed, err := input.Body.Parse()
@@ -161,27 +161,7 @@ type RegistrationFinishInput struct {
 }
 type registrationCeremonyKey struct{}
 
-func (h *registration) Register(api huma.API, origin string) {
-	registerPasskeySchemas(api)
-	huma.Register(api, huma.Operation{
-		OperationID: "beginRegistration", Method: http.MethodPost, Path: "/api/auth/register/begin",
-		MaxBodyBytes: 4096,
-		Responses:    authResponses(api, 400, 403, 409, 415, 500, 503),
-		Middlewares:  huma.Middlewares{h.guard(origin, false)},
-		Metadata:     map[string]any{"authBodyError": "invalid registration request"},
-	}, h.begin)
-	huma.Register(api, huma.Operation{
-		OperationID: "finishRegistration", Method: http.MethodPost, Path: "/api/auth/register/finish",
-		DefaultStatus: http.StatusCreated, MaxBodyBytes: 64 * 1024,
-		// The WebAuthn parser owns credential validation, including extension data.
-		SkipValidateBody: true,
-		Responses:        authResponses(api, 400, 403, 409, 415, 503),
-		Middlewares:      huma.Middlewares{h.guard(origin, true)},
-		Metadata:         map[string]any{"authBodyError": "passkey verification failed; begin again"},
-	}, h.finish)
-}
-
-func (h *registration) guard(origin string, finish bool) func(huma.Context, func(huma.Context)) {
+func (h *Registration) guard(origin string, finish bool) func(huma.Context, func(huma.Context)) {
 	return humaMiddleware(func(next http.Handler) http.Handler {
 		return authRequest(origin, loadSession(h.sessions, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if h.sessions.GetString(r.Context(), accountIDKey) != "" {
@@ -200,4 +180,14 @@ func (h *registration) guard(origin string, finish bool) func(huma.Context, func
 			next.ServeHTTP(w, r)
 		})))
 	})
+}
+
+// BeginMiddleware validates the browser session before starting a ceremony.
+func (h *Registration) BeginMiddleware(origin string) func(huma.Context, func(huma.Context)) {
+	return h.guard(origin, false)
+}
+
+// FinishMiddleware consumes the pending challenge before Huma parses the body.
+func (h *Registration) FinishMiddleware(origin string) func(huma.Context, func(huma.Context)) {
+	return h.guard(origin, true)
 }

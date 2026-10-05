@@ -185,7 +185,7 @@ func TestCurrentUserPersistedAccount(t *testing.T) {
 
 func currentUserHandler(access *Access) http.Handler {
 	mux := api.NewRouter()
-	access.RegisterCurrentUser(api.New(mux))
+	registerCurrentUser(api.New(mux), access)
 	return mux
 }
 
@@ -240,7 +240,7 @@ func TestCurrentUserContractMatchesRegistration(t *testing.T) {
 	mux := api.NewRouter()
 	contract := api.New(mux)
 	var access Access
-	access.RegisterCurrentUser(contract)
+	registerCurrentUser(contract, &access)
 	op := contract.OpenAPI().Paths["/api/auth/me"].Get
 	if op == nil || op.OperationID != "currentUser" {
 		t.Fatal("missing current-user operation")

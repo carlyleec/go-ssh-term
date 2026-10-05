@@ -30,16 +30,16 @@ type keyMetadata struct {
 	CreatedAt         time.Time `json:"created_at"`
 }
 
-type handler struct {
+type Handler struct {
 	queries    *queries.Queries
 	encryption *Encryption
 }
 
-func NewHandler(db *sql.DB, encryption *Encryption) *handler {
-	return &handler{queries: queries.New(db), encryption: encryption}
+func NewHandler(db *sql.DB, encryption *Encryption) *Handler {
+	return &Handler{queries: queries.New(db), encryption: encryption}
 }
 
-func (h *handler) upload(ctx context.Context, input *UploadInput) (*UploadOutput, error) {
+func (h *Handler) Upload(ctx context.Context, input *UploadInput) (*UploadOutput, error) {
 	r, w := input.request, input.writer
 	name, plain, status, err := readUpload(w, r)
 	defer clear(plain)
@@ -72,7 +72,7 @@ func (h *handler) upload(ctx context.Context, input *UploadInput) (*UploadOutput
 	return &UploadOutput{Body: KeyBody{Key: metadata}}, nil
 }
 
-func (h *handler) list(ctx context.Context, _ *struct{}) (*ListOutput, error) {
+func (h *Handler) List(ctx context.Context, _ *struct{}) (*ListOutput, error) {
 	account, _ := auth.AccountFromContext(ctx)
 	ctx, cancel := sqlite.WorkContext(ctx)
 	defer cancel()
@@ -87,7 +87,7 @@ func (h *handler) list(ctx context.Context, _ *struct{}) (*ListOutput, error) {
 	return &ListOutput{Body: KeysBody{Keys: keys}}, nil
 }
 
-func (h *handler) delete(ctx context.Context, input *DeleteInput) (*struct{}, error) {
+func (h *Handler) Delete(ctx context.Context, input *DeleteInput) (*struct{}, error) {
 	account, _ := auth.AccountFromContext(ctx)
 	id, err := uuid.Parse(input.ID)
 	if err != nil || id.String() != input.ID {

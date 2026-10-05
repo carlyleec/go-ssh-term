@@ -26,7 +26,7 @@ import (
 
 const testOrigin = "http://localhost:5173"
 
-func registrationFixture(t *testing.T) (*registration, http.Handler) {
+func registrationFixture(t *testing.T) (*Registration, http.Handler) {
 	t.Helper()
 	cfg := config.Config{BrowserOrigin: testOrigin, RPID: "localhost", SessionLifetime: 12 * time.Hour, ChallengeLifetime: 5 * time.Minute}
 	wa, err := NewWebAuthn(cfg)
@@ -37,7 +37,7 @@ func registrationFixture(t *testing.T) (*registration, http.Handler) {
 	t.Cleanup(stop)
 	sessions.Store = memstore.NewWithCleanupInterval(0)
 	// Protocol tests isolate persistence; Postgres integration tests exercise the transaction.
-	h := &registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration),
+	h := &Registration{webauthn: wa, sessions: sessions, pending: make(map[string]pendingRegistration),
 		save: func(context.Context, registrationUser, *webauthn.Credential) error { return nil }}
 	return h, h.routes(testOrigin)
 }
@@ -262,7 +262,7 @@ func TestRegistrationInputAndOrigin(t *testing.T) {
 func TestRegistrationRestart(t *testing.T) {
 	h, handler := registrationFixture(t)
 	options, cookie := beginTest(t, handler, nil)
-	newProcess := &registration{webauthn: h.webauthn, sessions: h.sessions, save: h.save, pending: make(map[string]pendingRegistration)}
+	newProcess := &Registration{webauthn: h.webauthn, sessions: h.sessions, save: h.save, pending: make(map[string]pendingRegistration)}
 	restarted := newProcess.routes(testOrigin)
 	body := credentialResponse(t, options, testOrigin, "localhost", 0x45)
 	if w := registrationRequestTest(restarted, "finish", body, testOrigin, cookie); w.Code != 400 {

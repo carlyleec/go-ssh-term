@@ -200,7 +200,7 @@ func TestLogoutPersistedSession(t *testing.T) {
 
 func logoutHandler(access *Access) http.Handler {
 	mux := api.NewRouter()
-	access.RegisterLogout(api.New(mux))
+	registerLogout(api.New(mux), access)
 	return mux
 }
 
@@ -264,7 +264,7 @@ func TestLogoutCookieMatchesSessionConfiguration(t *testing.T) {
 func TestLogoutContract(t *testing.T) {
 	contract := api.New(api.NewRouter())
 	var access Access
-	access.RegisterLogout(contract)
+	registerLogout(contract, &access)
 	operation := contract.OpenAPI().Paths["/api/auth/logout"].Post
 	if operation.OperationID != "logout" || len(operation.Security) != 0 {
 		t.Fatal("logout requires no verified account")

@@ -43,43 +43,37 @@ type LogoutOutput struct {
 	CacheControl []string `header:"Cache-Control"`
 }
 
-// RegisterLogout does not require an account: expired, anonymous, and
-// deleted-account sessions must still be able to clear their browser cookie.
-func (a *Access) RegisterLogout(api huma.API) {
-	huma.Register(api, huma.Operation{
-		OperationID:   "logout",
-		Method:        http.MethodPost,
-		Path:          "/api/auth/logout",
-		Summary:       "End the current browser session",
-		DefaultStatus: http.StatusNoContent,
-		Responses:     authResponses(api, http.StatusForbidden, http.StatusUnsupportedMediaType, http.StatusServiceUnavailable),
-		Middlewares: huma.Middlewares{humaMiddleware(func(next http.Handler) http.Handler {
-			return authRequest(a.origin, loadSession(a.sessions, next))
-		})},
-	}, func(ctx context.Context, _ *LogoutInput) (*LogoutOutput, error) {
-		session := a.loginSession(ctx)
-		if err := a.sessions.Destroy(ctx); err != nil {
-			return nil, &AuthErrorBody{Message: "could not sign out; try again", status: http.StatusServiceUnavailable}
-		}
-		// Revoke this owner before success, including attempts admitted before
-		// session deletion but not yet published in the terminal registry.
-		if session.ID != "" && a.OnLogout != nil {
-			a.OnLogout(session)
-		}
-		cookie := http.Cookie{
-			Name:        a.sessions.Cookie.Name,
-			Domain:      a.sessions.Cookie.Domain,
-			Path:        a.sessions.Cookie.Path,
-			HttpOnly:    a.sessions.Cookie.HttpOnly,
-			Secure:      a.sessions.Cookie.Secure,
-			SameSite:    a.sessions.Cookie.SameSite,
-			Partitioned: a.sessions.Cookie.Partitioned,
-			Expires:     time.Unix(1, 0),
-			MaxAge:      -1,
-		}
-		return &LogoutOutput{
-			SetCookie:    cookie.String(),
-			CacheControl: []string{`no-cache="Set-Cookie"`},
-		}, nil
-	})
+// Logout ends the current browser session after the logout middleware loads it.
+func (a *Access) Logout(ctx context.Context, _ *LogoutInput) (*LogoutOutput, error) {
+	session := a.loginSession(ctx)
+	if err := a.sessions.Destroy(ctx); err != nil {
+		return nil, &AuthErrorBody{Message: "could not sign out; try again", status: http.StatusServiceUnavailable}
+	}
+	// Revoke this owner before success, including attempts admitted before
+	// session deletion but not yet published in the terminal registry.
+	if session.ID != "" && a.OnLogout != nil {
+		a.OnLogout(session)
+	}
+	cookie := http.Cookie{
+		Name:        a.sessions.Cookie.Name,
+		Domain:      a.sessions.Cookie.Domain,
+		Path:        a.sessions.Cookie.Path,
+		HttpOnly:    a.sessions.Cookie.HttpOnly,
+		Secure:      a.sessions.Cookie.Secure,
+		SameSite:    a.sessions.Cookie.SameSite,
+		Partitioned: a.sessions.Cookie.Partitioned,
+		Expires:     time.Unix(1, 0),
+		MaxAge:      -1,
+	}
+	return &LogoutOutput{
+		SetCookie:    cookie.String(),
+		CacheControl: []string{`no-cache="Set-Cookie"`},
+	}, nil
+}
+
+// LogoutMiddleware allows anonymous and expired sessions to clear their cookies.
+func (a *Access) LogoutMiddleware(ctx huma.Context, next func(huma.Context)) {
+	humaMiddleware(func(next http.Handler) http.Handler {
+		return authRequest(a.origin, loadSession(a.sessions, next))
+	})(ctx, next)
 }

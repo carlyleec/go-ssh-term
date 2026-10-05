@@ -16,6 +16,7 @@ import (
 	"github.com/carlyleec/go-ssh-term/internal/config"
 	"github.com/carlyleec/go-ssh-term/internal/connections"
 	"github.com/carlyleec/go-ssh-term/internal/database"
+	"github.com/carlyleec/go-ssh-term/internal/routing"
 	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 	"github.com/carlyleec/go-ssh-term/internal/web"
 )
@@ -51,16 +52,17 @@ func run() error {
 	access := auth.NewAccess(sessions, pool, cfg.RPID, cfg.BrowserOrigin)
 	apiMux := api.NewRouter()
 	contract := api.New(apiMux)
-	sshkeys.NewHandler(pool, encryption).Register(contract, access)
-	connections.NewHandler(pool).Register(contract, access)
 	dialer := connections.NewDialer(pool, encryption)
 	access.OnLogout = dialer.InvalidateSession
-	dialer.Register(contract, access)
 	dialer.RegisterTerminal(apiMux, access, cfg.BrowserOrigin)
-	access.RegisterCurrentUser(contract)
-	access.RegisterLogout(contract)
-	auth.NewRegistration(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)
-	auth.NewLogin(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)
+	routing.Register(contract, routing.Handlers{
+		Access:       access,
+		Registration: auth.NewRegistration(wa, sessions, pool),
+		Login:        auth.NewLogin(wa, sessions, pool),
+		Keys:         sshkeys.NewHandler(pool, encryption),
+		Connections:  connections.NewHandler(pool),
+		Dialer:       dialer,
+	}, cfg.BrowserOrigin)
 	apiMux.Method("GET", "/api/readyz", readiness(func(ctx context.Context) error { return database.Check(ctx, pool) }, os.DirFS("frontend/dist")))
 	mux := api.WithFrontend(apiMux, web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}

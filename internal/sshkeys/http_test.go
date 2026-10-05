@@ -405,7 +405,7 @@ func TestKeyEndpointStorageFailures(t *testing.T) {
 
 func keyTestHandler(db *sql.DB, encryption *Encryption, access *auth.Access) http.Handler {
 	mux := api.NewRouter()
-	NewHandler(db, encryption).Register(api.New(mux), access)
+	registerKeys(api.New(mux), NewHandler(db, encryption), access)
 	root := api.WithFrontend(mux, web.Handler(fstest.MapFS{}))
 	return root
 }
@@ -458,7 +458,7 @@ func TestKeyTrafficMatchesContract(t *testing.T) {
 	f := newKeyHTTPFixture(t)
 	mux := api.NewRouter()
 	contract := api.New(mux)
-	NewHandler(f.db, f.encryption).Register(contract, f.access)
+	registerKeys(contract, NewHandler(f.db, f.encryption), f.access)
 	check := func(operation *huma.Operation, response *httptest.ResponseRecorder, want int) {
 		t.Helper()
 		if response.Code != want {

@@ -13,7 +13,7 @@ import (
 	"github.com/google/uuid"
 )
 
-func loginDatabaseFixture(t *testing.T, pool *sql.DB) (*login, http.Handler, loginUser, *ecdsa.PrivateKey) {
+func loginDatabaseFixture(t *testing.T, pool *sql.DB) (*Login, http.Handler, loginUser, *ecdsa.PrivateKey) {
 	t.Helper()
 	h, _, user, key := loginFixture(t)
 	h.sessions.Store = sqlitestore.New(pool, 0)

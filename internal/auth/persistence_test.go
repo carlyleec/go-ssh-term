@@ -26,7 +26,7 @@ func registrationDatabase(t *testing.T) *sql.DB {
 	return db
 }
 
-func persistedRegistrationFixture(t *testing.T, pool *sql.DB) (*registration, http.Handler) {
+func persistedRegistrationFixture(t *testing.T, pool *sql.DB) (*Registration, http.Handler) {
 	t.Helper()
 	h, handler := registrationFixture(t)
 	h.sessions.Store = sqlitestore.New(pool, 0)

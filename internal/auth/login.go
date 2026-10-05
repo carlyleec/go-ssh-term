@@ -22,7 +22,7 @@ const maxPendingLogins = 1024
 
 var errInvalidLogin = errors.New("invalid passkey login")
 
-type login struct {
+type Login struct {
 	webauthn *webauthn.WebAuthn
 	sessions *scs.SessionManager
 	verify   func(context.Context, webauthn.SessionData, *protocol.ParsedCredentialAssertionData) (queries.Account, error)
@@ -30,15 +30,15 @@ type login struct {
 	pending  map[string]webauthn.SessionData
 }
 
-func NewLogin(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB) *login {
-	h := &login{webauthn: wa, sessions: sessions, pending: make(map[string]webauthn.SessionData)}
+func NewLogin(wa *webauthn.WebAuthn, sessions *scs.SessionManager, pool *sql.DB) *Login {
+	h := &Login{webauthn: wa, sessions: sessions, pending: make(map[string]webauthn.SessionData)}
 	h.verify = func(ctx context.Context, session webauthn.SessionData, assertion *protocol.ParsedCredentialAssertionData) (queries.Account, error) {
 		return verifyLogin(ctx, pool, wa, session, assertion)
 	}
 	return h
 }
 
-func (h *login) begin(ctx context.Context, input *LoginBeginInput) (*LoginBeginOutput, error) {
+func (h *Login) Begin(ctx context.Context, input *LoginBeginInput) (*LoginBeginOutput, error) {
 	r, w := input.request, input.writer
 
 	options, session, err := h.webauthn.BeginDiscoverableLogin()
@@ -63,7 +63,7 @@ func (h *login) begin(ctx context.Context, input *LoginBeginInput) (*LoginBeginO
 	return &LoginBeginOutput{Body: *options}, nil
 }
 
-func (h *login) put(binding string, session webauthn.SessionData) bool {
+func (h *Login) put(binding string, session webauthn.SessionData) bool {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	now := time.Now()
@@ -78,7 +78,7 @@ func (h *login) put(binding string, session webauthn.SessionData) bool {
 	h.pending[binding] = session
 	return true
 }
-func (h *login) take(binding string) (webauthn.SessionData, bool) {
+func (h *Login) take(binding string) (webauthn.SessionData, bool) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	session, ok := h.pending[binding]
@@ -86,7 +86,7 @@ func (h *login) take(binding string) (webauthn.SessionData, bool) {
 	return session, ok && time.Now().Before(session.Expires)
 }
 
-func (h *login) finish(ctx context.Context, input *LoginFinishInput) (*AccountOutput, error) {
+func (h *Login) Finish(ctx context.Context, input *LoginFinishInput) (*AccountOutput, error) {
 	r, w := input.request, input.writer
 	session := ctx.Value(loginCeremonyKey{}).(webauthn.SessionData)
 	assertion, err := input.Body.Parse()
@@ -120,27 +120,7 @@ type LoginFinishInput struct {
 }
 type loginCeremonyKey struct{}
 
-func (h *login) Register(api huma.API, origin string) {
-	registerPasskeySchemas(api)
-	huma.Register(api, huma.Operation{
-		OperationID: "beginLogin", Method: http.MethodPost, Path: "/api/auth/login/begin",
-		MaxBodyBytes: 4096,
-		Responses:    authResponses(api, 400, 403, 409, 415, 500, 503),
-		Middlewares:  huma.Middlewares{h.guard(origin, false)},
-		Metadata:     map[string]any{"authBodyError": "login begin expects an empty JSON object"},
-	}, h.begin)
-	huma.Register(api, huma.Operation{
-		OperationID: "finishLogin", Method: http.MethodPost, Path: "/api/auth/login/finish",
-		DefaultStatus: http.StatusOK, MaxBodyBytes: 64 * 1024,
-		// The WebAuthn parser owns credential validation, including extension data.
-		SkipValidateBody: true,
-		Responses:        authResponses(api, 400, 401, 403, 409, 415, 503),
-		Middlewares:      huma.Middlewares{h.guard(origin, true)},
-		Metadata:         map[string]any{"authBodyError": "invalid passkey response; begin again"},
-	}, h.finish)
-}
-
-func (h *login) guard(origin string, finish bool) func(huma.Context, func(huma.Context)) {
+func (h *Login) guard(origin string, finish bool) func(huma.Context, func(huma.Context)) {
 	return humaMiddleware(func(next http.Handler) http.Handler {
 		return authRequest(origin, loadSession(h.sessions, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if h.sessions.GetString(r.Context(), accountIDKey) != "" {
@@ -158,4 +138,14 @@ func (h *login) guard(origin string, finish bool) func(huma.Context, func(huma.C
 			next.ServeHTTP(w, r)
 		})))
 	})
+}
+
+// BeginMiddleware validates the browser session before starting a ceremony.
+func (h *Login) BeginMiddleware(origin string) func(huma.Context, func(huma.Context)) {
+	return h.guard(origin, false)
+}
+
+// FinishMiddleware consumes the pending challenge before Huma parses the body.
+func (h *Login) FinishMiddleware(origin string) func(huma.Context, func(huma.Context)) {
+	return h.guard(origin, true)
 }

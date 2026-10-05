@@ -64,7 +64,7 @@ func (s *failingSessionStore) FindCtx(ctx context.Context, token string) ([]byte
 	return s.Store.Find(token)
 }
 
-func sessionAccount(t *testing.T, h *registration, cookie *http.Cookie) string {
+func sessionAccount(t *testing.T, h *Registration, cookie *http.Cookie) string {
 	t.Helper()
 	ctx, err := h.sessions.Load(context.Background(), cookie.Value)
 	if err != nil {

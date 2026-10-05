@@ -155,10 +155,10 @@ func dialFixture(t *testing.T) (fixture, *Dialer, ssh.Signer) {
 	mux := api.NewRouter()
 	contract := api.New(mux)
 	access := auth.NewAccess(f.sessions, f.db, "localhost", origin)
-	sshkeys.NewHandler(f.db, encryption).Register(contract, access)
+	registerKeys(contract, sshkeys.NewHandler(f.db, encryption), access)
 	d := NewDialer(f.db, encryption)
 	access.OnLogout = d.InvalidateSession
-	access.RegisterLogout(contract)
+	registerLogout(contract, access)
 	t.Cleanup(func() {
 		d.terminals.mu.Lock()
 		defer d.terminals.mu.Unlock()
@@ -166,9 +166,9 @@ func dialFixture(t *testing.T) (fixture, *Dialer, ssh.Signer) {
 			t.Errorf("terminal registry retained %d entries", len(d.terminals.entries))
 		}
 	})
-	d.Register(contract, access)
+	registerTrust(contract, d, access)
 	d.RegisterTerminal(mux, access, origin)
-	NewHandler(f.db).Register(contract, access)
+	registerConnections(contract, NewHandler(f.db), access)
 	f.handler = mux
 	r := httptest.NewRequest("POST", "/api/keys", &body)
 	r.Header.Set("Content-Type", writer.FormDataContentType())

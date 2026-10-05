@@ -2,10 +2,7 @@ package sshkeys
 
 import (
 	"net/http"
-	"reflect"
-	"strconv"
 
-	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/danielgtaylor/huma/v2"
 	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 )
@@ -46,42 +43,4 @@ func (input *UploadInput) Resolve(ctx huma.Context) []error {
 	r, w := humachi.Unwrap(ctx)
 	input.request, input.writer = r.WithContext(ctx.Context()), w
 	return nil
-}
-
-func (h *handler) Register(api huma.API, access *auth.Access) {
-	responses := func(statuses ...int) map[string]*huma.Response {
-		schema := api.OpenAPI().Components.Schemas.Schema(reflect.TypeFor[KeyErrorBody](), true, "")
-		result := map[string]*huma.Response{}
-		for _, status := range statuses {
-			result[strconv.Itoa(status)] = &huma.Response{Description: http.StatusText(status), Content: map[string]*huma.MediaType{"application/json": {Schema: schema}}}
-		}
-		return result
-	}
-	security := []map[string][]string{{"session": {}}}
-	middleware := huma.Middlewares{access.RequireHuma}
-	huma.Register(api, huma.Operation{
-		OperationID: "listKeys", Method: http.MethodGet, Path: "/api/keys",
-		Summary: "List owned SSH key metadata", Security: security, Middlewares: middleware,
-		Responses: responses(401, 403, 503),
-	}, h.list)
-	huma.Register(api, huma.Operation{
-		OperationID: "uploadKey", Method: http.MethodPost, Path: "/api/keys", DefaultStatus: http.StatusCreated,
-		Summary: "Upload an SSH private key", Description: "Streams multipart parts with a 32 KiB total request limit. Duplicate, unknown, and transfer-encoded parts are rejected.",
-		Security: security, Middlewares: middleware, Responses: responses(400, 401, 403, 413, 415, 503),
-	}, h.upload)
-	// Attach the multipart schema after handler registration. Huma treats an
-	// object request schema as a request to buffer/decode even without a Body
-	// field; this operation must leave every read to readUpload.
-	api.OpenAPI().Paths["/api/keys"].Post.RequestBody = &huma.RequestBody{
-		Required: true, Content: map[string]*huma.MediaType{
-			"multipart/form-data": {Schema: api.OpenAPI().Components.Schemas.Schema(reflect.TypeFor[UploadForm](), true, "")},
-		},
-	}
-
-	huma.Register(api, huma.Operation{
-		OperationID: "deleteKey", Method: http.MethodDelete, Path: "/api/keys/{id}", DefaultStatus: http.StatusNoContent,
-		Summary: "Delete an owned SSH key", Security: security, Middlewares: middleware,
-		// The handler maps malformed IDs to the same 404 as missing or unowned keys.
-		Responses: responses(401, 403, 404, 409, 503),
-	}, h.delete)
 }

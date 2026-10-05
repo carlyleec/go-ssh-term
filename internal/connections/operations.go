@@ -1,13 +1,8 @@
 package connections
 
 import (
-	"mime"
-	"net/http"
-	"reflect"
-	"strconv"
 	"time"
 
-	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/danielgtaylor/huma/v2"
 )
 
@@ -71,44 +66,4 @@ func init() {
 		}
 		return previous(ctx, status, message, details...)
 	}
-}
-
-func (h *handler) Register(api huma.API, access *auth.Access) {
-	responses := func(statuses ...int) map[string]*huma.Response {
-		schema := api.OpenAPI().Components.Schemas.Schema(reflect.TypeFor[ConnectionErrorBody](), true, "")
-		result := map[string]*huma.Response{}
-		for _, status := range statuses {
-			result[strconv.Itoa(status)] = &huma.Response{Description: http.StatusText(status), Content: map[string]*huma.MediaType{"application/json": {Schema: schema}}}
-		}
-		return result
-	}
-	operation := func(id, method, path, summary string, status int) huma.Operation {
-		return huma.Operation{OperationID: id, Method: method, Path: path, Summary: summary, DefaultStatus: status,
-			Security: []map[string][]string{{"session": {}}}, Middlewares: huma.Middlewares{access.RequireHuma},
-			Metadata: map[string]any{"connectionErrors": true}, Responses: responses(400, 401, 403, 404, 409, 413, 415, 503), MaxBodyBytes: 4096}
-	}
-	jsonOnly := func(ctx huma.Context, next func(huma.Context)) {
-		media, _, err := mime.ParseMediaType(ctx.Header("Content-Type"))
-		if err != nil || media != "application/json" {
-			_ = huma.WriteErr(api, ctx, 415, "invalid connection request")
-			return
-		}
-		next(ctx)
-	}
-	create := operation("createConnection", "POST", "/api/connections", "Create an owned saved connection", 201)
-	create.Middlewares = append(create.Middlewares, jsonOnly)
-	update := operation("updateConnection", "PUT", "/api/connections/{id}", "Replace an owned saved connection configuration", 200)
-	update.Middlewares = append(update.Middlewares, jsonOnly)
-	preview := operation("previewConnectionImport", "POST", "/api/connections/import/preview", "Preview a bounded SSH config without saving", 200)
-	preview.MaxBodyBytes = 512 * 1024
-	preview.Middlewares = append(preview.Middlewares, jsonOnly)
-	huma.Register(api, preview, h.previewImport)
-	confirm := operation("confirmConnectionImport", "POST", "/api/connections/import/confirm", "Revalidate and atomically save selected SSH config entries", 201)
-	confirm.MaxBodyBytes = 512 * 1024
-	confirm.Middlewares = append(confirm.Middlewares, jsonOnly)
-	huma.Register(api, confirm, h.confirmImport)
-	huma.Register(api, create, h.create)
-	huma.Register(api, operation("listConnections", "GET", "/api/connections", "List owned saved connections", 200), h.list)
-	huma.Register(api, update, h.update)
-	huma.Register(api, operation("deleteConnection", "DELETE", "/api/connections/{id}", "Delete an owned saved connection", 204), h.delete)
 }

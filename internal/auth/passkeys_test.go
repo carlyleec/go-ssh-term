@@ -13,14 +13,14 @@ import (
 	"github.com/go-webauthn/webauthn/protocol"
 )
 
-func (h *registration) routes(origin string) http.Handler {
+func (h *Registration) routes(origin string) http.Handler {
 	mux := api.NewRouter()
-	h.Register(api.New(mux), origin)
+	registerRegistration(api.New(mux), h, origin)
 	return mux
 }
-func (h *login) routes(origin string) http.Handler {
+func (h *Login) routes(origin string) http.Handler {
 	mux := api.NewRouter()
-	h.Register(api.New(mux), origin)
+	registerLogin(api.New(mux), h, origin)
 	return mux
 }
 
@@ -29,8 +29,8 @@ func TestPasskeyTrafficMatchesContract(t *testing.T) {
 	login, _, user, key := loginFixture(t)
 	mux := api.NewRouter()
 	contract := api.New(mux)
-	reg.Register(contract, testOrigin)
-	login.Register(contract, testOrigin)
+	registerRegistration(contract, reg, testOrigin)
+	registerLogin(contract, login, testOrigin)
 	check := func(path string, body []byte, request bool, status int) {
 		t.Helper()
 		operation := contract.OpenAPI().Paths[path].Post

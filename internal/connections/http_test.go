@@ -39,9 +39,9 @@ func setup(t *testing.T) fixture {
 	mux := api.NewRouter()
 	contract := api.New(mux)
 	access := auth.NewAccess(sessions, db, "localhost", origin)
-	NewHandler(db).Register(contract, access)
+	registerConnections(contract, NewHandler(db), access)
 	NewDialer(db, nil).RegisterTerminal(mux, access, origin)
-	sshkeys.NewHandler(db, nil).Register(contract, access)
+	registerKeys(contract, sshkeys.NewHandler(db, nil), access)
 	f := fixture{db: db, handler: mux, sessions: sessions}
 	for i := range f.owners {
 		f.owners[i], f.keys[i] = uuid.NewString(), uuid.NewString()

@@ -9,6 +9,7 @@ import (
 	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/connections"
+	"github.com/carlyleec/go-ssh-term/internal/routing"
 	"github.com/carlyleec/go-ssh-term/internal/sshkeys"
 )
 
@@ -20,14 +21,14 @@ func main() {
 
 func export(w io.Writer) error {
 	contract := api.New(api.NewRouter())
-	var access auth.Access
-	sshkeys.NewHandler(nil, nil).Register(contract, &access)
-	connections.NewHandler(nil).Register(contract, &access)
-	connections.NewDialer(nil, nil).Register(contract, &access)
-	access.RegisterCurrentUser(contract)
-	access.RegisterLogout(contract)
-	auth.NewRegistration(nil, nil, nil).Register(contract, "")
-	auth.NewLogin(nil, nil, nil).Register(contract, "")
+	routing.Register(contract, routing.Handlers{
+		Access:       &auth.Access{},
+		Registration: auth.NewRegistration(nil, nil, nil),
+		Login:        auth.NewLogin(nil, nil, nil),
+		Keys:         sshkeys.NewHandler(nil, nil),
+		Connections:  connections.NewHandler(nil),
+		Dialer:       connections.NewDialer(nil, nil),
+	}, "")
 	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(contract.OpenAPI())

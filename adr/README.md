@@ -16,10 +16,10 @@ Number records independently within each area. Each record states its context, d
 - [008 Use SQLite for local persistent storage](api/008-sqlite-storage.md)
 - [009 Separate pool cancellation from SQLite lock waits](api/009-sqlite-lock-wait-deadlines.md)
 - [010 Expose owner-scoped SSH key management with bounded multipart uploads](api/010-ssh-key-management-api.md)
-- [011 Use Huma typed handlers and generate frontend API contracts](api/011-huma-and-generated-contracts.md)
+- [011 Use Huma typed handlers and generate frontend API contracts](api/011-huma-and-generated-contracts.md) (ServeMux/humago choice superseded by 023)
 - [012 Store connection configurations, endpoint trust, and audit snapshots separately](api/012-connection-storage.md)
 - [013 Expose owner-scoped saved connection operations](api/013-saved-connection-api.md)
-- [014 Bound and authenticate the terminal WebSocket transport](api/014-terminal-websocket-protocol.md)
+- [014 Bound and authenticate the terminal WebSocket transport](api/014-terminal-websocket-protocol.md) (ServeMux registration choice superseded by 023)
 - [015 Attach one direct SSH shell to each terminal socket](api/015-direct-terminal-shell.md)
 - [016 Bind live terminal handles to verified login sessions](api/016-login-owned-terminal-registry.md)
 - [017 Cancel terminal work on invalidation and bound stalled I/O](api/017-terminal-lifetime-and-io-bounds.md)
@@ -31,6 +31,8 @@ Number records independently within each area. Each record states its context, d
 - [021 Guide trust decisions and retain audit context for both SSH hops](api/021-hop-trust-and-audit.md)
 
 - [022 Import a strict, reviewed SSH config subset](api/022-ssh-config-import.md)
+
+- [023 Declare explicit grouped routes with Chi and Huma](api/023-explicit-grouped-routing.md)
 
 ## Auth
 

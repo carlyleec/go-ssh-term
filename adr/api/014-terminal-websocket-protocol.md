@@ -1,6 +1,9 @@
 # Bound and authenticate the terminal WebSocket transport
 
 Status: Accepted; extends [WebSocket transport](003-websocket-terminal-transport.md).
+The ServeMux registration choice is superseded by
+[023](023-explicit-grouped-routing.md); the raw WebSocket transport and its
+security and lifecycle requirements remain in force.
 
 ## Context
 

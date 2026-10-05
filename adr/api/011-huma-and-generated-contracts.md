@@ -1,6 +1,8 @@
 # Use Huma typed handlers and generate frontend API contracts
 
-Status: Accepted; implementation is tracked in S3.5.3.
+Status: Accepted; implementation is tracked in S3.5.3. The ServeMux/humago
+choice is superseded by [023](023-explicit-grouped-routing.md); the typed-handler
+and generated-contract decisions remain in force.
 
 ## Context
 

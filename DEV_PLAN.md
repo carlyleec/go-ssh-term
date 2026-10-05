@@ -237,6 +237,20 @@ Tasks use `S3.5.N`, independently of the existing `S3.5` key-endpoint task. The 
 - [x] **S6.8** Verify cancellation writes nothing and a confirmed import can launch terminals on all three hosts. Add the import walkthrough to the README.
   - README and empty-workspace walkthrough use demo/ssh_config. Opt-in Docker test imports it into disposable storage and reads each real OpenSSH host's identifying file over application terminal WebSockets; abandoned previews write nothing. Rendered UI tests verify cancellation and explicit confirmation. Native browser walkthrough remains for user review; no user application data was changed.
 
+## Slice 6.5 Routing refactor
+
+**Deliverable:** An explicit route map that makes HTTP methods, paths, handler actions, and access rules readable together. Keep Huma typed handlers and generated contracts while using Chi through `humachi` for routing. Preserve existing application behavior.
+
+**Prerequisites:** Slice 6 is complete. Runtime routing currently uses Huma/humago over separate API and frontend ServeMux instances; feature-owned registration methods are called separately by `cmd/server` and `cmd/openapi`. Terminal WebSockets bypass Huma's typed HTTP pipeline. Use `S6.5.N` IDs for this slice; the existing SSH-import task `S6.5` remains unchanged.
+
+**Related ADRs:** [Vertical slices](adr/api/001-vertical-slices.md), [Huma and generated contracts](adr/api/011-huma-and-generated-contracts.md), [Terminal WebSocket transport](adr/api/014-terminal-websocket-protocol.md).
+
+- [ ] **S6.5.1** Record the Chi/humachi routing decision in a new API ADR and update the ADR index and affected records, explicitly superseding only the ServeMux-specific portions. Define one shared HTTP route map for runtime and OpenAPI export, keeping handler logic and persistence in their existing vertical slices. Confirm the pinned Huma version supports the chosen grouping and operation helpers.
+- [ ] **S6.5.2** Replace humago/ServeMux wiring with Chi/humachi. Preserve `/api` and `/api/...` dispatch, readiness, frontend assets and SPA fallback, unknown-route and unsupported-method responses, and terminal WebSocket upgrades. Keep terminal transport outside Huma response serialization and retain listener ownership and coordinated shutdown.
+- [ ] **S6.5.3** Replace feature-owned `Register` wrappers with explicit `huma.Get`, `huma.Post`, `huma.Put`, and `huma.Delete` declarations in the shared route map, using groups for prefixes and shared middleware. Expose handlers with consistent receiver/action names, such as `accounts.GetCurrent`, `sessions.Logout`, `registration.Begin`, and `login.Finish`; avoid generic `handlers` receivers and noun-only method names. Choose receivers around actual responsibilities without adding a type per endpoint solely for naming. Preserve stable operation IDs, schemas, headers, statuses, error envelopes, body limits, and custom streaming/schema configuration through explicit operation options where needed.
+- [ ] **S6.5.4** Make group and endpoint access rules visible alongside the routes. Preserve current-user authentication, anonymous/expired-session logout, synchronous terminal invalidation, unauthenticated passkey ceremonies, exact-origin checks, ownership enforcement, and challenge consumption before body parsing. Share the same HTTP declarations with service-free OpenAPI export; exporting must not initialize runtime dependencies or execute handlers.
+- [ ] **S6.5.5** Verify route and middleware parity with focused regressions and the Go race suite, including API/SPA boundaries, method handling, auth/session failures, bounded multipart uploads, and terminal upgrade/shutdown behavior. Check deterministic OpenAPI export and generated TypeScript/Zod freshness without accidental contract changes, then run frontend checks and a browser smoke test for login/logout, saved connections/import, and terminal startup. Check off the slice only after relevant verification is complete.
+
 ## Slice 7 Multiple terminals and connection lifecycle
 
 **Deliverable:** Concurrent terminal tabs and predictable replacement of shells after browser interruption.

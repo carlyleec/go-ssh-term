@@ -1,13 +1,17 @@
 package routing
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/alexedwards/scs/v2"
 	"github.com/carlyleec/go-ssh-term/internal/api"
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/carlyleec/go-ssh-term/internal/config"
@@ -19,7 +23,23 @@ import (
 
 const browserOrigin = "http://localhost:5173"
 
+type routingFixture struct {
+	handler    http.Handler
+	db         *sql.DB
+	sessions   *scs.SessionManager
+	access     *auth.Access
+	encryption *sshkeys.Encryption
+	owner      string
+	cookie     *http.Cookie
+}
+
 func routeFixture(t *testing.T) (http.Handler, *http.Cookie) {
+	t.Helper()
+	f := newRoutingFixture(t)
+	return f.handler, f.cookie
+}
+
+func newRoutingFixture(t *testing.T) routingFixture {
 	t.Helper()
 	db, _ := testdb.New(t)
 	cfg := config.Config{RPID: "localhost", BrowserOrigin: browserOrigin, SessionLifetime: time.Hour, ChallengeLifetime: time.Minute}
@@ -29,11 +49,21 @@ func routeFixture(t *testing.T) (http.Handler, *http.Cookie) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	directory := t.TempDir()
+	if err := os.Chmod(directory, 0700); err != nil {
+		t.Fatal(err)
+	}
+	encryption, err := sshkeys.OpenEncryption(t.Context(), db, filepath.Join(directory, "key"))
+	if err != nil {
+		t.Fatal(err)
+	}
 	access := auth.NewAccess(sessions, db, cfg.RPID, browserOrigin)
+	dialer := connections.NewDialer(db, encryption)
+	access.OnLogout = dialer.InvalidateSession
 	mux := api.NewRouter()
 	Register(api.New(mux), Handlers{
 		Access: access, Registration: auth.NewRegistration(wa, sessions, db), Login: auth.NewLogin(wa, sessions, db),
-		Keys: sshkeys.NewHandler(db, nil), Connections: connections.NewHandler(db), Dialer: connections.NewDialer(db, nil),
+		Keys: sshkeys.NewHandler(db, encryption), Connections: connections.NewHandler(db), Dialer: dialer,
 	}, browserOrigin)
 	id := uuid.NewString()
 	if _, err := db.Exec("INSERT INTO accounts VALUES (?, 'Owner', 'localhost', X'01', 1)", id); err != nil {
@@ -48,7 +78,7 @@ func routeFixture(t *testing.T) (http.Handler, *http.Cookie) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return mux, &http.Cookie{Name: sessions.Cookie.Name, Value: token}
+	return routingFixture{handler: mux, db: db, sessions: sessions, access: access, encryption: encryption, owner: id, cookie: &http.Cookie{Name: sessions.Cookie.Name, Value: token}}
 }
 
 type unreadBody struct{ reads int }

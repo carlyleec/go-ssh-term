@@ -45,10 +45,10 @@ Do not replay an entire authentication ceremony automatically after a lock failu
 WAL permits reader/writer overlap across connections, not concurrent writers.
 
 Start with a fresh SQLite database and re-register accounts. No Postgres data or
-session import is included. Preserve the old Postgres volume. Retain its applied
-migration files unchanged in an inactive legacy directory; create a separate SQLite
-migration lineage and configure embedding, sqlc, and dbmate to use only that lineage.
-Later migrations remain immutable once applied.
+session import is included. Preserve the old Postgres volume. The retired Postgres
+migration files are retained in Git history rather than the working tree. Use the
+separate SQLite migration lineage for embedding, sqlc, and dbmate.
+Applied SQLite migrations remain immutable.
 
 Keep migration-first startup: dbmate creates/migrates the file explicitly while
 the app is stopped. The app opens an existing file and rejects missing, pending,

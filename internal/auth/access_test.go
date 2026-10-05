@@ -184,7 +184,7 @@ func TestCurrentUserPersistedAccount(t *testing.T) {
 }
 
 func currentUserHandler(access *Access) http.Handler {
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	access.RegisterCurrentUser(api.New(mux))
 	return mux
 }
@@ -237,7 +237,7 @@ func TestCurrentUserTypedResponseAndSessionDeadline(t *testing.T) {
 }
 
 func TestCurrentUserContractMatchesRegistration(t *testing.T) {
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	contract := api.New(mux)
 	var access Access
 	access.RegisterCurrentUser(contract)

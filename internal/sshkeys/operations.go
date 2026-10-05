@@ -7,7 +7,7 @@ import (
 
 	"github.com/carlyleec/go-ssh-term/internal/auth"
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 )
 
 type KeyBody struct {
@@ -43,7 +43,7 @@ type UploadInput struct {
 }
 
 func (input *UploadInput) Resolve(ctx huma.Context) []error {
-	r, w := humago.Unwrap(ctx)
+	r, w := humachi.Unwrap(ctx)
 	input.request, input.writer = r.WithContext(ctx.Context()), w
 	return nil
 }

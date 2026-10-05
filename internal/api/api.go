@@ -2,13 +2,12 @@
 package api
 
 import (
-	"net/http"
-
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
+	"github.com/go-chi/chi/v5"
 )
 
-func New(mux *http.ServeMux) huma.API {
+func New(mux chi.Router) huma.API {
 	cfg := huma.DefaultConfig("Browser SSH Gateway", "1.0.0")
 	// Preserve response envelopes without adding $schema fields or schema links.
 	cfg.CreateHooks = nil
@@ -19,5 +18,5 @@ func New(mux *http.ServeMux) huma.API {
 	cfg.Components.SecuritySchemes = map[string]*huma.SecurityScheme{
 		"session": {Type: "apiKey", In: "cookie", Name: "ssh_term_session"},
 	}
-	return humago.New(mux, cfg)
+	return humachi.New(mux, cfg)
 }

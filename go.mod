@@ -8,6 +8,7 @@ require (
 	github.com/alexedwards/scs/v2 v2.9.0
 	github.com/danielgtaylor/huma/v2 v2.39.1
 	github.com/fxamacker/cbor/v2 v2.9.4
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-webauthn/webauthn v0.18.2
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3

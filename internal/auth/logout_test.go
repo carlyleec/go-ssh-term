@@ -199,7 +199,7 @@ func TestLogoutPersistedSession(t *testing.T) {
 }
 
 func logoutHandler(access *Access) http.Handler {
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	access.RegisterLogout(api.New(mux))
 	return mux
 }
@@ -262,7 +262,7 @@ func TestLogoutCookieMatchesSessionConfiguration(t *testing.T) {
 }
 
 func TestLogoutContract(t *testing.T) {
-	contract := api.New(http.NewServeMux())
+	contract := api.New(api.NewRouter())
 	var access Access
 	access.RegisterLogout(contract)
 	operation := contract.OpenAPI().Paths["/api/auth/logout"].Post

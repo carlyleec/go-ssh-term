@@ -48,9 +48,8 @@ func run() error {
 	}
 	sessions, stopCleanup := auth.NewSessions(cfg, pool)
 	defer stopCleanup()
-	mux := http.NewServeMux()
 	access := auth.NewAccess(sessions, pool, cfg.RPID, cfg.BrowserOrigin)
-	apiMux := http.NewServeMux()
+	apiMux := api.NewRouter()
 	contract := api.New(apiMux)
 	sshkeys.NewHandler(pool, encryption).Register(contract, access)
 	connections.NewHandler(pool).Register(contract, access)
@@ -62,9 +61,8 @@ func run() error {
 	access.RegisterLogout(contract)
 	auth.NewRegistration(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)
 	auth.NewLogin(wa, sessions, pool).Register(contract, cfg.BrowserOrigin)
-	apiMux.Handle("GET /api/readyz", readiness(func(ctx context.Context) error { return database.Check(ctx, pool) }, os.DirFS("frontend/dist")))
-	mux.Handle("/api/", apiMux)
-	mux.Handle("/", web.Handler(os.DirFS("frontend/dist")))
+	apiMux.Method("GET", "/api/readyz", readiness(func(ctx context.Context) error { return database.Check(ctx, pool) }, os.DirFS("frontend/dist")))
+	mux := api.WithFrontend(apiMux, web.Handler(os.DirFS("frontend/dist")))
 	server := &http.Server{Addr: cfg.HTTPAddr, Handler: mux}
 	listener, err := net.Listen("tcp", cfg.HTTPAddr)
 	if err != nil {

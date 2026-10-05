@@ -36,7 +36,7 @@ func setup(t *testing.T) fixture {
 	db, _ := testdb.New(t)
 	sessions, stop := auth.NewSessions(config.Config{SessionLifetime: time.Hour}, db)
 	t.Cleanup(stop)
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	contract := api.New(mux)
 	access := auth.NewAccess(sessions, db, "localhost", origin)
 	NewHandler(db).Register(contract, access)

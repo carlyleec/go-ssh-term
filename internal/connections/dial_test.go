@@ -9,7 +9,6 @@ import (
 	"errors"
 	"mime/multipart"
 	"net"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -153,7 +152,7 @@ func dialFixture(t *testing.T) (fixture, *Dialer, ssh.Signer) {
 		t.Fatal(err)
 	}
 	_ = writer.Close()
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	contract := api.New(mux)
 	access := auth.NewAccess(f.sessions, f.db, "localhost", origin)
 	sshkeys.NewHandler(f.db, encryption).Register(contract, access)

@@ -3,15 +3,17 @@ package connections
 import (
 	"encoding/json"
 	"net/http"
+	"net/url"
 	"slices"
 
 	"github.com/carlyleec/go-ssh-term/internal/auth"
+	"github.com/go-chi/chi/v5"
 	"github.com/gorilla/websocket"
 )
 
 // RegisterTerminal uses net/http directly: a successful upgrade transfers the
 // connection to the WebSocket transport instead of a Huma response serializer.
-func (d *Dialer) RegisterTerminal(mux *http.ServeMux, access *auth.Access, origin string) {
+func (d *Dialer) RegisterTerminal(mux chi.Router, access *auth.Access, origin string) {
 	upgrader := websocket.Upgrader{
 		Subprotocols:     []string{terminalProtocol},
 		HandshakeTimeout: terminalWriteTimeout,
@@ -27,7 +29,12 @@ func (d *Dialer) RegisterTerminal(mux *http.ServeMux, access *auth.Access, origi
 			terminalHTTPError(w, 401, "sign in to continue")
 			return
 		}
-		_, err := d.owned(r.Context(), account.ID, r.PathValue("id"))
+		id, err := url.PathUnescape(chi.URLParam(r, "id"))
+		if err != nil {
+			terminalHTTPError(w, 404, "connection not found")
+			return
+		}
+		_, err = d.owned(r.Context(), account.ID, id)
 		if err != nil {
 			safe := err.(*ConnectionErrorBody)
 			terminalHTTPError(w, safe.status, safe.Message)
@@ -42,10 +49,10 @@ func (d *Dialer) RegisterTerminal(mux *http.ServeMux, access *auth.Access, origi
 			return
 		}
 		socket := newTerminalSocket(conn)
-		d.runTerminal(r.Context(), socket, terminalOwner{accountID: account.ID, session: login}, r.PathValue("id"))
+		d.runTerminal(r.Context(), socket, terminalOwner{accountID: account.ID, session: login}, id)
 	})
 	// Guard every request, including malformed handshakes without Upgrade headers.
-	mux.Handle("GET /api/connections/{id}/terminal", auth.RequireOrigin(origin, access.Require(endpoint)))
+	mux.Method("GET", "/api/connections/{id}/terminal", auth.RequireOrigin(origin, access.Require(endpoint)))
 }
 
 func terminalHTTPError(w http.ResponseWriter, status int, message string) {

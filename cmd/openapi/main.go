@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"log"
-	"net/http"
 	"os"
 
 	"github.com/carlyleec/go-ssh-term/internal/api"
@@ -20,7 +19,7 @@ func main() {
 }
 
 func export(w io.Writer) error {
-	contract := api.New(http.NewServeMux())
+	contract := api.New(api.NewRouter())
 	var access auth.Access
 	sshkeys.NewHandler(nil, nil).Register(contract, &access)
 	connections.NewHandler(nil).Register(contract, &access)

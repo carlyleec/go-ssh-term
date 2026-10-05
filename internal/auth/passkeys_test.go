@@ -14,12 +14,12 @@ import (
 )
 
 func (h *registration) routes(origin string) http.Handler {
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	h.Register(api.New(mux), origin)
 	return mux
 }
 func (h *login) routes(origin string) http.Handler {
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	h.Register(api.New(mux), origin)
 	return mux
 }
@@ -27,7 +27,7 @@ func (h *login) routes(origin string) http.Handler {
 func TestPasskeyTrafficMatchesContract(t *testing.T) {
 	reg, _ := registrationFixture(t)
 	login, _, user, key := loginFixture(t)
-	mux := http.NewServeMux()
+	mux := api.NewRouter()
 	contract := api.New(mux)
 	reg.Register(contract, testOrigin)
 	login.Register(contract, testOrigin)

@@ -5,7 +5,7 @@ import (
 	"reflect"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 	"github.com/go-webauthn/webauthn/protocol"
 )
 
@@ -19,7 +19,7 @@ type SessionRequest struct {
 }
 
 func (s *SessionRequest) Resolve(ctx huma.Context) []error {
-	r, w := humago.Unwrap(ctx)
+	r, w := humachi.Unwrap(ctx)
 	s.request, s.writer = r.WithContext(ctx.Context()), w
 	return nil
 }

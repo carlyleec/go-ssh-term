@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/danielgtaylor/huma/v2"
-	"github.com/danielgtaylor/huma/v2/adapters/humago"
+	"github.com/danielgtaylor/huma/v2/adapters/humachi"
 )
 
 // AuthErrorBody preserves the error envelope used by the browser client.
@@ -33,7 +33,7 @@ func authResponses(api huma.API, statuses ...int) map[string]*huma.Response {
 // Defer wrapping until a request arrives so contract export needs no services.
 func humaMiddleware(wrap func(http.Handler) http.Handler) func(huma.Context, func(huma.Context)) {
 	return func(ctx huma.Context, next func(huma.Context)) {
-		r, w := humago.Unwrap(ctx)
+		r, w := humachi.Unwrap(ctx)
 		wrap(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
 			// Session middleware supplies a new request context.
 			next(huma.WithContext(ctx, r.Context()))
